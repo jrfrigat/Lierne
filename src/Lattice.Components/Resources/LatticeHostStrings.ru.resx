@@ -21,6 +21,8 @@
   <data name="pin" xml:space="preserve"><value>Закрепить</value></data>
   <data name="unpin" xml:space="preserve"><value>Открепить</value></data>
   <data name="close" xml:space="preserve"><value>Закрыть</value></data>
+  <data name="closeAll" xml:space="preserve"><value>Закрыть все</value></data>
+  <data name="closeOthers" xml:space="preserve"><value>Закрыть остальные</value></data>
   <data name="general" xml:space="preserve"><value>Основное</value></data>
   <data name="commands" xml:space="preserve"><value>Команды</value></data>
   <data name="themes" xml:space="preserve"><value>Темы</value></data>

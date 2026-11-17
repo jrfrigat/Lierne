@@ -78,6 +78,26 @@ public partial class LatticeShell : IDisposable
 
     private void OnTabCloseRequested(string key) => Documents.Close(key);
 
+    private void CloseTab(string key) => Documents.Close(key);
+
+    private void CloseAllTabs()
+    {
+        foreach (var document in MainDocuments.ToArray())
+        {
+            Documents.Close(document.Id);
+        }
+    }
+
+    private void CloseOtherTabs(string key)
+    {
+        foreach (var document in MainDocuments
+                     .Where(document => !string.Equals(document.Id, key, StringComparison.Ordinal))
+                     .ToArray())
+        {
+            Documents.Close(document.Id);
+        }
+    }
+
     private IReadOnlyList<RibbonGroupDescriptor> RibbonGroups =>
         Catalog.RibbonGroups
             .OrderBy(group => group.Order)

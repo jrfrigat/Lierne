@@ -21,6 +21,8 @@
   <data name="pin" xml:space="preserve"><value>Pin</value></data>
   <data name="unpin" xml:space="preserve"><value>Unpin</value></data>
   <data name="close" xml:space="preserve"><value>Close</value></data>
+  <data name="closeAll" xml:space="preserve"><value>Close All</value></data>
+  <data name="closeOthers" xml:space="preserve"><value>Close Others</value></data>
   <data name="general" xml:space="preserve"><value>General</value></data>
   <data name="commands" xml:space="preserve"><value>Commands</value></data>
   <data name="themes" xml:space="preserve"><value>Themes</value></data>

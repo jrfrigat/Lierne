@@ -44,14 +44,21 @@
                                ActiveKey="@ActiveCenterKey"
                                ActiveKeyChanged="OnTabActivated"
                                OnCloseRequested="OnTabCloseRequested">
-                @foreach (var document in MainDocuments)
-                {
-                    <FlareDocumentTab @key="document.Id"
-                                      Key="@document.Id"
-                                      Title="@Localizer.Get(document.Title)"
-                                      Icon="@DocumentIcon(document)"
-                                      Closeable="true" />
-                }
+                <ContextMenuContent Context="key">
+                    <FlareMenuItem OnClick="() => CloseTab(key)">@Localizer.Get(LatticeHostPlugin.Key("close"))</FlareMenuItem>
+                    <FlareMenuItem OnClick="CloseAllTabs">@Localizer.Get(LatticeHostPlugin.Key("closeAll"))</FlareMenuItem>
+                    <FlareMenuItem OnClick="() => CloseOtherTabs(key)">@Localizer.Get(LatticeHostPlugin.Key("closeOthers"))</FlareMenuItem>
+                </ContextMenuContent>
+                <ChildContent>
+                    @foreach (var document in MainDocuments)
+                    {
+                        <FlareDocumentTab @key="document.Id"
+                                          Key="@document.Id"
+                                          Title="@Localizer.Get(document.Title)"
+                                          Icon="@DocumentIcon(document)"
+                                          Closeable="true" />
+                    }
+                </ChildContent>
             </FlareDocumentTabs>
         </div>
     </CenterDockHeader>
