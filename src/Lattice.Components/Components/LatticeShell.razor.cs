@@ -55,6 +55,29 @@ public partial class LatticeShell : IDisposable
     private IReadOnlyDictionary<IdeDocumentRegion, string?> ActiveDocuments =>
         new Dictionary<IdeDocumentRegion, string?>(_selection);
 
+    private IReadOnlyList<LatticeDocumentInstance> MainDocuments =>
+        Documents.Documents
+            .Where(document => document.Location == LatticeDockLocation.Main)
+            .ToArray();
+
+    private string? ActiveCenterKey =>
+        Documents.Active is { Location: LatticeDockLocation.Main } active ? active.Id : null;
+
+    private FlareIcon? DocumentIcon(LatticeDocumentInstance document) =>
+        Icons.Resolve(Catalog.Documents
+            .FirstOrDefault(descriptor => descriptor.Id == document.TypeId)?
+            .IconKey);
+
+    private void OnTabActivated(string key)
+    {
+        if (!string.IsNullOrEmpty(key))
+        {
+            Documents.Activate(key);
+        }
+    }
+
+    private void OnTabCloseRequested(string key) => Documents.Close(key);
+
     private IReadOnlyList<RibbonGroupDescriptor> RibbonGroups =>
         Catalog.RibbonGroups
             .OrderBy(group => group.Order)

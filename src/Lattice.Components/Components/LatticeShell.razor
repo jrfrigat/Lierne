@@ -37,6 +37,25 @@
                 OnActiveDocumentChanged="OnActiveDocumentChanged"
                 OnDocumentCloseRequested="OnDocumentCloseRequested"
                 OnDocumentMove="OnDocumentMove">
+    <CenterDockHeader>
+        <div class="q-main-tabs">
+            <FlareDocumentTabs StripOnly="true"
+                               ControlledSelection="true"
+                               ActiveKey="@ActiveCenterKey"
+                               ActiveKeyChanged="OnTabActivated"
+                               OnCloseRequested="OnTabCloseRequested">
+                @foreach (var document in MainDocuments)
+                {
+                    <FlareDocumentTab @key="document.Id"
+                                      Key="@document.Id"
+                                      Title="@Localizer.Get(document.Title)"
+                                      Icon="@DocumentIcon(document)"
+                                      Closeable="true" />
+                }
+            </FlareDocumentTabs>
+        </div>
+    </CenterDockHeader>
+
     <DocumentContent Context="document">@RenderDocument(document)</DocumentContent>
 </FlareIdeLayout>
 
