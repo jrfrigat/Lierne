@@ -1,4 +1,5 @@
 using Flare.Components.IDE;
+using Flare.Icons;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 
@@ -15,8 +16,10 @@ public partial class LatticeShell : IDisposable
     };
 
     private string? _lastActiveId;
+    private bool _leftPinned = true;
+    private bool _rightPinned = true;
 
-    /// <summary>Gets or sets the title of the ribbon tab.</summary>
+    /// <summary>Gets or sets the title of the ribbon tab used when no toolbar is contributed.</summary>
     [Parameter]
     public string RibbonTitle { get; set; } = "Home";
 
@@ -67,10 +70,6 @@ public partial class LatticeShell : IDisposable
     private bool HasRightRegion =>
         Documents.Documents.Any(document => document.Location == LatticeDockLocation.Right) ||
         HasVisibleTool(LatticeToolRegion.Right);
-
-    private RenderFragment LeftTools => ToolWindowsFor(LatticeToolRegion.Left);
-
-    private RenderFragment RightTools => ToolWindowsFor(LatticeToolRegion.Right);
 
     /// <inheritdoc />
     protected override void OnInitialized()
@@ -139,49 +138,13 @@ public partial class LatticeShell : IDisposable
             Services)
     };
 
-    private RenderFragment ToolWindowsFor(LatticeToolRegion region) => builder =>
-    {
-        var descriptors = Catalog.ToolWindows
+    private IReadOnlyList<ToolWindowDescriptor> VisibleToolWindows(LatticeToolRegion region) =>
+        Catalog.ToolWindows
             .Where(descriptor =>
                 descriptor.DefaultRegion == region && ToolWindows.IsVisible(descriptor.Id))
             .OrderBy(descriptor => descriptor.Title.ToString(), StringComparer.Ordinal)
             .ThenBy(descriptor => descriptor.Id.Value, StringComparer.Ordinal)
             .ToArray();
-        if (descriptors.Length == 0)
-        {
-            return;
-        }
-
-        builder.OpenComponent<FlareToolPanelGroup>(0);
-        builder.AddAttribute(
-            1,
-            nameof(FlareToolPanelGroup.Position),
-            region == LatticeToolRegion.Left ? ToolPanelPosition.Left : ToolPanelPosition.Right);
-        builder.AddAttribute(2, nameof(FlareToolPanelGroup.ChildContent), (RenderFragment)(content =>
-        {
-            var sequence = 0;
-            foreach (var descriptor in descriptors)
-            {
-                content.OpenComponent<FlareToolPanel>(sequence++);
-                content.AddAttribute(sequence++, nameof(FlareToolPanel.Key), descriptor.Id.Value);
-                content.AddAttribute(sequence++, nameof(FlareToolPanel.Title), Localizer.Get(descriptor.Title));
-                if (Icons.Resolve(descriptor.IconKey) is { } icon)
-                {
-                    content.AddAttribute(sequence++, nameof(FlareToolPanel.Icon), icon);
-                }
-
-                content.AddAttribute(sequence++, nameof(FlareToolPanel.ChildContent), (RenderFragment)(body =>
-                {
-                    body.OpenComponent<DynamicComponent>(0);
-                    body.AddAttribute(1, nameof(DynamicComponent.Type), descriptor.Component);
-                    body.AddAttribute(2, nameof(DynamicComponent.Parameters), ToolWindowParameters(descriptor.Id));
-                    body.CloseComponent();
-                }));
-                content.CloseComponent();
-            }
-        }));
-        builder.CloseComponent();
-    };
 
     private Dictionary<string, object?> ToolWindowParameters(ToolWindowId id) => new()
     {
@@ -196,6 +159,41 @@ public partial class LatticeShell : IDisposable
     private bool HasVisibleTool(LatticeToolRegion region) =>
         Catalog.ToolWindows.Any(descriptor =>
             descriptor.DefaultRegion == region && ToolWindows.IsVisible(descriptor.Id));
+
+    private bool IsPinned(LatticeToolRegion region) =>
+        region == LatticeToolRegion.Right ? _rightPinned : _leftPinned;
+
+    private FlareIcon PinIcon(LatticeToolRegion region) =>
+        Icons.Resolve(IsPinned(region) ? "pin" : "unpin") ?? FlareIcons.PushPin;
+
+    private IdePanelMode PanelMode(LatticeToolRegion region) =>
+        IsPinned(region) ? IdePanelMode.Docked : IdePanelMode.AutoHide;
+
+    private string HostLabel(string name) => Localizer.Get(new StringKey("lattice", name));
+
+    private void TogglePin(LatticeToolRegion region)
+    {
+        if (region == LatticeToolRegion.Right)
+        {
+            _rightPinned = !_rightPinned;
+        }
+        else
+        {
+            _leftPinned = !_leftPinned;
+        }
+    }
+
+    private void CloseRegion(LatticeToolRegion region)
+    {
+        foreach (var descriptor in Catalog.ToolWindows
+                     .Where(descriptor => descriptor.DefaultRegion == region))
+        {
+            if (ToolWindows.IsVisible(descriptor.Id))
+            {
+                ToolWindows.Hide(descriptor.Id);
+            }
+        }
+    }
 
     private void OnActiveDocumentChanged(IdeDocumentSelection selection)
     {

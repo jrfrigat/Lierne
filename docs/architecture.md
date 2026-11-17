@@ -195,20 +195,26 @@ tool windows показываются/скрываются/переключаю�
 
 `Lattice.Components` собирает `FlareIdeLayout` из каталога:
 
-- `Ribbon` — `FlareRibbon` с одной вкладкой (заголовок параметром, по умолчанию `Home`) и
-  группами/пунктами каталога; пункт вызывает `ILatticeCommandService` и учитывает `CanExecute`;
+- `MenuBar` — меню каталога (`FlareMenuBar`/`FlareMenu`/`FlareSubMenu` и рекурсивный
+  `LatticeMenuEntry`) или фрагмент хоста, если приложению нужна своя полоса;
+- `Toolbars` — компоненты, добавленные через `AddToolbar`; хост рисует их в слоте `MenuBar`
+  после меню и в этом случае не создаёт `FlareRibbon`. Компонент владеет своей полосой
+  (например, рендерит `FlareToolbar`), поэтому приложение может повторить собственную
+  командную панель. Если вкладов нет, хост оставляет прежний `Ribbon` с `FlareRibbon`
+  (заголовок параметром, по умолчанию `Home`) и группами/пунктами каталога;
 - `Documents`/`ActiveDocuments`/`DocumentContent` — документы Lattice как документы Flare;
   встроенная полоса Center-докинга, активный документ, закрытие и перемещение;
 - `LeftToolPanel`/`RightToolPanel` — видимые tool windows через `FlareToolPanelGroup` и
-  `FlareToolPanel`, с заголовком и иконкой из описателя;
-- `MenuBar` — меню каталога (`FlareMenuBar`/`FlareMenu`/`FlareSubMenu` и рекурсивный
-  `LatticeMenuEntry`) или фрагмент хоста, если приложению нужна своя полоса;
+  `FlareToolPanel`, с заголовком и иконкой из описателя; вкладки снизу, без встроенной
+  кнопки сворачивания, с собственными кнопками закрепить/закрыть. Закрепление задаёт
+  `IdePanelMode.Docked`/`AutoHide`, закрытие скрывает видимые tool windows региона;
 - `StatusBar`, `BottomPanel`, `ChildContent` (стартовый контент) — параметры хоста;
 - документ параметров — `LatticeHostPlugin` и `LatticeOptionsDocument` (страницы и
   сгенерированные контролы из схемы); приложение обязано добавить плагин явно.
 
-Контракт компонентов плагина: `LatticeDocumentComponent` и `LatticeToolWindowComponent` с
-параметром `Context` (`LatticeDocumentContext`/`LatticeToolWindowContext`), который отдаёт
+Контракт компонентов плагина: `LatticeDocumentComponent`, `LatticeToolWindowComponent` и
+`LatticeToolbarComponent` с параметром `Context`
+(`LatticeDocumentContext`/`LatticeToolWindowContext`/`LatticeToolbarContext`), который отдаёт
 экземпляр, команды, сервис-владелец, локализатор и scoped `IServiceProvider`.
 
 Иконки описателей — строковые ключи; `ILatticeIconResolver` превращает ключ в `FlareIcon`.

@@ -23,6 +23,7 @@ public sealed class LatticePluginCatalog
         IReadOnlyList<MenuGroupDescriptor> menuGroups,
         IReadOnlyList<MenuItemDescriptor> menuItems,
         IReadOnlyList<LatticeStringCatalog> stringCatalogs,
+        IReadOnlyList<ToolbarDescriptor> toolbars,
         IReadOnlyList<LatticeDiagnostic> diagnostics)
     {
         Plugins = plugins;
@@ -37,6 +38,7 @@ public sealed class LatticePluginCatalog
         MenuGroups = menuGroups;
         MenuItems = menuItems;
         StringCatalogs = stringCatalogs;
+        Toolbars = toolbars;
         Diagnostics = diagnostics;
     }
 
@@ -75,6 +77,9 @@ public sealed class LatticePluginCatalog
 
     /// <summary>Gets the localized string catalogs in plugin order.</summary>
     public IReadOnlyList<LatticeStringCatalog> StringCatalogs { get; }
+
+    /// <summary>Gets the toolbars in plugin order.</summary>
+    public IReadOnlyList<ToolbarDescriptor> Toolbars { get; }
 
     /// <summary>Gets the diagnostics found while composing the plugins.</summary>
     public IReadOnlyList<LatticeDiagnostic> Diagnostics { get; }
@@ -123,6 +128,7 @@ public sealed class LatticePluginCatalog
             builder.OwnedMenuGroups.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedMenuItems.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedStringCatalogs.Select(contribution => contribution.Descriptor).ToArray(),
+            builder.OwnedToolbars.Select(contribution => contribution.Descriptor).ToArray(),
             diagnostics);
     }
 
@@ -232,6 +238,11 @@ public sealed class LatticePluginCatalog
             diagnostics);
         ValidateSettingsPages(builder, diagnostics);
         ValidateStringCatalogs(builder, diagnostics);
+        ValidateDuplicateIds(
+            builder.OwnedToolbars,
+            contribution => contribution.Id.Value,
+            "Toolbar",
+            diagnostics);
         ValidateMenus(builder, diagnostics);
 
         var commands = new HashSet<string>(

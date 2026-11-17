@@ -71,7 +71,18 @@ public sealed class LatticeShellRenderTests
         Assert.Contains("30", html, StringComparison.Ordinal);
     }
 
-    private static ServiceProvider BuildProvider()
+    [Fact]
+    public async Task RendersAContributedToolbarInsteadOfTheRibbon()
+    {
+        await using var provider = BuildProvider(new ToolbarPlugin());
+
+        var html = await RenderAsync(provider);
+
+        Assert.Contains("test-toolbar", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("flare-ribbon", html, StringComparison.Ordinal);
+    }
+
+    private static ServiceProvider BuildProvider(params ILatticePlugin[] extraPlugins)
     {
         var services = new ServiceCollection();
         services.AddLogging();
@@ -79,9 +90,14 @@ public sealed class LatticeShellRenderTests
         services.AddSingleton<Microsoft.JSInterop.IJSRuntime>(new ModuleJsRuntime());
         services.AddFlare();
         services.AddFlareIde();
-        services.AddLattice(options => options
-            .AddPlugin(new TestPlugin())
-            .AddPlugin<LatticeHostPlugin>());
+        services.AddLattice(options =>
+        {
+            options.AddPlugin(new TestPlugin()).AddPlugin<LatticeHostPlugin>();
+            foreach (var plugin in extraPlugins)
+            {
+                options.AddPlugin(plugin);
+            }
+        });
         services.AddLatticeComponents();
         return services.BuildServiceProvider();
     }
@@ -167,5 +183,30 @@ public sealed class LatticeShellRenderTests
             builder.AddContent(2, "Tool body");
             builder.CloseElement();
         }
+    }
+
+    public sealed class TestToolbarComponent : LatticeToolbarComponent
+    {
+        protected override void BuildRenderTree(RenderTreeBuilder builder)
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "test-toolbar");
+            builder.AddContent(2, "Toolbar content");
+            builder.CloseElement();
+        }
+    }
+
+    private sealed class ToolbarPlugin : ILatticePlugin
+    {
+        public PluginId Id => new("app.toolbar");
+
+        public StringKey DisplayName => new("app", "toolbar");
+
+        public IReadOnlyList<PluginId> DependsOn => [];
+
+        public void Configure(ILatticePluginBuilder builder) =>
+            builder.AddToolbar(new ToolbarDescriptor(
+                new ToolbarId("app.toolbar"),
+                typeof(TestToolbarComponent)));
     }
 }

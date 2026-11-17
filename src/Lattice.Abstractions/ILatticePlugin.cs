@@ -65,6 +65,9 @@ public interface ILatticePluginBuilder
     /// <summary>Gets the localized string catalogs declared so far.</summary>
     IReadOnlyList<LatticeStringCatalog> StringCatalogs { get; }
 
+    /// <summary>Gets the toolbars declared so far.</summary>
+    IReadOnlyList<ToolbarDescriptor> Toolbars { get; }
+
     /// <summary>Declares a document type.</summary>
     /// <param name="descriptor">The document descriptor.</param>
     void AddDocument(DocumentDescriptor descriptor);
@@ -114,4 +117,8 @@ public interface ILatticePluginBuilder
     /// <see cref="StringKey"/> through the catalog that serves its namespace.
     /// </remarks>
     void AddStrings(LatticeStringCatalog catalog);
+
+    /// <summary>Declares a toolbar rendered in the host command area.</summary>
+    /// <param name="descriptor">The toolbar descriptor.</param>
+    void AddToolbar(ToolbarDescriptor descriptor);
 }

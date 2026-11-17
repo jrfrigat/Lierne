@@ -17,3 +17,11 @@ public abstract class LatticeToolWindowComponent : ComponentBase
     [Parameter]
     public LatticeToolWindowContext Context { get; set; } = null!;
 }
+
+/// <summary>Base class for a plugin toolbar component rendered by the Lattice shell.</summary>
+public abstract class LatticeToolbarComponent : ComponentBase
+{
+    /// <summary>Gets or sets the toolbar context supplied by the shell.</summary>
+    [Parameter]
+    public LatticeToolbarContext Context { get; set; } = null!;
+}

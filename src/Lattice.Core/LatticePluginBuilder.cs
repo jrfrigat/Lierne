@@ -21,6 +21,7 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
     private readonly List<OwnedContribution<MenuGroupDescriptor>> _menuGroups = [];
     private readonly List<OwnedContribution<MenuItemDescriptor>> _menuItems = [];
     private readonly List<OwnedContribution<LatticeStringCatalog>> _stringCatalogs = [];
+    private readonly List<OwnedContribution<ToolbarDescriptor>> _toolbars = [];
 
     /// <summary>Creates the builder.</summary>
     /// <param name="services">The service collection the plugins register into.</param>
@@ -82,6 +83,10 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
     public IReadOnlyList<LatticeStringCatalog> StringCatalogs =>
         _stringCatalogs.Select(contribution => contribution.Descriptor).ToArray();
 
+    /// <inheritdoc />
+    public IReadOnlyList<ToolbarDescriptor> Toolbars =>
+        _toolbars.Select(contribution => contribution.Descriptor).ToArray();
+
     /// <summary>Gets the documents with their declaring plugin.</summary>
     public IReadOnlyList<OwnedContribution<DocumentDescriptor>> OwnedDocuments => _documents;
 
@@ -112,6 +117,9 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
     /// <summary>Gets the string catalogs with their declaring plugin.</summary>
     public IReadOnlyList<OwnedContribution<LatticeStringCatalog>> OwnedStringCatalogs =>
         _stringCatalogs;
+
+    /// <summary>Gets the toolbars with their declaring plugin.</summary>
+    public IReadOnlyList<OwnedContribution<ToolbarDescriptor>> OwnedToolbars => _toolbars;
 
     /// <summary>Starts collecting contributions for one plugin.</summary>
     /// <param name="plugin">The plugin whose configuration is starting.</param>
@@ -172,6 +180,10 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
             CurrentPlugin,
             catalog));
     }
+
+    /// <inheritdoc />
+    public void AddToolbar(ToolbarDescriptor descriptor) =>
+        Add(_toolbars, descriptor);
 
     private void Add<T>(List<OwnedContribution<T>> contributions, T descriptor)
         where T : class

@@ -87,6 +87,17 @@ public sealed record CommandDescriptor(
     string? DefaultShortcut = null,
     Type? ArgumentType = null);
 
+/// <summary>Describes a toolbar contributed by a plugin.</summary>
+/// <param name="Id">The stable toolbar id.</param>
+/// <param name="Component">
+/// The component that renders the toolbar. It owns its toolbar chrome, for example a Flare toolbar.
+/// </param>
+/// <param name="Order">The order of the toolbar inside the host command area.</param>
+public sealed record ToolbarDescriptor(
+    ToolbarId Id,
+    Type Component,
+    int Order = 0);
+
 /// <summary>Describes a ribbon group contributed by a plugin.</summary>
 /// <param name="Id">The stable group id.</param>
 /// <param name="Title">The localized group title.</param>

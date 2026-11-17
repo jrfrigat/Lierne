@@ -114,6 +114,25 @@ public readonly record struct RibbonItemId
     public override string ToString() => Value;
 }
 
+/// <summary>Identifies a toolbar contributed by a plugin.</summary>
+public readonly record struct ToolbarId
+{
+    /// <summary>Creates a toolbar id.</summary>
+    /// <param name="value">The stable identifier, for example <c>quas.connection.toolbar</c>.</param>
+    /// <exception cref="ArgumentException">The value is null, empty or whitespace.</exception>
+    public ToolbarId(string value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        Value = value;
+    }
+
+    /// <summary>Gets the identifier text.</summary>
+    public string Value { get; }
+
+    /// <inheritdoc />
+    public override string ToString() => Value;
+}
+
 /// <summary>Identifies a settings page contributed by a plugin.</summary>
 public readonly record struct SettingsPageId
 {

@@ -18,4 +18,7 @@
   <data name="tools" xml:space="preserve"><value>Инструменты</value></data>
   <data name="noSettings" xml:space="preserve"><value>Настройки не добавлены.</value></data>
   <data name="lattice.options.failed" xml:space="preserve"><value>Не удалось открыть документ параметров.</value></data>
+  <data name="pin" xml:space="preserve"><value>Закрепить</value></data>
+  <data name="unpin" xml:space="preserve"><value>Открепить</value></data>
+  <data name="close" xml:space="preserve"><value>Закрыть</value></data>
 </root>

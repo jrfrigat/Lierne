@@ -196,6 +196,9 @@ public sealed class LatticePluginCatalogTests
                     builder.AddStrings(new LatticeStringCatalog(
                         "tests",
                         TestStrings.ResourceManager));
+                    builder.AddToolbar(new ToolbarDescriptor(
+                        new ToolbarId("app.toolbar"),
+                        typeof(object)));
                 })
         ]);
 
@@ -211,6 +214,7 @@ public sealed class LatticePluginCatalogTests
         Assert.Single(catalog.MenuGroups);
         Assert.Single(catalog.MenuItems);
         Assert.Single(catalog.StringCatalogs);
+        Assert.Single(catalog.Toolbars);
     }
 
     [Fact]

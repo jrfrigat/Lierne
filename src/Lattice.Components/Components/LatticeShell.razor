@@ -1,6 +1,7 @@
 @namespace Lattice
 @using Flare.Components
 @using Flare.Components.IDE
+@using Flare.Icons
 @implements IDisposable
 @inject LatticePluginCatalog Catalog
 @inject ILatticeDocumentService Documents
@@ -13,19 +14,35 @@
 
 <FlareIdeLayout Documents="@IdeDocuments"
                 ActiveDocuments="@ActiveDocuments"
+                Height="100%"
+                LeftPanelWidth="270px"
+                RightPanelWidth="280px"
+                BottomPanelHeight="150px"
                 DocumentMounting="IdeDocumentMounting.ActiveOnly"
                 LeftRegionVisible="@HasLeftRegion"
                 RightRegionVisible="@HasRightRegion"
                 LeftToolPanel="@LeftTools"
                 RightToolPanel="@RightTools"
+                Ribbon="@RibbonContent"
+                MenuBar="@MenuBarContent"
                 ChildContent="@StartContent"
                 BottomPanel="@BottomPanel"
                 StatusBar="@StatusBar"
                 OnActiveDocumentChanged="OnActiveDocumentChanged"
                 OnDocumentCloseRequested="OnDocumentCloseRequested"
                 OnDocumentMove="OnDocumentMove">
-    <Ribbon>
-        <FlareRibbon>
+    <DocumentContent Context="document">@RenderDocument(document)</DocumentContent>
+</FlareIdeLayout>
+
+@code {
+    private IReadOnlyList<ToolbarDescriptor> Toolbars =>
+        Catalog.Toolbars
+            .OrderBy(toolbar => toolbar.Order)
+            .ThenBy(toolbar => toolbar.Id.Value, StringComparer.Ordinal)
+            .ToArray();
+
+    private RenderFragment? RibbonContent =>
+        Toolbars.Count > 0 ? null : @<FlareRibbon>
             <FlareRibbonTab Title="@RibbonTitle">
                 @foreach (var group in RibbonGroups)
                 {
@@ -43,9 +60,9 @@
                     </FlareRibbonGroup>
                 }
             </FlareRibbonTab>
-        </FlareRibbon>
-    </Ribbon>
-    <MenuBar>
+        </FlareRibbon>;
+
+    private RenderFragment MenuBarContent => @<text>
         @if (MenuBar is not null)
         {
             @MenuBar
@@ -73,6 +90,78 @@
                 }
             </FlareMenuBar>
         }
-    </MenuBar>
-    <DocumentContent Context="document">@RenderDocument(document)</DocumentContent>
-</FlareIdeLayout>
+        @foreach (var toolbar in Toolbars)
+        {
+            <DynamicComponent @key="toolbar.Id.Value"
+                              Type="@toolbar.Component"
+                              Parameters="@(new Dictionary<string, object?>
+                              {
+                                  [nameof(LatticeToolbarComponent.Context)] = ToolbarContext
+                              })" />
+        }
+    </text>;
+
+    private LatticeToolbarContext ToolbarContext => new(Commands, Localizer, Services);
+
+    private RenderFragment LeftTools => @<FlareToolPanelGroup Position="ToolPanelPosition.Left"
+                                                              TabStripPlacement="TabStripPlacement.Bottom"
+                                                              ShowTabStripWhenFloating="false"
+                                                              ShowCollapseButton="false">
+        <ToolbarContent>
+            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Xs"
+                         AriaLabel="@(IsPinned(LatticeToolRegion.Left) ? HostLabel("unpin") : HostLabel("pin"))"
+                         OnClick="() => TogglePin(LatticeToolRegion.Left)">
+                <FlareIconView Size="1rem" Value="@PinIcon(LatticeToolRegion.Left)" />
+            </FlareButton>
+            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Xs"
+                         AriaLabel="@HostLabel("close")"
+                         OnClick="() => CloseRegion(LatticeToolRegion.Left)">
+                <FlareIconView Value="FlareIcons.Close" Size="0.875rem" />
+            </FlareButton>
+        </ToolbarContent>
+        <ChildContent>
+            @foreach (var descriptor in VisibleToolWindows(LatticeToolRegion.Left))
+            {
+                <FlareToolPanel @key="descriptor.Id.Value"
+                                Key="@descriptor.Id.Value"
+                                Title="@Localizer.Get(descriptor.Title)"
+                                Icon="@Icons.Resolve(descriptor.IconKey)"
+                                Mode="@PanelMode(LatticeToolRegion.Left)">
+                    <DynamicComponent Type="@descriptor.Component"
+                                      Parameters="@ToolWindowParameters(descriptor.Id)" />
+                </FlareToolPanel>
+            }
+        </ChildContent>
+    </FlareToolPanelGroup>;
+
+    private RenderFragment RightTools => @<FlareToolPanelGroup Position="ToolPanelPosition.Right"
+                                                               TabStripPlacement="TabStripPlacement.Bottom"
+                                                               ShowTabStripWhenFloating="false"
+                                                               ShowCollapseButton="false">
+        <ToolbarContent>
+            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Xs"
+                         AriaLabel="@(IsPinned(LatticeToolRegion.Right) ? HostLabel("unpin") : HostLabel("pin"))"
+                         OnClick="() => TogglePin(LatticeToolRegion.Right)">
+                <FlareIconView Size="1rem" Value="@PinIcon(LatticeToolRegion.Right)" />
+            </FlareButton>
+            <FlareButton Variant="ButtonVariant.Text" Size="ButtonSize.Xs"
+                         AriaLabel="@HostLabel("close")"
+                         OnClick="() => CloseRegion(LatticeToolRegion.Right)">
+                <FlareIconView Value="FlareIcons.Close" Size="0.875rem" />
+            </FlareButton>
+        </ToolbarContent>
+        <ChildContent>
+            @foreach (var descriptor in VisibleToolWindows(LatticeToolRegion.Right))
+            {
+                <FlareToolPanel @key="descriptor.Id.Value"
+                                Key="@descriptor.Id.Value"
+                                Title="@Localizer.Get(descriptor.Title)"
+                                Icon="@Icons.Resolve(descriptor.IconKey)"
+                                Mode="@PanelMode(LatticeToolRegion.Right)">
+                    <DynamicComponent Type="@descriptor.Component"
+                                      Parameters="@ToolWindowParameters(descriptor.Id)" />
+                </FlareToolPanel>
+            }
+        </ChildContent>
+    </FlareToolPanelGroup>;
+}
