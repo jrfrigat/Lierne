@@ -152,7 +152,7 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
         ArgumentNullException.ThrowIfNull(handler);
         _commands.Add(new OwnedContribution<LatticeCommandRegistration>(
             CurrentPlugin,
-            new LatticeCommandRegistration(descriptor, handler, canExecute)));
+            new LatticeCommandRegistration(descriptor, handler, canExecute, CurrentPlugin)));
     }
 
     /// <inheritdoc />

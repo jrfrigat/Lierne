@@ -65,10 +65,12 @@ public delegate Task<LatticeCommandResult> LatticeCommandHandler(
 /// <param name="Descriptor">The command metadata.</param>
 /// <param name="Handler">The handler that executes the command.</param>
 /// <param name="CanExecute">The optional predicate over the shared state.</param>
+/// <param name="Plugin">The plugin that contributed the command, stamped by the builder.</param>
 public sealed record LatticeCommandRegistration(
     CommandDescriptor Descriptor,
     LatticeCommandHandler Handler,
-    Func<ILatticeContext, bool>? CanExecute = null);
+    Func<ILatticeContext, bool>? CanExecute = null,
+    PluginId? Plugin = null);
 
 /// <summary>Describes one command execution passed to the observers.</summary>
 /// <param name="Command">The executed command.</param>

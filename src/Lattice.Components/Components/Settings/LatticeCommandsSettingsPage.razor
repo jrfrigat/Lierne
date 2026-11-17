@@ -2,20 +2,29 @@
 @using Flare.Components
 @using Flare.Components.IDE
 @implements IDisposable
+@inject LatticePluginCatalog Catalog
 @inject ILatticeShortcutService Shortcuts
 @inject ILatticeLocalizer Localizer
 
 <FlareStack Gap="FlareSpacing.Small">
-    @foreach (var binding in Shortcuts.Bindings
-                  .OrderBy(binding => Localizer.Get(binding.Title), StringComparer.CurrentCulture))
+    @foreach (var group in Groups)
     {
-        <FlareStack Gap="FlareSpacing.XSmall" @key="binding.Command.Value">
-            <FlareText Typo="TypographyScale.BodyMedium">@Localizer.Get(binding.Title)</FlareText>
-            <FlareShortcutEditor Value="@binding.EffectiveShortcut"
-                                 DefaultValue="@binding.DefaultShortcut"
-                                 AssignedShortcuts="@AssignedFor(binding)"
-                                 ValueChanged="value => SetAsync(binding, value)" />
-        </FlareStack>
+        <div class="lattice-commands__group" @key="group.Title.ToString()">
+            <div class="lattice-commands__group-title">@Localizer.Get(group.Title)</div>
+            @foreach (var binding in group.Bindings)
+            {
+                <div class="lattice-commands__row" @key="binding.Command.Value">
+                    <span class="lattice-commands__title">@Localizer.Get(binding.Title)</span>
+                    <div class="lattice-commands__shortcut">
+                        <FlareShortcutEditor Compact="true"
+                                             Value="@binding.EffectiveShortcut"
+                                             DefaultValue="@binding.DefaultShortcut"
+                                             AssignedShortcuts="@AssignedFor(binding)"
+                                             ValueChanged="value => SetAsync(binding, value)" />
+                    </div>
+                </div>
+            }
+        </div>
     }
     @if (_error is { Length: > 0 })
     {
@@ -33,6 +42,8 @@
     private string? _error;
     private string? _conflict;
 
+    private IReadOnlyList<CommandGroup> Groups => BuildGroups();
+
     /// <inheritdoc />
     protected override void OnInitialized()
     {
@@ -42,6 +53,31 @@
 
     /// <inheritdoc />
     public void Dispose() => Shortcuts.Changed -= OnShortcutsChanged;
+
+    private IReadOnlyList<CommandGroup> BuildGroups()
+    {
+        var ownerByCommand = Catalog.CommandRegistrations
+            .Where(registration => registration.Plugin is not null)
+            .ToDictionary(
+                registration => registration.Descriptor.Id,
+                registration => registration.Plugin!.Value);
+        var groups = new List<CommandGroup>();
+        foreach (var plugin in Catalog.Plugins.OrderBy(plugin => plugin.Order))
+        {
+            var bindings = Shortcuts.Bindings
+                .Where(binding =>
+                    ownerByCommand.TryGetValue(binding.Command, out var owner) &&
+                    owner == plugin.Id)
+                .OrderBy(binding => Localizer.Get(binding.Title), StringComparer.CurrentCulture)
+                .ToArray();
+            if (bindings.Length > 0)
+            {
+                groups.Add(new CommandGroup(plugin.DisplayName, bindings));
+            }
+        }
+
+        return groups;
+    }
 
     private IEnumerable<string> AssignedFor(LatticeShortcutBinding binding) =>
         Shortcuts.Bindings
@@ -83,4 +119,8 @@
                 Localizer.Get(LatticeHostPlugin.Key("shortcutConflict")),
                 string.Join(", ", gestures));
     }
+
+    private sealed record CommandGroup(
+        StringKey Title,
+        IReadOnlyList<LatticeShortcutBinding> Bindings);
 }
