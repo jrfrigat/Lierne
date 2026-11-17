@@ -39,6 +39,7 @@ public static class LatticeServiceCollectionExtensions
         services.AddScoped<ISettingsStore, LatticeSettingsStore>();
         services.AddScoped<ILatticeLocalizer, LatticeLocalizer>();
         services.AddScoped<ILatticeShortcutService, LatticeShortcutService>();
+        services.AddScoped<LatticeSettingsTransfer>();
         return services;
     }
 }

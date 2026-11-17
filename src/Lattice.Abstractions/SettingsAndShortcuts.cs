@@ -1,3 +1,5 @@
+using System.Text.Json.Nodes;
+
 namespace Lattice;
 
 /// <summary>Provides typed access to the settings declared by the plugins.</summary>
@@ -66,6 +68,27 @@ public sealed record LatticeShortcutBinding(
 public sealed record LatticeShortcutConflict(
     string Gesture,
     IReadOnlyList<CommandId> Commands);
+
+/// <summary>
+/// One named settings section a plugin takes part in the settings transfer with. The plugin owns the
+/// section shape; Lattice owns the document, the validation and the Import/Export settings page.
+/// </summary>
+/// <param name="Section">
+/// The stable section id, unique among the composed plugins, for example
+/// <c>quas.connection.categories</c>.
+/// </param>
+/// <param name="Title">The localized section title shown on the Import/Export page.</param>
+/// <param name="Export">Builds the section value. Returning <see langword="null"/> omits the section.</param>
+/// <param name="Import">
+/// Applies the section value. The implementation must validate the whole value before it changes any
+/// state, so a rejected section leaves the current settings intact; the host restores the other
+/// sections when an import fails.
+/// </param>
+public sealed record SettingsTransferDescriptor(
+    string Section,
+    StringKey Title,
+    Func<IServiceProvider, JsonNode?> Export,
+    Func<IServiceProvider, JsonNode?, LatticeResult> Import);
 
 /// <summary>Owns the command shortcuts and the user overrides.</summary>
 public interface ILatticeShortcutService

@@ -25,6 +25,7 @@ public sealed class LatticePluginCatalog
         IReadOnlyList<LatticeStringCatalog> stringCatalogs,
         IReadOnlyList<ToolbarDescriptor> toolbars,
         IReadOnlyList<StatusBarItemDescriptor> statusBarItems,
+        IReadOnlyList<SettingsTransferDescriptor> settingsTransfers,
         IReadOnlyList<LatticeDiagnostic> diagnostics)
     {
         Plugins = plugins;
@@ -41,6 +42,7 @@ public sealed class LatticePluginCatalog
         StringCatalogs = stringCatalogs;
         Toolbars = toolbars;
         StatusBarItems = statusBarItems;
+        SettingsTransfers = settingsTransfers;
         Diagnostics = diagnostics;
     }
 
@@ -85,6 +87,9 @@ public sealed class LatticePluginCatalog
 
     /// <summary>Gets the status-bar items in plugin order.</summary>
     public IReadOnlyList<StatusBarItemDescriptor> StatusBarItems { get; }
+
+    /// <summary>Gets the settings-transfer sections in plugin order.</summary>
+    public IReadOnlyList<SettingsTransferDescriptor> SettingsTransfers { get; }
 
     /// <summary>Gets the diagnostics found while composing the plugins.</summary>
     public IReadOnlyList<LatticeDiagnostic> Diagnostics { get; }
@@ -135,6 +140,7 @@ public sealed class LatticePluginCatalog
             builder.OwnedStringCatalogs.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedToolbars.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedStatusBarItems.Select(contribution => contribution.Descriptor).ToArray(),
+            builder.OwnedSettingsTransfers.Select(contribution => contribution.Descriptor).ToArray(),
             diagnostics);
     }
 
@@ -255,6 +261,11 @@ public sealed class LatticePluginCatalog
             "Status-bar item",
             diagnostics);
         ValidateStatusBarItems(builder, diagnostics);
+        ValidateDuplicateIds(
+            builder.OwnedSettingsTransfers,
+            contribution => contribution.Section,
+            "Settings section",
+            diagnostics);
         ValidateMenus(builder, diagnostics);
 
         var commands = new HashSet<string>(

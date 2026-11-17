@@ -72,6 +72,31 @@ public sealed class LatticePluginCatalogTests
     }
 
     [Fact]
+    public void ReportsSettingsSectionsDeclaredByTwoPlugins()
+    {
+        static SettingsTransferDescriptor Section(string id) => new(
+            id,
+            TestDescriptors.Key(id),
+            _ => null,
+            (_, _) => LatticeResult.Ok);
+
+        var catalog = LatticePluginCatalog.Build(
+        [
+            new TestPlugin(
+                "app.one",
+                builder => builder.AddSettingsTransfer(Section("app.settings"))),
+            new TestPlugin(
+                "app.two",
+                builder => builder.AddSettingsTransfer(Section("app.settings")))
+        ]);
+
+        Assert.True(catalog.HasErrors);
+        Assert.Contains(
+            catalog.Diagnostics,
+            diagnostic => diagnostic.Code == "lattice.contribution.duplicate");
+    }
+
+    [Fact]
     public void ReportsDuplicateCommandIdsAcrossPlugins()
     {
         var catalog = LatticePluginCatalog.Build(

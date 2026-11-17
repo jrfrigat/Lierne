@@ -20,6 +20,9 @@ public sealed class LatticeHostPlugin : ILatticePlugin
     /// <summary>The built-in Themes settings page.</summary>
     public static readonly SettingsPageId ThemesPage = new("lattice.settings.themes");
 
+    /// <summary>The built-in Import/Export settings page.</summary>
+    public static readonly SettingsPageId TransferPage = new("lattice.settings.transfer");
+
     /// <summary>The built-in Tools menu group; applications add their items to this group.</summary>
     public static readonly MenuGroupId ToolsMenuGroup = new("lattice.tools");
 
@@ -73,6 +76,12 @@ public sealed class LatticeHostPlugin : ILatticePlugin
             Key("themes"),
             20,
             typeof(LatticeThemesSettingsPage),
+            LatticeSettingsGroup.General));
+        builder.AddSettingsPage(new SettingsPageDescriptor(
+            TransferPage,
+            Key("transfer"),
+            30,
+            typeof(LatticeSettingsTransferSettingsPage),
             LatticeSettingsGroup.General));
         builder.AddStrings(new LatticeStringCatalog("lattice", LatticeHostStrings.ResourceManager));
     }

@@ -71,6 +71,9 @@ public interface ILatticePluginBuilder
     /// <summary>Gets the status-bar items declared so far.</summary>
     IReadOnlyList<StatusBarItemDescriptor> StatusBarItems { get; }
 
+    /// <summary>Gets the settings-transfer sections declared so far.</summary>
+    IReadOnlyList<SettingsTransferDescriptor> SettingsTransfers { get; }
+
     /// <summary>Declares a document type.</summary>
     /// <param name="descriptor">The document descriptor.</param>
     void AddDocument(DocumentDescriptor descriptor);
@@ -128,4 +131,9 @@ public interface ILatticePluginBuilder
     /// <summary>Declares a status-bar item.</summary>
     /// <param name="descriptor">The item descriptor.</param>
     void AddStatusBarItem(StatusBarItemDescriptor descriptor);
+
+    /// <summary>Declares a settings section the Import/Export page can save and apply.</summary>
+    /// <param name="descriptor">The section descriptor.</param>
+    /// <remarks>The section id must be unique among the composed plugins.</remarks>
+    void AddSettingsTransfer(SettingsTransferDescriptor descriptor);
 }

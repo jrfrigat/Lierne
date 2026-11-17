@@ -1,0 +1,143 @@
+using System.Text.Json.Nodes;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Lattice.Core.Tests;
+
+/// <summary>Tests the settings document the Import/Export page builds and applies.</summary>
+public sealed class LatticeSettingsTransferTests
+{
+    [Fact]
+    public void ExportThenImportRestoresEverySection()
+    {
+        var state = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["first"] = "old-first",
+            ["second"] = "old-second"
+        };
+        var transfer = CreateTransfer(state);
+
+        var exported = transfer.Export(EmptyServices);
+        Assert.True(exported.Success);
+        Assert.NotNull(exported.Data);
+
+        state["first"] = "new-first";
+        state["second"] = "new-second";
+
+        var imported = transfer.Import(exported.Data!, EmptyServices);
+
+        Assert.True(imported.Success);
+        Assert.Equal("old-first", state["first"]);
+        Assert.Equal("old-second", state["second"]);
+    }
+
+    [Fact]
+    public void FailedImportRestoresTheSectionsAppliedBeforeIt()
+    {
+        var state = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["first"] = "old-first",
+            ["second"] = "old-second"
+        };
+        var transfer = CreateTransfer(state, failSecond: true);
+        var document = """
+            {
+              "format": "lattice.settings",
+              "version": 1,
+              "sections": {
+                "app.first": "changed-first",
+                "app.second": "changed-second"
+              }
+            }
+            """;
+
+        var imported = transfer.Import(document, EmptyServices);
+
+        Assert.False(imported.Success);
+        Assert.Equal("app.second.rejected", imported.ErrorCode);
+        Assert.Equal("old-first", state["first"]);
+        Assert.Equal("old-second", state["second"]);
+    }
+
+    [Fact]
+    public void MissingSectionKeepsItsCurrentValue()
+    {
+        var state = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["first"] = "old-first",
+            ["second"] = "old-second"
+        };
+        var transfer = CreateTransfer(state);
+        var document = """
+            {
+              "format": "lattice.settings",
+              "version": 1,
+              "sections": { "app.first": "changed-first" }
+            }
+            """;
+
+        var imported = transfer.Import(document, EmptyServices);
+
+        Assert.True(imported.Success);
+        Assert.Equal("changed-first", state["first"]);
+        Assert.Equal("old-second", state["second"]);
+    }
+
+    [Theory]
+    [InlineData("", "lattice.settings.empty")]
+    [InlineData("{", "lattice.settings.invalid_json")]
+    [InlineData("[]", "lattice.settings.invalid_format")]
+    [InlineData("""{"format":"other","version":1,"sections":{}}""", "lattice.settings.invalid_format")]
+    [InlineData("""{"format":"lattice.settings","version":99,"sections":{}}""", "lattice.settings.unsupported_version")]
+    [InlineData("""{"format":"lattice.settings","version":1}""", "lattice.settings.missing_sections")]
+    [InlineData("""{"format":"lattice.settings","version":1,"sections":{"app.unknown":{}}}""", "lattice.settings.unknown_section")]
+    public void RejectsDocumentsNamingTheProblem(string json, string errorCode)
+    {
+        var transfer = CreateTransfer(new Dictionary<string, string>(StringComparer.Ordinal));
+
+        var imported = transfer.Import(json, EmptyServices);
+
+        Assert.False(imported.Success);
+        Assert.Equal(errorCode, imported.ErrorCode);
+    }
+
+    private static IServiceProvider EmptyServices => new ServiceCollection().BuildServiceProvider();
+
+    private static LatticeSettingsTransfer CreateTransfer(
+        Dictionary<string, string> state,
+        bool failSecond = false)
+    {
+        var plugin = new TestPlugin(
+            "app.settings",
+            builder =>
+            {
+                builder.AddSettingsTransfer(new SettingsTransferDescriptor(
+                    "app.first",
+                    TestDescriptors.Key("first"),
+                    _ => JsonValue.Create(state["first"]),
+                    (_, value) =>
+                    {
+                        state["first"] = value?.GetValue<string>() ?? string.Empty;
+                        return LatticeResult.Ok;
+                    }));
+                builder.AddSettingsTransfer(new SettingsTransferDescriptor(
+                    "app.second",
+                    TestDescriptors.Key("second"),
+                    _ => JsonValue.Create(state["second"]),
+                    (_, value) =>
+                    {
+                        if (failSecond)
+                        {
+                            return LatticeResult.Fail(
+                                "app.second.rejected",
+                                "The second section rejects its value.");
+                        }
+
+                        state["second"] = value?.GetValue<string>() ?? string.Empty;
+                        return LatticeResult.Ok;
+                    }));
+            });
+
+        var catalog = LatticePluginCatalog.Build([plugin]);
+        return new LatticeSettingsTransfer(catalog);
+    }
+}
