@@ -29,7 +29,7 @@ else
     [Parameter, EditorRequired]
     public MenuItemDescriptor Item { get; set; } = null!;
 
-    private bool Disabled => Item.Command is not { } command || !Commands.CanExecute(command);
+    private bool Disabled => Item.Command is { } command && !Commands.CanExecute(command);
 
     private string? ShortcutText => Item.Command is { } command
         ? Shortcuts.Bindings
