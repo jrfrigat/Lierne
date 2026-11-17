@@ -25,3 +25,11 @@ public abstract class LatticeToolbarComponent : ComponentBase
     [Parameter]
     public LatticeToolbarContext Context { get; set; } = null!;
 }
+
+/// <summary>Base class for a plugin status-bar component rendered by the Lattice shell.</summary>
+public abstract class LatticeStatusBarComponent : ComponentBase
+{
+    /// <summary>Gets or sets the status-bar context supplied by the shell.</summary>
+    [Parameter]
+    public LatticeStatusBarContext Context { get; set; } = null!;
+}

@@ -114,6 +114,25 @@ public readonly record struct RibbonItemId
     public override string ToString() => Value;
 }
 
+/// <summary>Identifies a status-bar item contributed by a plugin.</summary>
+public readonly record struct StatusBarItemId
+{
+    /// <summary>Creates a status-bar item id.</summary>
+    /// <param name="value">The stable identifier, for example <c>quas.connection.status</c>.</param>
+    /// <exception cref="ArgumentException">The value is null, empty or whitespace.</exception>
+    public StatusBarItemId(string value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        Value = value;
+    }
+
+    /// <summary>Gets the identifier text.</summary>
+    public string Value { get; }
+
+    /// <inheritdoc />
+    public override string ToString() => Value;
+}
+
 /// <summary>Identifies a toolbar contributed by a plugin.</summary>
 public readonly record struct ToolbarId
 {

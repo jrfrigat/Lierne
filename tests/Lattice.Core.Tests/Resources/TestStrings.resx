@@ -15,4 +15,5 @@
   <data name="title" xml:space="preserve"><value>Hello</value></data>
   <data name="only.en" xml:space="preserve"><value>Fallback</value></data>
   <data name="app.failure" xml:space="preserve"><value>Localized failure</value></data>
+  <data name="status" xml:space="preserve"><value>Ready</value></data>
 </root>

@@ -18,4 +18,5 @@
   <data name="connection" xml:space="preserve"><value>Connection</value></data>
   <data name="settings" xml:space="preserve"><value>Settings</value></data>
   <data name="timeout" xml:space="preserve"><value>Timeout</value></data>
+  <data name="status" xml:space="preserve"><value>Ready</value></data>
 </root>

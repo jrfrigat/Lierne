@@ -30,6 +30,7 @@ public sealed class LatticeShellRenderTests
         Assert.Contains("app.document", html, StringComparison.Ordinal);
         Assert.Contains("Explorer", html, StringComparison.Ordinal);
         Assert.Contains("test-tool", html, StringComparison.Ordinal);
+        Assert.Contains("Ready", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -160,6 +161,9 @@ public sealed class LatticeShellRenderTests
                 30,
                 Page: new SettingsPageId("app.settings")));
             builder.AddStrings(new LatticeStringCatalog("app", TestStrings.ResourceManager));
+            builder.AddStatusBarItem(new StatusBarItemDescriptor(
+                new StatusBarItemId("app.status"),
+                new StringKey("app", "status")));
         }
     }
 

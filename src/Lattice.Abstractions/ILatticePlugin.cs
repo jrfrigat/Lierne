@@ -68,6 +68,9 @@ public interface ILatticePluginBuilder
     /// <summary>Gets the toolbars declared so far.</summary>
     IReadOnlyList<ToolbarDescriptor> Toolbars { get; }
 
+    /// <summary>Gets the status-bar items declared so far.</summary>
+    IReadOnlyList<StatusBarItemDescriptor> StatusBarItems { get; }
+
     /// <summary>Declares a document type.</summary>
     /// <param name="descriptor">The document descriptor.</param>
     void AddDocument(DocumentDescriptor descriptor);
@@ -121,4 +124,8 @@ public interface ILatticePluginBuilder
     /// <summary>Declares a toolbar rendered in the host command area.</summary>
     /// <param name="descriptor">The toolbar descriptor.</param>
     void AddToolbar(ToolbarDescriptor descriptor);
+
+    /// <summary>Declares a status-bar item.</summary>
+    /// <param name="descriptor">The item descriptor.</param>
+    void AddStatusBarItem(StatusBarItemDescriptor descriptor);
 }

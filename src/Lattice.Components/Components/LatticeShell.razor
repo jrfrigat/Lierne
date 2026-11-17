@@ -27,7 +27,7 @@
                 MenuBar="@MenuBarContent"
                 ChildContent="@StartContent"
                 BottomPanel="@BottomPanel"
-                StatusBar="@StatusBar"
+                StatusBar="@StatusBarContent"
                 OnActiveDocumentChanged="OnActiveDocumentChanged"
                 OnDocumentCloseRequested="OnDocumentCloseRequested"
                 OnDocumentMove="OnDocumentMove">
@@ -102,6 +102,62 @@
     </text>;
 
     private LatticeToolbarContext ToolbarContext => new(Commands, Localizer, Services);
+
+    private RenderFragment? StatusBarContent =>
+        StatusBar ?? (Catalog.StatusBarItems.Count > 0 ? DefaultStatusBar : null);
+
+    private RenderFragment DefaultStatusBar => @<FlareStatusBar>
+        <LeftContent>@RenderStatusItems(LatticeStatusBarAlignment.Left)</LeftContent>
+        <CenterContent>@RenderStatusItems(LatticeStatusBarAlignment.Center)</CenterContent>
+        <RightContent>@RenderStatusItems(LatticeStatusBarAlignment.Right)</RightContent>
+    </FlareStatusBar>;
+
+    private RenderFragment RenderStatusItems(LatticeStatusBarAlignment alignment) => @<text>
+        @foreach (var item in Catalog.StatusBarItems
+                      .Where(candidate => candidate.Alignment == alignment)
+                      .OrderBy(candidate => candidate.Order)
+                      .ThenBy(candidate => candidate.Id.Value, StringComparer.Ordinal))
+        {
+            if (item.Component is { } component)
+            {
+                <DynamicComponent @key="item.Id.Value"
+                                  Type="@component"
+                                  Parameters="@(new Dictionary<string, object?>
+                                  {
+                                      [nameof(LatticeStatusBarComponent.Context)] = StatusBarContext
+                                  })" />
+            }
+            else if (item.Command is { } command)
+            {
+                <FlareButton Variant="ButtonVariant.Text"
+                             Size="ButtonSize.Xs"
+                             Class="lattice-statusbar__item"
+                             AriaLabel="@Localizer.Get(item.Title)"
+                             Tooltip="@Localizer.Get(item.Title)"
+                             OnClick="() => ExecuteAsync(command)">
+                    <LeadingIcon>
+                        @if (Icons.Resolve(item.IconKey ?? FindCommand(command)?.IconKey) is { } icon)
+                        {
+                            <FlareIconView Value="@icon" />
+                        }
+                    </LeadingIcon>
+                    <ChildContent>@Localizer.Get(item.Title)</ChildContent>
+                </FlareButton>
+            }
+            else
+            {
+                <span class="lattice-statusbar__item">
+                    @if (Icons.Resolve(item.IconKey) is { } icon)
+                    {
+                        <FlareIconView Value="@icon" />
+                    }
+                    @Localizer.Get(item.Title)
+                </span>
+            }
+        }
+    </text>;
+
+    private LatticeStatusBarContext StatusBarContext => new(Commands, Localizer, Services);
 
     private RenderFragment LeftTools => @<FlareToolPanelGroup Position="ToolPanelPosition.Left"
                                                               TabStripPlacement="TabStripPlacement.Bottom"

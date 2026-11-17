@@ -87,6 +87,19 @@ public sealed record CommandDescriptor(
     string? DefaultShortcut = null,
     Type? ArgumentType = null);
 
+/// <summary>Describes where a status-bar item is placed.</summary>
+public enum LatticeStatusBarAlignment
+{
+    /// <summary>The left status area.</summary>
+    Left,
+
+    /// <summary>The center status area.</summary>
+    Center,
+
+    /// <summary>The right status area.</summary>
+    Right
+}
+
 /// <summary>Describes a toolbar contributed by a plugin.</summary>
 /// <param name="Id">The stable toolbar id.</param>
 /// <param name="Component">
@@ -97,6 +110,25 @@ public sealed record ToolbarDescriptor(
     ToolbarId Id,
     Type Component,
     int Order = 0);
+
+/// <summary>Describes one status-bar item contributed by a plugin.</summary>
+/// <param name="Id">The stable item id.</param>
+/// <param name="Title">The localized item text or accessible name.</param>
+/// <param name="Alignment">The status area that hosts the item.</param>
+/// <param name="Order">The order of the item inside its area.</param>
+/// <param name="IconKey">The host icon key, or <see langword="null"/> when the command icon is used.</param>
+/// <param name="Command">The command invoked by clicking the item, or <see langword="null"/>.</param>
+/// <param name="Component">
+/// A custom component that renders the item, or <see langword="null"/> for the generated item.
+/// </param>
+public sealed record StatusBarItemDescriptor(
+    StatusBarItemId Id,
+    StringKey Title,
+    LatticeStatusBarAlignment Alignment = LatticeStatusBarAlignment.Left,
+    int Order = 0,
+    string? IconKey = null,
+    CommandId? Command = null,
+    Type? Component = null);
 
 /// <summary>Describes a ribbon group contributed by a plugin.</summary>
 /// <param name="Id">The stable group id.</param>

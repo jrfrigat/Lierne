@@ -22,6 +22,7 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
     private readonly List<OwnedContribution<MenuItemDescriptor>> _menuItems = [];
     private readonly List<OwnedContribution<LatticeStringCatalog>> _stringCatalogs = [];
     private readonly List<OwnedContribution<ToolbarDescriptor>> _toolbars = [];
+    private readonly List<OwnedContribution<StatusBarItemDescriptor>> _statusBarItems = [];
 
     /// <summary>Creates the builder.</summary>
     /// <param name="services">The service collection the plugins register into.</param>
@@ -87,6 +88,10 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
     public IReadOnlyList<ToolbarDescriptor> Toolbars =>
         _toolbars.Select(contribution => contribution.Descriptor).ToArray();
 
+    /// <inheritdoc />
+    public IReadOnlyList<StatusBarItemDescriptor> StatusBarItems =>
+        _statusBarItems.Select(contribution => contribution.Descriptor).ToArray();
+
     /// <summary>Gets the documents with their declaring plugin.</summary>
     public IReadOnlyList<OwnedContribution<DocumentDescriptor>> OwnedDocuments => _documents;
 
@@ -120,6 +125,10 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
 
     /// <summary>Gets the toolbars with their declaring plugin.</summary>
     public IReadOnlyList<OwnedContribution<ToolbarDescriptor>> OwnedToolbars => _toolbars;
+
+    /// <summary>Gets the status-bar items with their declaring plugin.</summary>
+    public IReadOnlyList<OwnedContribution<StatusBarItemDescriptor>> OwnedStatusBarItems =>
+        _statusBarItems;
 
     /// <summary>Starts collecting contributions for one plugin.</summary>
     /// <param name="plugin">The plugin whose configuration is starting.</param>
@@ -184,6 +193,10 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
     /// <inheritdoc />
     public void AddToolbar(ToolbarDescriptor descriptor) =>
         Add(_toolbars, descriptor);
+
+    /// <inheritdoc />
+    public void AddStatusBarItem(StatusBarItemDescriptor descriptor) =>
+        Add(_statusBarItems, descriptor);
 
     private void Add<T>(List<OwnedContribution<T>> contributions, T descriptor)
         where T : class

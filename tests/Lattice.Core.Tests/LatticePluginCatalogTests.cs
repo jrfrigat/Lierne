@@ -199,6 +199,9 @@ public sealed class LatticePluginCatalogTests
                     builder.AddToolbar(new ToolbarDescriptor(
                         new ToolbarId("app.toolbar"),
                         typeof(object)));
+                    builder.AddStatusBarItem(new StatusBarItemDescriptor(
+                        new StatusBarItemId("app.status"),
+                        TestDescriptors.Key("status")));
                 })
         ]);
 
@@ -215,6 +218,7 @@ public sealed class LatticePluginCatalogTests
         Assert.Single(catalog.MenuItems);
         Assert.Single(catalog.StringCatalogs);
         Assert.Single(catalog.Toolbars);
+        Assert.Single(catalog.StatusBarItems);
     }
 
     [Fact]

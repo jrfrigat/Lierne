@@ -24,6 +24,7 @@ public sealed class LatticePluginCatalog
         IReadOnlyList<MenuItemDescriptor> menuItems,
         IReadOnlyList<LatticeStringCatalog> stringCatalogs,
         IReadOnlyList<ToolbarDescriptor> toolbars,
+        IReadOnlyList<StatusBarItemDescriptor> statusBarItems,
         IReadOnlyList<LatticeDiagnostic> diagnostics)
     {
         Plugins = plugins;
@@ -39,6 +40,7 @@ public sealed class LatticePluginCatalog
         MenuItems = menuItems;
         StringCatalogs = stringCatalogs;
         Toolbars = toolbars;
+        StatusBarItems = statusBarItems;
         Diagnostics = diagnostics;
     }
 
@@ -80,6 +82,9 @@ public sealed class LatticePluginCatalog
 
     /// <summary>Gets the toolbars in plugin order.</summary>
     public IReadOnlyList<ToolbarDescriptor> Toolbars { get; }
+
+    /// <summary>Gets the status-bar items in plugin order.</summary>
+    public IReadOnlyList<StatusBarItemDescriptor> StatusBarItems { get; }
 
     /// <summary>Gets the diagnostics found while composing the plugins.</summary>
     public IReadOnlyList<LatticeDiagnostic> Diagnostics { get; }
@@ -129,6 +134,7 @@ public sealed class LatticePluginCatalog
             builder.OwnedMenuItems.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedStringCatalogs.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedToolbars.Select(contribution => contribution.Descriptor).ToArray(),
+            builder.OwnedStatusBarItems.Select(contribution => contribution.Descriptor).ToArray(),
             diagnostics);
     }
 
@@ -243,6 +249,12 @@ public sealed class LatticePluginCatalog
             contribution => contribution.Id.Value,
             "Toolbar",
             diagnostics);
+        ValidateDuplicateIds(
+            builder.OwnedStatusBarItems,
+            contribution => contribution.Id.Value,
+            "Status-bar item",
+            diagnostics);
+        ValidateStatusBarItems(builder, diagnostics);
         ValidateMenus(builder, diagnostics);
 
         var commands = new HashSet<string>(
@@ -322,6 +334,25 @@ public sealed class LatticePluginCatalog
                 diagnostics.Add(LatticeDiagnostic.Error(
                     "lattice.strings.missing_manifest",
                     $"String namespace '{catalog.Namespace}' of plugin '{contribution.Plugin}' has no neutral resource manifest."));
+            }
+        }
+    }
+
+    private static void ValidateStatusBarItems(
+        LatticePluginBuilder builder,
+        List<LatticeDiagnostic> diagnostics)
+    {
+        var commands = new HashSet<string>(
+            builder.OwnedCommands.Select(contribution => contribution.Descriptor.Descriptor.Id.Value),
+            StringComparer.Ordinal);
+        foreach (var contribution in builder.OwnedStatusBarItems)
+        {
+            var item = contribution.Descriptor;
+            if (item.Command is { } command && !commands.Contains(command.Value))
+            {
+                diagnostics.Add(LatticeDiagnostic.Error(
+                    "lattice.statusbar.unknown_command",
+                    $"Status-bar item '{item.Id}' of plugin '{contribution.Plugin}' invokes unknown command '{command}'."));
             }
         }
     }
