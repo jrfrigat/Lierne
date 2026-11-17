@@ -54,6 +54,12 @@ public partial class LatticeShell : IDisposable
             .ThenBy(group => group.Id.Value, StringComparer.Ordinal)
             .ToArray();
 
+    private IReadOnlyList<MenuGroupDescriptor> MenuGroups =>
+        Catalog.MenuGroups
+            .OrderBy(group => group.Order)
+            .ThenBy(group => group.Id.Value, StringComparer.Ordinal)
+            .ToArray();
+
     private bool HasLeftRegion =>
         Documents.Documents.Any(document => document.Location == LatticeDockLocation.Left) ||
         HasVisibleTool(LatticeToolRegion.Left);
@@ -87,6 +93,12 @@ public partial class LatticeShell : IDisposable
 
     private IEnumerable<RibbonItemDescriptor> ItemsFor(RibbonGroupId group) =>
         Catalog.RibbonItems
+            .Where(item => item.Group == group)
+            .OrderBy(item => item.Order)
+            .ThenBy(item => item.Id.Value, StringComparer.Ordinal);
+
+    private IEnumerable<MenuItemDescriptor> ItemsFor(MenuGroupId group) =>
+        Catalog.MenuItems
             .Where(item => item.Group == group)
             .OrderBy(item => item.Order)
             .ThenBy(item => item.Id.Value, StringComparer.Ordinal);

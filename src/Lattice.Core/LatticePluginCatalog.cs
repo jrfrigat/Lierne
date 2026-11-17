@@ -18,6 +18,8 @@ public sealed class LatticePluginCatalog
         IReadOnlyList<RibbonItemDescriptor> ribbonItems,
         IReadOnlyList<SettingsPageDescriptor> settingsPages,
         IReadOnlyList<SettingDescriptor> settings,
+        IReadOnlyList<MenuGroupDescriptor> menuGroups,
+        IReadOnlyList<MenuItemDescriptor> menuItems,
         IReadOnlyList<LatticeStringCatalog> stringCatalogs,
         IReadOnlyList<LatticeDiagnostic> diagnostics)
     {
@@ -30,6 +32,8 @@ public sealed class LatticePluginCatalog
         RibbonItems = ribbonItems;
         SettingsPages = settingsPages;
         Settings = settings;
+        MenuGroups = menuGroups;
+        MenuItems = menuItems;
         StringCatalogs = stringCatalogs;
         Diagnostics = diagnostics;
     }
@@ -60,6 +64,12 @@ public sealed class LatticePluginCatalog
 
     /// <summary>Gets the settings in plugin order.</summary>
     public IReadOnlyList<SettingDescriptor> Settings { get; }
+
+    /// <summary>Gets the top-level menu groups in plugin order.</summary>
+    public IReadOnlyList<MenuGroupDescriptor> MenuGroups { get; }
+
+    /// <summary>Gets the top-level menu items in plugin order.</summary>
+    public IReadOnlyList<MenuItemDescriptor> MenuItems { get; }
 
     /// <summary>Gets the localized string catalogs in plugin order.</summary>
     public IReadOnlyList<LatticeStringCatalog> StringCatalogs { get; }
@@ -108,6 +118,8 @@ public sealed class LatticePluginCatalog
             builder.OwnedRibbonItems.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedSettingsPages.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedSettings.Select(contribution => contribution.Descriptor).ToArray(),
+            builder.OwnedMenuGroups.Select(contribution => contribution.Descriptor).ToArray(),
+            builder.OwnedMenuItems.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedStringCatalogs.Select(contribution => contribution.Descriptor).ToArray(),
             diagnostics);
     }
@@ -216,6 +228,8 @@ public sealed class LatticePluginCatalog
             contribution => contribution.Key.Value,
             "Setting",
             diagnostics);
+        ValidateSettingsPages(builder, diagnostics);
+        ValidateMenus(builder, diagnostics);
 
         var commands = new HashSet<string>(
             builder.OwnedCommands.Select(contribution => contribution.Descriptor.Descriptor.Id.Value),
@@ -241,6 +255,111 @@ public sealed class LatticePluginCatalog
             }
         }
     }
+
+    private static void ValidateSettingsPages(
+        LatticePluginBuilder builder,
+        List<LatticeDiagnostic> diagnostics)
+    {
+        var pages = new HashSet<string>(
+            builder.OwnedSettingsPages.Select(contribution => contribution.Descriptor.Id.Value),
+            StringComparer.Ordinal);
+        foreach (var contribution in builder.OwnedSettings)
+        {
+            if (contribution.Descriptor.Page is { } page && !pages.Contains(page.Value))
+            {
+                diagnostics.Add(LatticeDiagnostic.Error(
+                    "lattice.settings.unknown_page",
+                    $"Setting '{contribution.Descriptor.Key}' of plugin '{contribution.Plugin}' belongs to unknown page '{page}'."));
+            }
+        }
+    }
+
+    private static void ValidateMenus(
+        LatticePluginBuilder builder,
+        List<LatticeDiagnostic> diagnostics)
+    {
+        ValidateDuplicateIds(
+            builder.OwnedMenuGroups,
+            contribution => contribution.Id.Value,
+            "Menu group",
+            diagnostics);
+        var groups = new HashSet<string>(
+            builder.OwnedMenuGroups.Select(contribution => contribution.Descriptor.Id.Value),
+            StringComparer.Ordinal);
+        var commands = new HashSet<string>(
+            builder.OwnedCommands.Select(contribution => contribution.Descriptor.Descriptor.Id.Value),
+            StringComparer.Ordinal);
+        var items = new List<OwnedMenuEntry>();
+        foreach (var contribution in builder.OwnedMenuItems)
+        {
+            FlattenMenu(contribution.Plugin, contribution.Descriptor, items);
+        }
+
+        var owners = new Dictionary<string, PluginId>(StringComparer.Ordinal);
+        foreach (var entry in items)
+        {
+            if (owners.TryGetValue(entry.Item.Id.Value, out var owner))
+            {
+                diagnostics.Add(LatticeDiagnostic.Error(
+                    "lattice.contribution.duplicate",
+                    $"Menu item '{entry.Item.Id}' is contributed by both '{owner}' and '{entry.Plugin}'."));
+                continue;
+            }
+
+            owners[entry.Item.Id.Value] = entry.Plugin;
+        }
+
+        foreach (var entry in items)
+        {
+            var item = entry.Item;
+            if (item.IsSeparator)
+            {
+                continue;
+            }
+
+            if (!groups.Contains(item.Group.Value))
+            {
+                diagnostics.Add(LatticeDiagnostic.Error(
+                    "lattice.menu.unknown_group",
+                    $"Menu item '{item.Id}' of plugin '{entry.Plugin}' belongs to unknown group '{item.Group}'."));
+            }
+
+            if (item.Command is { } command)
+            {
+                if (!commands.Contains(command.Value))
+                {
+                    diagnostics.Add(LatticeDiagnostic.Error(
+                        "lattice.menu.unknown_command",
+                        $"Menu item '{item.Id}' of plugin '{entry.Plugin}' invokes unknown command '{command}'."));
+                }
+            }
+            else if (item.Children is null || item.Children.Count == 0)
+            {
+                diagnostics.Add(LatticeDiagnostic.Error(
+                    "lattice.menu.invalid_item",
+                    $"Menu item '{item.Id}' of plugin '{entry.Plugin}' has no command and no children."));
+            }
+        }
+    }
+
+    private static void FlattenMenu(
+        PluginId plugin,
+        MenuItemDescriptor item,
+        List<OwnedMenuEntry> items)
+    {
+        items.Add(new OwnedMenuEntry(plugin, item));
+        if (item.Children is null)
+        {
+            return;
+        }
+
+        foreach (var child in item.Children)
+        {
+            FlattenMenu(plugin, child, items);
+        }
+    }
+
+    private readonly record struct OwnedMenuEntry(PluginId Plugin, MenuItemDescriptor Item);
 
     private static void ValidateDuplicateIds<T>(
         IReadOnlyList<OwnedContribution<T>> contributions,

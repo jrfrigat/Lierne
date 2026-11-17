@@ -42,6 +42,35 @@ public sealed class LatticeShellRenderTests
         Assert.Contains("Start content", html, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task OpensTheOptionsDocumentAndRendersItsSettings()
+    {
+        await using var provider = BuildProvider();
+        var commands = provider.GetRequiredService<ILatticeCommandService>();
+
+        var opened = await commands.ExecuteAsync(
+            LatticeHostPlugin.OpenOptionsCommand,
+            cancellationToken: TestContext.Current.CancellationToken);
+        var reopened = await commands.ExecuteAsync(
+            LatticeHostPlugin.OpenOptionsCommand,
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.True(opened.Success);
+        Assert.True(reopened.Success);
+        var documents = provider.GetRequiredService<ILatticeDocumentService>();
+        Assert.Single(
+            documents.Documents,
+            document => document.TypeId == LatticeHostPlugin.OptionsDocumentType);
+
+        var html = await RenderAsync(provider);
+
+        Assert.Contains("Tools", html, StringComparison.Ordinal);
+        Assert.Contains("Options", html, StringComparison.Ordinal);
+        Assert.Contains("Settings", html, StringComparison.Ordinal);
+        Assert.Contains("Timeout", html, StringComparison.Ordinal);
+        Assert.Contains("30", html, StringComparison.Ordinal);
+    }
+
     private static ServiceProvider BuildProvider()
     {
         var services = new ServiceCollection();
@@ -50,13 +79,16 @@ public sealed class LatticeShellRenderTests
         services.AddSingleton<Microsoft.JSInterop.IJSRuntime>(new ModuleJsRuntime());
         services.AddFlare();
         services.AddFlareIde();
-        services.AddLattice(options => options.AddPlugin(new TestPlugin()));
+        services.AddLattice(options => options
+            .AddPlugin(new TestPlugin())
+            .AddPlugin<LatticeHostPlugin>());
         services.AddLatticeComponents();
         return services.BuildServiceProvider();
     }
 
     private static async Task<string> RenderAsync(IServiceProvider provider)
     {
+        provider.GetRequiredService<ILatticeLocalizer>().SetCulture("en");
         await using var renderer = new HtmlRenderer(
             provider,
             provider.GetRequiredService<ILoggerFactory>());
@@ -101,12 +133,24 @@ public sealed class LatticeShellRenderTests
                 new RibbonItemId("app.run.item"),
                 new RibbonGroupId("app.connection"),
                 new CommandId("app.run")));
+            builder.AddSettingsPage(new SettingsPageDescriptor(
+                new SettingsPageId("app.settings"),
+                new StringKey("app", "settings"),
+                0));
+            builder.AddSetting(new SettingDescriptor(
+                new SettingsKey("app.timeout"),
+                new StringKey("app", "timeout"),
+                LatticeSettingKind.Integer,
+                30,
+                Page: new SettingsPageId("app.settings")));
             builder.AddStrings("en", new Dictionary<string, string>
             {
                 ["app.document"] = "Document",
                 ["app.explorer"] = "Explorer",
                 ["app.run"] = "Run",
-                ["app.connection"] = "Connection"
+                ["app.connection"] = "Connection",
+                ["app.settings"] = "Settings",
+                ["app.timeout"] = "Timeout"
             });
         }
     }

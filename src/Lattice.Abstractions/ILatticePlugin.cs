@@ -56,6 +56,12 @@ public interface ILatticePluginBuilder
     /// <summary>Gets the settings declared so far.</summary>
     IReadOnlyList<SettingDescriptor> Settings { get; }
 
+    /// <summary>Gets the top-level menu groups declared so far.</summary>
+    IReadOnlyList<MenuGroupDescriptor> MenuGroups { get; }
+
+    /// <summary>Gets the top-level menu items declared so far.</summary>
+    IReadOnlyList<MenuItemDescriptor> MenuItems { get; }
+
     /// <summary>Gets the localized string catalogs declared so far.</summary>
     IReadOnlyList<LatticeStringCatalog> StringCatalogs { get; }
 
@@ -91,6 +97,14 @@ public interface ILatticePluginBuilder
     /// <summary>Declares a setting.</summary>
     /// <param name="descriptor">The setting descriptor.</param>
     void AddSetting(SettingDescriptor descriptor);
+
+    /// <summary>Declares a top-level menu group.</summary>
+    /// <param name="descriptor">The group descriptor.</param>
+    void AddMenuGroup(MenuGroupDescriptor descriptor);
+
+    /// <summary>Declares a top-level menu item or submenu.</summary>
+    /// <param name="descriptor">The item descriptor.</param>
+    void AddMenuItem(MenuItemDescriptor descriptor);
 
     /// <summary>Declares a localized string catalog for one culture.</summary>
     /// <param name="culture">The two-letter culture, for example <c>en</c> or <c>ru</c>.</param>

@@ -17,9 +17,10 @@ The architecture is being built incrementally. What exists today:
 - `Lattice.Core` - plugin catalog with dependency ordering and validation, command execution with
   observers and shortcuts, documents and tool windows, schema-driven settings, observable context,
   localized string catalogs;
-- `Lattice.Components` - the Flare IDE host: `LatticeShell`, ribbon, documents, tool windows and the
-  icon resolver; plugin components derive from `LatticeDocumentComponent` or
-  `LatticeToolWindowComponent`;
+- `Lattice.Components` - the Flare IDE host: `LatticeShell`, ribbon, menus, documents, tool windows
+  and the icon resolver; plugin components derive from `LatticeDocumentComponent` or
+  `LatticeToolWindowComponent`. `LatticeHostPlugin` brings the built-in Options document (generated
+  from the settings schema) and the Tools menu group;
 - `Lattice.Core.Tests` and `Lattice.Components.Tests` - composition, runtime and shell rendering.
 
 Persistent workspace state and the first real plugin (Quas database connection) are the next
@@ -31,6 +32,7 @@ increments; plugins live in the consuming application, not in Lattice. See
 ```csharp
 services.AddFlare();                 // the application chooses its theme
 services.AddLattice(options => options
+    .AddPlugin<LatticeHostPlugin>()     // Options document + Tools menu group
     .AddPlugin<CorePlugin>()
     .AddPlugin<ConnectionPlugin>());
 services.AddLatticeComponents();     // icon resolver and host services

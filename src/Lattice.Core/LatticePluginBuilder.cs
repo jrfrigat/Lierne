@@ -18,6 +18,8 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
     private readonly List<OwnedContribution<RibbonItemDescriptor>> _ribbonItems = [];
     private readonly List<OwnedContribution<SettingsPageDescriptor>> _settingsPages = [];
     private readonly List<OwnedContribution<SettingDescriptor>> _settings = [];
+    private readonly List<OwnedContribution<MenuGroupDescriptor>> _menuGroups = [];
+    private readonly List<OwnedContribution<MenuItemDescriptor>> _menuItems = [];
     private readonly List<OwnedContribution<LatticeStringCatalog>> _stringCatalogs = [];
 
     /// <summary>Creates the builder.</summary>
@@ -69,6 +71,14 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
         _settings.Select(contribution => contribution.Descriptor).ToArray();
 
     /// <inheritdoc />
+    public IReadOnlyList<MenuGroupDescriptor> MenuGroups =>
+        _menuGroups.Select(contribution => contribution.Descriptor).ToArray();
+
+    /// <inheritdoc />
+    public IReadOnlyList<MenuItemDescriptor> MenuItems =>
+        _menuItems.Select(contribution => contribution.Descriptor).ToArray();
+
+    /// <inheritdoc />
     public IReadOnlyList<LatticeStringCatalog> StringCatalogs =>
         _stringCatalogs.Select(contribution => contribution.Descriptor).ToArray();
 
@@ -92,6 +102,12 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
 
     /// <summary>Gets the settings with their declaring plugin.</summary>
     public IReadOnlyList<OwnedContribution<SettingDescriptor>> OwnedSettings => _settings;
+
+    /// <summary>Gets the menu groups with their declaring plugin.</summary>
+    public IReadOnlyList<OwnedContribution<MenuGroupDescriptor>> OwnedMenuGroups => _menuGroups;
+
+    /// <summary>Gets the menu items with their declaring plugin.</summary>
+    public IReadOnlyList<OwnedContribution<MenuItemDescriptor>> OwnedMenuItems => _menuItems;
 
     /// <summary>Gets the string catalogs with their declaring plugin.</summary>
     public IReadOnlyList<OwnedContribution<LatticeStringCatalog>> OwnedStringCatalogs =>
@@ -137,6 +153,14 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
     /// <inheritdoc />
     public void AddSetting(SettingDescriptor descriptor) =>
         Add(_settings, descriptor);
+
+    /// <inheritdoc />
+    public void AddMenuGroup(MenuGroupDescriptor descriptor) =>
+        Add(_menuGroups, descriptor);
+
+    /// <inheritdoc />
+    public void AddMenuItem(MenuItemDescriptor descriptor) =>
+        Add(_menuItems, descriptor);
 
     /// <inheritdoc />
     public void AddStrings(string culture, IReadOnlyDictionary<string, string> strings)

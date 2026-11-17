@@ -132,6 +132,7 @@ public sealed record SettingsPageDescriptor(
 /// <param name="Min">The smallest accepted integer.</param>
 /// <param name="Max">The largest accepted integer.</param>
 /// <param name="Step">The increment of the integer editor.</param>
+/// <param name="Page">The settings page that shows the setting, or <see langword="null"/> for none.</param>
 public sealed record SettingDescriptor(
     SettingsKey Key,
     StringKey Label,
@@ -140,7 +141,8 @@ public sealed record SettingDescriptor(
     IReadOnlyList<SettingChoice>? Choices = null,
     int? Min = null,
     int? Max = null,
-    int? Step = null);
+    int? Step = null,
+    SettingsPageId? Page = null);
 
 /// <summary>Describes one choice of a select setting.</summary>
 /// <param name="Value">The stored value.</param>

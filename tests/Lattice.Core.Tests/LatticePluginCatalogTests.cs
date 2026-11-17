@@ -184,6 +184,14 @@ public sealed class LatticePluginCatalogTests
                         TestDescriptors.Key("timeout"),
                         LatticeSettingKind.Integer,
                         30));
+                    builder.AddMenuGroup(new MenuGroupDescriptor(
+                        new MenuGroupId("app.tools"),
+                        TestDescriptors.Key("tools")));
+                    builder.AddMenuItem(new MenuItemDescriptor(
+                        new MenuItemId("app.tools.run"),
+                        new MenuGroupId("app.tools"),
+                        TestDescriptors.Key("run"),
+                        new CommandId("app.run")));
                     builder.AddStrings("en", new Dictionary<string, string>
                     {
                         ["tests.title"] = "Title"
@@ -200,7 +208,101 @@ public sealed class LatticePluginCatalogTests
         Assert.Single(catalog.RibbonItems);
         Assert.Single(catalog.SettingsPages);
         Assert.Single(catalog.Settings);
+        Assert.Single(catalog.MenuGroups);
+        Assert.Single(catalog.MenuItems);
         Assert.Single(catalog.StringCatalogs);
+    }
+
+    [Fact]
+    public void ReportsMenuItemsThatReferenceUnknownGroups()
+    {
+        var catalog = LatticePluginCatalog.Build(
+        [
+            new TestPlugin(
+                "app.menu",
+                builder => builder.AddMenuItem(new MenuItemDescriptor(
+                    new MenuItemId("app.item"),
+                    new MenuGroupId("app.missing"),
+                    TestDescriptors.Key("item"),
+                    new CommandId("app.run"))))
+        ]);
+
+        Assert.True(catalog.HasErrors);
+        Assert.Contains(
+            catalog.Diagnostics,
+            diagnostic => diagnostic.Code == "lattice.menu.unknown_group");
+    }
+
+    [Fact]
+    public void ReportsMenuItemsWithUnknownCommands()
+    {
+        var catalog = LatticePluginCatalog.Build(
+        [
+            new TestPlugin(
+                "app.menu",
+                builder =>
+                {
+                    builder.AddMenuGroup(new MenuGroupDescriptor(
+                        new MenuGroupId("app.tools"),
+                        TestDescriptors.Key("tools")));
+                    builder.AddMenuItem(new MenuItemDescriptor(
+                        new MenuItemId("app.item"),
+                        new MenuGroupId("app.tools"),
+                        TestDescriptors.Key("item"),
+                        new CommandId("app.missing")));
+                })
+        ]);
+
+        Assert.True(catalog.HasErrors);
+        Assert.Contains(
+            catalog.Diagnostics,
+            diagnostic => diagnostic.Code == "lattice.menu.unknown_command");
+    }
+
+    [Fact]
+    public void ReportsLeafMenuItemsWithoutCommands()
+    {
+        var catalog = LatticePluginCatalog.Build(
+        [
+            new TestPlugin(
+                "app.menu",
+                builder =>
+                {
+                    builder.AddMenuGroup(new MenuGroupDescriptor(
+                        new MenuGroupId("app.tools"),
+                        TestDescriptors.Key("tools")));
+                    builder.AddMenuItem(new MenuItemDescriptor(
+                        new MenuItemId("app.item"),
+                        new MenuGroupId("app.tools"),
+                        TestDescriptors.Key("item")));
+                })
+        ]);
+
+        Assert.True(catalog.HasErrors);
+        Assert.Contains(
+            catalog.Diagnostics,
+            diagnostic => diagnostic.Code == "lattice.menu.invalid_item");
+    }
+
+    [Fact]
+    public void ReportsSettingsWithoutAPage()
+    {
+        var catalog = LatticePluginCatalog.Build(
+        [
+            new TestPlugin(
+                "app.settings",
+                builder => builder.AddSetting(new SettingDescriptor(
+                    new SettingsKey("app.timeout"),
+                    TestDescriptors.Key("timeout"),
+                    LatticeSettingKind.Integer,
+                    30,
+                    Page: new SettingsPageId("app.missing"))))
+        ]);
+
+        Assert.True(catalog.HasErrors);
+        Assert.Contains(
+            catalog.Diagnostics,
+            diagnostic => diagnostic.Code == "lattice.settings.unknown_page");
     }
 
     [Fact]

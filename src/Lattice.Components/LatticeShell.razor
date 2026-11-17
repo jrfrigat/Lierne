@@ -1,4 +1,5 @@
 @namespace Lattice
+@using Flare.Components
 @using Flare.Components.IDE
 @implements IDisposable
 @inject LatticePluginCatalog Catalog
@@ -15,7 +16,6 @@
                 DocumentMounting="IdeDocumentMounting.ActiveOnly"
                 LeftRegionVisible="@HasLeftRegion"
                 RightRegionVisible="@HasRightRegion"
-                MenuBar="@MenuBar"
                 LeftToolPanel="@LeftTools"
                 RightToolPanel="@RightTools"
                 ChildContent="@StartContent"
@@ -45,5 +45,34 @@
             </FlareRibbonTab>
         </FlareRibbon>
     </Ribbon>
+    <MenuBar>
+        @if (MenuBar is not null)
+        {
+            @MenuBar
+        }
+        else
+        {
+            <FlareMenuBar>
+                @foreach (var group in MenuGroups)
+                {
+                    <FlareMenu @key="group.Id.Value"
+                               Anchor="MenuAnchor.BottomLeft"
+                               AriaLabel="@Localizer.Get(group.Title)">
+                        <Activator>
+                            <FlareButton Variant="ButtonVariant.Text"
+                                         Size="ButtonSize.Sm"
+                                         @attributes="context.Attributes">@Localizer.Get(group.Title)</FlareButton>
+                        </Activator>
+                        <ChildContent>
+                            @foreach (var item in ItemsFor(group.Id))
+                            {
+                                <LatticeMenuEntry Item="item" />
+                            }
+                        </ChildContent>
+                    </FlareMenu>
+                }
+            </FlareMenuBar>
+        }
+    </MenuBar>
     <DocumentContent Context="document">@RenderDocument(document)</DocumentContent>
 </FlareIdeLayout>

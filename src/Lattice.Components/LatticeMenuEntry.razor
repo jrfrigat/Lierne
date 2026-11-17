@@ -1,0 +1,43 @@
+@namespace Lattice
+@using Flare.Components
+@inject ILatticeCommandService Commands
+@inject ILatticeShortcutService Shortcuts
+@inject ILatticeLocalizer Localizer
+
+@if (Item.IsSeparator)
+{
+    <FlareMenuSeparator />
+}
+else if (Item.Children is { Count: > 0 } children)
+{
+    <FlareSubMenu Label="@Localizer.Get(Item.Title)" Disabled="@Disabled">
+        @foreach (var child in children)
+        {
+            <LatticeMenuEntry Item="child" />
+        }
+    </FlareSubMenu>
+}
+else
+{
+    <FlareMenuItem Shortcut="@ShortcutText"
+                   Disabled="@Disabled"
+                   OnClick="() => InvokeAsync()">@Localizer.Get(Item.Title)</FlareMenuItem>
+}
+
+@code {
+    /// <summary>Gets or sets the menu item to render.</summary>
+    [Parameter, EditorRequired]
+    public MenuItemDescriptor Item { get; set; } = null!;
+
+    private bool Disabled => Item.Command is not { } command || !Commands.CanExecute(command);
+
+    private string? ShortcutText => Item.Command is { } command
+        ? Shortcuts.Bindings
+            .FirstOrDefault(binding => binding.Command == command)
+            ?.EffectiveShortcut
+        : null;
+
+    private Task InvokeAsync() => Item.Command is { } command
+        ? Commands.ExecuteAsync(command)
+        : Task.CompletedTask;
+}

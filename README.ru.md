@@ -18,9 +18,10 @@ Lattice — фреймворк композиции IDE-подобных при�
 - `Lattice.Core` — каталог плагинов с сортировкой и валидацией, исполнение команд с наблюдателями
   и shortcut'ами, документы и tool windows, настройки по схеме, наблюдаемый контекст, каталоги
   локализованных строк;
-- `Lattice.Components` — Flare-хост: `LatticeShell`, риббон, документы, tool windows и резолвер
-  иконок; компоненты плагина наследуют `LatticeDocumentComponent` или
-  `LatticeToolWindowComponent`;
+- `Lattice.Components` — Flare-хост: `LatticeShell`, риббон, меню, документы, tool windows и
+  резолвер иконок; компоненты плагина наследуют `LatticeDocumentComponent` или
+  `LatticeToolWindowComponent`. `LatticeHostPlugin` добавляет встроенный документ параметров
+  (генерируется из схемы настроек) и группу меню «Инструменты»;
 - `Lattice.Core.Tests` и `Lattice.Components.Tests` — композиция, runtime и рендер оболочки.
 
 Дальше — персистентное состояние и первый реальный плагин (подключение к БД в Quas): плагины
@@ -31,6 +32,7 @@ Lattice — фреймворк композиции IDE-подобных при�
 ```csharp
 services.AddFlare();                 // тему выбирает приложение
 services.AddLattice(options => options
+    .AddPlugin<LatticeHostPlugin>()     // документ параметров и группа «Инструменты»
     .AddPlugin<CorePlugin>()
     .AddPlugin<ConnectionPlugin>());
 services.AddLatticeComponents();     // резолвер иконок и сервисы хоста

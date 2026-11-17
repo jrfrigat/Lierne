@@ -1,0 +1,87 @@
+@namespace Lattice
+@using Flare.Components
+@inherits LatticeDocumentComponent
+@inject LatticePluginCatalog Catalog
+@inject ISettingsStore Settings
+@inject ILatticeLocalizer Localizer
+
+<div class="lattice-options">
+    <nav class="lattice-options__pages" role="tablist" aria-label="@PageListLabel">
+        @foreach (var page in Pages)
+        {
+            <FlareButton Variant="ButtonVariant.Text"
+                         Size="ButtonSize.Xs"
+                         FullWidth="true"
+                         Selected="@(SelectedPage?.Id == page.Id)"
+                         role="tab"
+                         aria-selected="@(SelectedPage?.Id == page.Id ? "true" : "false")"
+                         OnClick="() => Select(page.Id)">@Localizer.Get(page.Title)</FlareButton>
+        }
+    </nav>
+    <section class="lattice-options__pane">
+        @if (SelectedPage is { } selected)
+        {
+            <h3 class="lattice-options__heading">@Localizer.Get(selected.Title)</h3>
+            @if (CurrentSettings.Count == 0)
+            {
+                <p class="lattice-options__empty">@NoSettingsText</p>
+            }
+            @foreach (var setting in CurrentSettings)
+            {
+                <div class="lattice-options__setting">
+                    @switch (setting.Kind)
+                    {
+                        case LatticeSettingKind.Select:
+                            <FlareSelect TValue="string"
+                                         Size="FieldSize.Sm"
+                                         Label="@Localizer.Get(setting.Label)"
+                                         Value="@(Settings.Get<string>(setting.Key) ?? string.Empty)"
+                                         ValueChanged="value => Set(setting, value)">
+                                @foreach (var choice in setting.Choices ?? Array.Empty<SettingChoice>())
+                                {
+                                    <option value="@choice.Value">@Localizer.Get(choice.Label)</option>
+                                }
+                            </FlareSelect>
+                            break;
+
+                        case LatticeSettingKind.Integer:
+                            <FlareNumericField TValue="int?"
+                                               Size="FieldSize.Sm"
+                                               Label="@Localizer.Get(setting.Label)"
+                                               Min="@setting.Min"
+                                               Max="@setting.Max"
+                                               Step="@setting.Step"
+                                               Value="@ReadInt(setting.Key)"
+                                               ValueChanged="value => Set(setting, value)" />
+                            break;
+
+                        case LatticeSettingKind.Boolean:
+                            <label class="lattice-options__label" for="@setting.Key.Value">@Localizer.Get(setting.Label)</label>
+                            <FlareCheckbox TValue="bool"
+                                           Size="FieldSize.Sm"
+                                           Value="@ReadBool(setting.Key)"
+                                           ValueChanged="value => Set(setting, value)"
+                                           InputAttributes="@(new Dictionary<string, object> { ["id"] = setting.Key.Value, ["aria-label"] = Localizer.Get(setting.Label) })" />
+                            break;
+
+                        default:
+                            <FlareTextField Size="FieldSize.Sm"
+                                            Label="@Localizer.Get(setting.Label)"
+                                            Value="@(Settings.Get<string>(setting.Key) ?? string.Empty)"
+                                            ValueChanged="value => Set(setting, value)"
+                                            InputAttributes="@(new Dictionary<string, object> { ["id"] = setting.Key.Value })" />
+                            break;
+                    }
+                </div>
+            }
+            @if (_error is { Length: > 0 })
+            {
+                <div class="lattice-options__error">@_error</div>
+            }
+        }
+        else
+        {
+            <p class="lattice-options__empty">@NoSettingsText</p>
+        }
+    </section>
+</div>
