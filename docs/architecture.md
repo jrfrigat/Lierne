@@ -169,21 +169,36 @@ tool windows показываются/скрываются/переключаю�
 останавливает регистрацию. Плагины регистрируют свои сервисы в `ILatticePluginBuilder.Services`
 и сами выбирают их время жизни.
 
-## 6. Хост (следующий инкремент)
+## 6. Хост на Flare (сделано)
 
-`Lattice.Components` будет собирать `FlareIdeLayout` из каталога:
+`Lattice.Components` собирает `FlareIdeLayout` из каталога:
 
-- `Ribbon` — `FlareRibbon` из групп и пунктов;
-- `MenuBar` — `FlareMenuBar` (меню как отдельный вклад, встроенные меню — тоже вклады ядра);
-- `LeftToolPanel` / `RightToolPanel` — `FlareToolPanel` из tool windows;
-- `CenterDockHeader` / `DocumentContent` — `FlareDocumentTabs` и компоненты документов;
-- `BottomPanel` — вклад ядра для Output/Errors;
-- `StatusBar` — `FlareStatusBar`;
-- Options-документ — страницы настроек из каталога.
+- `Ribbon` — `FlareRibbon` с одной вкладкой (заголовок параметром, по умолчанию `Home`) и
+  группами/пунктами каталога; пункт вызывает `ILatticeCommandService` и учитывает `CanExecute`;
+- `Documents`/`ActiveDocuments`/`DocumentContent` — документы Lattice как документы Flare;
+  встроенная полоса Center-докинга, активный документ, закрытие и перемещение;
+- `LeftToolPanel`/`RightToolPanel` — видимые tool windows через `FlareToolPanelGroup` и
+  `FlareToolPanel`, с заголовком и иконкой из описателя;
+- `MenuBar`, `StatusBar`, `BottomPanel`, `ChildContent` (стартовый контент) — параметры хоста;
+- вкладки меню как вклады и документ настроек — следующие небольшие инкременты.
 
-Хост получает `LatticePluginCatalog` через DI и обновляет `LatticeContext` (активный документ,
-состояние плагинов) при изменениях. Владельцы состояний (активное подключение, busy) регистрируют
-свои ключи контекста; `CanExecute` и `Visible` не хардкодят состояния конкретного приложения.
+Контракт компонентов плагина: `LatticeDocumentComponent` и `LatticeToolWindowComponent` с
+параметром `Context` (`LatticeDocumentContext`/`LatticeToolWindowContext`), который отдаёт
+экземпляр, команды, сервис-владелец, локализатор и scoped `IServiceProvider`.
+
+Иконки описателей — строковые ключи; `ILatticeIconResolver` превращает ключ в `FlareIcon`.
+По умолчанию резолвер возвращает `null`, приложение-хост регистрирует свой (например, Material
+Design 3). `AddLatticeComponents()` регистрирует резолвер. Это единственная точка, где хост
+знает о Flare-иконках; сами описатели остаются свободными от Flare.
+
+## 6.1 Сборка с локальным Flare
+
+Lattice, как и Quas, может собираться против соседнего checkout Flare: скопировать
+`Directory.Build.local.props.example` в git-ignored `Directory.Build.local.props` с
+`UseLocalFlare=true` (по умолчанию `..\Flare`). Локальная разработка идёт на исходниках 0.58.
+Без этого файла `Lattice.Components` и его тесты используют NuGet-пакеты Flare 0.58.0
+(`Directory.Packages.props`): эта версия должна быть опубликована до сборки из пакетов; перед
+пушем пользователь переключает локальное подключение на NuGet.
 
 ## 7. Персистентность (план)
 
@@ -200,23 +215,23 @@ tool windows показываются/скрываются/переключаю�
 src/Lattice.Abstractions   контракты и описатели, без Flare и Blazor
 src/Lattice.Core           каталог, валидация, команды, документы, tool windows, настройки,
                            контекст, локализация, shortcut'ы
-src/Lattice.Components     (план) UI-хост на Flare
+src/Lattice.Components     Flare-хост: LatticeShell, документы, tool windows, риббон, иконки
 src/Lattice.Localization   (план; сейчас строки живут в Core)
 tests/Lattice.Core.Tests   тесты каталога и сервисов времени выполнения
+tests/Lattice.Components.Tests  рендер LatticeShell с тестовым плагином
 samples/Lattice.SampleIde  (план) витрина и reference host
 ```
 
 `Lattice.Abstractions` зависит только от DI-абстракций. `Lattice.Core` — от Abstractions.
-`Lattice.Components` будет зависеть от Flare.Components и Flare.Components.IDE; Core о Flare не
-знает.
+`Lattice.Components` зависит от Flare.Components.IDE и Lattice.Core; Core о Flare не знает.
 
 ## 9. Дорожная карта
 
 1. **Ядро композиции** (сделано): контракт плагина, вклады, каталог, порядок, валидация, тесты.
 2. **Сервисы времени выполнения** (сделано): команды с обработчиками, `CanExecute`, наблюдатели,
    аргументы и shortcut'ы; контекст; документы и tool windows; настройки по схеме; локализация.
-3. **UI-хост** (следующий): `Lattice.Components` на FlareIdeLayout; документы, tool windows,
-   риббон, меню, Options-документ; sample-плагин, доказывающий все вклады.
+3. **UI-хост** (сделано в базовом виде): `Lattice.Components` на FlareIdeLayout; риббон,
+   документы, tool windows, иконки. Остаются вклады меню, документ настроек и sample-хост.
 4. **Персистентность**: `ISettingsStorage`/`IStateStore` (localStorage/файл), миграции состояния,
    восстановление раскладки.
 5. **Первый реальный плагин**: `Quas.Plugins.Connection` в sample host, затем в Quas через

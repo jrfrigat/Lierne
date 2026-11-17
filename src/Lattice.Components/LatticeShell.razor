@@ -1,0 +1,49 @@
+@namespace Lattice
+@using Flare.Components.IDE
+@implements IDisposable
+@inject LatticePluginCatalog Catalog
+@inject ILatticeDocumentService Documents
+@inject ILatticeToolWindowService ToolWindows
+@inject ILatticeCommandService Commands
+@inject ILatticeLocalizer Localizer
+@inject ILatticeContext State
+@inject ILatticeIconResolver Icons
+@inject IServiceProvider Services
+
+<FlareIdeLayout Documents="@IdeDocuments"
+                ActiveDocuments="@ActiveDocuments"
+                DocumentMounting="IdeDocumentMounting.ActiveOnly"
+                LeftRegionVisible="@HasLeftRegion"
+                RightRegionVisible="@HasRightRegion"
+                MenuBar="@MenuBar"
+                LeftToolPanel="@LeftTools"
+                RightToolPanel="@RightTools"
+                ChildContent="@StartContent"
+                BottomPanel="@BottomPanel"
+                StatusBar="@StatusBar"
+                OnActiveDocumentChanged="OnActiveDocumentChanged"
+                OnDocumentCloseRequested="OnDocumentCloseRequested"
+                OnDocumentMove="OnDocumentMove">
+    <Ribbon>
+        <FlareRibbon>
+            <FlareRibbonTab Title="@RibbonTitle">
+                @foreach (var group in RibbonGroups)
+                {
+                    <FlareRibbonGroup @key="group.Id.Value" Label="@Localizer.Get(group.Title)">
+                        @foreach (var item in ItemsFor(group.Id))
+                        {
+                            var command = FindCommand(item.Command);
+                            <FlareRibbonButton @key="item.Id.Value"
+                                               Icon="@Icons.Resolve(item.IconKey ?? command?.IconKey)"
+                                               Label="@CommandLabel(item.Command)"
+                                               Tooltip="@CommandLabel(item.Command)"
+                                               Disabled="@(!Commands.CanExecute(item.Command))"
+                                               OnClick="() => ExecuteAsync(item.Command)" />
+                        }
+                    </FlareRibbonGroup>
+                }
+            </FlareRibbonTab>
+        </FlareRibbon>
+    </Ribbon>
+    <DocumentContent Context="document">@RenderDocument(document)</DocumentContent>
+</FlareIdeLayout>

@@ -18,18 +18,22 @@ Lattice — фреймворк композиции IDE-подобных при�
 - `Lattice.Core` — каталог плагинов с сортировкой и валидацией, исполнение команд с наблюдателями
   и shortcut'ами, документы и tool windows, настройки по схеме, наблюдаемый контекст, каталоги
   локализованных строк;
-- `Lattice.Core.Tests` — тесты сортировки, диагностик, исполнения, состояния и регистрации.
+- `Lattice.Components` — Flare-хост: `LatticeShell`, риббон, документы, tool windows и резолвер
+  иконок; компоненты плагина наследуют `LatticeDocumentComponent` или
+  `LatticeToolWindowComponent`;
+- `Lattice.Core.Tests` и `Lattice.Components.Tests` — композиция, runtime и рендер оболочки.
 
-Дальше — UI-хост на Flare (`Lattice.Components`), персистентное состояние и первый реальный
-плагин (подключение к БД в Quas): плагины живут в приложении-потребителе, а не в Lattice.
-См. [docs/architecture.md](docs/architecture.md).
+Дальше — персистентное состояние и первый реальный плагин (подключение к БД в Quas): плагины
+живут в приложении-потребителе, а не в Lattice. См. [docs/architecture.md](docs/architecture.md).
 
 ## Быстрый старт
 
 ```csharp
+services.AddFlare();                 // тему выбирает приложение
 services.AddLattice(options => options
     .AddPlugin<CorePlugin>()
     .AddPlugin<ConnectionPlugin>());
+services.AddLatticeComponents();     // резолвер иконок и сервисы хоста
 
 public sealed class ConnectionPlugin : ILatticePlugin
 {
@@ -59,6 +63,11 @@ public sealed class ConnectionPlugin : ILatticePlugin
 dotnet build Lattice.slnx -c Release
 dotnet test Lattice.slnx -c Release --no-build
 ```
+
+Коммитируемая сборка использует Flare 0.58.0 из NuGet; пакеты должны быть опубликованы до этой
+сборки. Для работы с соседним checkout Flare скопируйте `Directory.Build.local.props.example` в
+git-ignored `Directory.Build.local.props`; `UseLocalFlare=true` заменит package references на
+project references.
 
 ## Лицензия
 

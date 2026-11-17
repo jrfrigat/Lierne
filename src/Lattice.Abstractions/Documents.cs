@@ -42,6 +42,12 @@ public interface ILatticeDocumentService
     /// <returns>Whether the document exists and became active.</returns>
     LatticeResult Activate(string instanceId);
 
+    /// <summary>Moves a document to another region.</summary>
+    /// <param name="instanceId">The document instance id.</param>
+    /// <param name="location">The destination region.</param>
+    /// <returns>Whether the document exists and was moved.</returns>
+    LatticeResult Move(string instanceId, LatticeDockLocation location);
+
     /// <summary>Closes a document.</summary>
     /// <param name="instanceId">The document instance id.</param>
     /// <returns>Whether the document existed and was closed.</returns>

@@ -17,18 +17,23 @@ The architecture is being built incrementally. What exists today:
 - `Lattice.Core` - plugin catalog with dependency ordering and validation, command execution with
   observers and shortcuts, documents and tool windows, schema-driven settings, observable context,
   localized string catalogs;
-- `Lattice.Core.Tests` - tests for ordering, diagnostics, execution, state and registration.
+- `Lattice.Components` - the Flare IDE host: `LatticeShell`, ribbon, documents, tool windows and the
+  icon resolver; plugin components derive from `LatticeDocumentComponent` or
+  `LatticeToolWindowComponent`;
+- `Lattice.Core.Tests` and `Lattice.Components.Tests` - composition, runtime and shell rendering.
 
-The Flare UI host (`Lattice.Components`), persistent workspace state and the first real plugin
-(Quas database connection) are the next increments; plugins live in the consuming application, not
-in Lattice. See [docs/architecture.md](docs/architecture.md).
+Persistent workspace state and the first real plugin (Quas database connection) are the next
+increments; plugins live in the consuming application, not in Lattice. See
+[docs/architecture.md](docs/architecture.md).
 
 ## Quick start
 
 ```csharp
+services.AddFlare();                 // the application chooses its theme
 services.AddLattice(options => options
     .AddPlugin<CorePlugin>()
     .AddPlugin<ConnectionPlugin>());
+services.AddLatticeComponents();     // icon resolver and host services
 
 public sealed class ConnectionPlugin : ILatticePlugin
 {
@@ -58,6 +63,11 @@ cycles and ribbon items that invoke unknown commands fail with a diagnostic that
 dotnet build Lattice.slnx -c Release
 dotnet test Lattice.slnx -c Release --no-build
 ```
+
+The committed build uses the Flare 0.58.0 packages from NuGet; they must be published before that
+build restores. To build against the sibling Flare checkout, copy
+`Directory.Build.local.props.example` to the git-ignored `Directory.Build.local.props`;
+`UseLocalFlare=true` swaps the package references for project references.
 
 ## License
 

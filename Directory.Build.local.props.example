@@ -1,0 +1,14 @@
+<Project>
+  <!--
+    Copy this file to Directory.Build.local.props to build Lattice against a local Flare checkout.
+    The real file is git-ignored, so the committed build keeps consuming the Flare packages.
+
+    FlareRoot defaults to the sibling ..\Flare checkout; set it explicitly when Flare lives
+    somewhere else. UseLocalFlare=true swaps the Flare PackageReference entries in
+    Lattice.Components and the component tests for ProjectReference entries.
+  -->
+  <PropertyGroup>
+    <UseLocalFlare>true</UseLocalFlare>
+    <FlareRoot Condition="'$(FlareRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\Flare'))</FlareRoot>
+  </PropertyGroup>
+</Project>

@@ -6,6 +6,7 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
     private readonly Dictionary<DocumentTypeId, DocumentDescriptor> _types;
     private readonly List<LatticeDocumentInstance> _documents = [];
     private int _nextId;
+    private string? _activeId;
 
     /// <summary>Creates the document service.</summary>
     /// <param name="catalog">The composed plugin catalog.</param>
@@ -22,7 +23,9 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
     public IReadOnlyList<LatticeDocumentInstance> Documents => _documents;
 
     /// <inheritdoc />
-    public LatticeDocumentInstance? Active { get; private set; }
+    public LatticeDocumentInstance? Active =>
+        _documents.FirstOrDefault(document =>
+            string.Equals(document.Id, _activeId, StringComparison.Ordinal));
 
     /// <inheritdoc />
     public LatticeResult<LatticeDocumentInstance> Open(
@@ -45,7 +48,7 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
             payload,
             location ?? descriptor.DefaultLocation);
         _documents.Add(document);
-        Active = document;
+        _activeId = document.Id;
         Changed?.Invoke();
         return LatticeResult<LatticeDocumentInstance>.Ok(document);
     }
@@ -61,12 +64,34 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
                 $"The document '{instanceId}' is not open.");
         }
 
-        if (ReferenceEquals(Active, document))
+        if (string.Equals(_activeId, document.Id, StringComparison.Ordinal))
         {
             return LatticeResult.Ok;
         }
 
-        Active = document;
+        _activeId = document.Id;
+        Changed?.Invoke();
+        return LatticeResult.Ok;
+    }
+
+    /// <inheritdoc />
+    public LatticeResult Move(string instanceId, LatticeDockLocation location)
+    {
+        var index = IndexOf(instanceId);
+        if (index < 0)
+        {
+            return LatticeResult.Fail(
+                "lattice.document.unknown_instance",
+                $"The document '{instanceId}' is not open.");
+        }
+
+        var document = _documents[index];
+        if (document.Location == location)
+        {
+            return LatticeResult.Ok;
+        }
+
+        _documents[index] = document with { Location = location };
         Changed?.Invoke();
         return LatticeResult.Ok;
     }
@@ -83,16 +108,22 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
         }
 
         _documents.Remove(document);
-        if (ReferenceEquals(Active, document))
+        if (string.Equals(_activeId, document.Id, StringComparison.Ordinal))
         {
-            Active = _documents.LastOrDefault();
+            _activeId = _documents.LastOrDefault()?.Id;
         }
 
         Changed?.Invoke();
         return LatticeResult.Ok;
     }
 
-    private LatticeDocumentInstance? Find(string instanceId) =>
-        _documents.FirstOrDefault(document =>
+    private LatticeDocumentInstance? Find(string instanceId)
+    {
+        var index = IndexOf(instanceId);
+        return index < 0 ? null : _documents[index];
+    }
+
+    private int IndexOf(string instanceId) =>
+        _documents.FindIndex(document =>
             string.Equals(document.Id, instanceId, StringComparison.Ordinal));
 }
