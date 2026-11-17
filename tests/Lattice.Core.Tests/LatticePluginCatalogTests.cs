@@ -97,6 +97,30 @@ public sealed class LatticePluginCatalogTests
     }
 
     [Fact]
+    public void ReportsShellContentDeclaredByTwoPlugins()
+    {
+        static ShellContentDescriptor Content(string id) => new(
+            new ShellContentId(id),
+            LatticeShellSlot.MenuBar,
+            typeof(object));
+
+        var catalog = LatticePluginCatalog.Build(
+        [
+            new TestPlugin(
+                "app.one",
+                builder => builder.AddShellContent(Content("app.menubar"))),
+            new TestPlugin(
+                "app.two",
+                builder => builder.AddShellContent(Content("app.menubar")))
+        ]);
+
+        Assert.True(catalog.HasErrors);
+        Assert.Contains(
+            catalog.Diagnostics,
+            diagnostic => diagnostic.Code == "lattice.contribution.duplicate");
+    }
+
+    [Fact]
     public void ReportsDuplicateCommandIdsAcrossPlugins()
     {
         var catalog = LatticePluginCatalog.Build(

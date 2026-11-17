@@ -26,6 +26,7 @@ public sealed class LatticePluginCatalog
         IReadOnlyList<ToolbarDescriptor> toolbars,
         IReadOnlyList<StatusBarItemDescriptor> statusBarItems,
         IReadOnlyList<SettingsTransferDescriptor> settingsTransfers,
+        IReadOnlyList<ShellContentDescriptor> shellContents,
         IReadOnlyList<LatticeDiagnostic> diagnostics)
     {
         Plugins = plugins;
@@ -43,6 +44,7 @@ public sealed class LatticePluginCatalog
         Toolbars = toolbars;
         StatusBarItems = statusBarItems;
         SettingsTransfers = settingsTransfers;
+        ShellContents = shellContents;
         Diagnostics = diagnostics;
     }
 
@@ -90,6 +92,9 @@ public sealed class LatticePluginCatalog
 
     /// <summary>Gets the settings-transfer sections in plugin order.</summary>
     public IReadOnlyList<SettingsTransferDescriptor> SettingsTransfers { get; }
+
+    /// <summary>Gets the shell-surface contributions in plugin order.</summary>
+    public IReadOnlyList<ShellContentDescriptor> ShellContents { get; }
 
     /// <summary>Gets the diagnostics found while composing the plugins.</summary>
     public IReadOnlyList<LatticeDiagnostic> Diagnostics { get; }
@@ -141,6 +146,7 @@ public sealed class LatticePluginCatalog
             builder.OwnedToolbars.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedStatusBarItems.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedSettingsTransfers.Select(contribution => contribution.Descriptor).ToArray(),
+            builder.OwnedShellContents.Select(contribution => contribution.Descriptor).ToArray(),
             diagnostics);
     }
 
@@ -265,6 +271,11 @@ public sealed class LatticePluginCatalog
             builder.OwnedSettingsTransfers,
             contribution => contribution.Section,
             "Settings section",
+            diagnostics);
+        ValidateDuplicateIds(
+            builder.OwnedShellContents,
+            contribution => contribution.Id.Value,
+            "Shell content",
             diagnostics);
         ValidateMenus(builder, diagnostics);
 

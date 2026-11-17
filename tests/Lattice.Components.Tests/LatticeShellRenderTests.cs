@@ -74,6 +74,17 @@ public sealed class LatticeShellRenderTests
     }
 
     [Fact]
+    public async Task RendersAContributedStartPageInsteadOfTheHostFallback()
+    {
+        await using var provider = BuildProvider(new ShellPlugin());
+
+        var html = await RenderAsync(provider);
+
+        Assert.Contains("contributed-start", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("Start content", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RendersAContributedToolbarInsteadOfTheRibbon()
     {
         await using var provider = BuildProvider(new ToolbarPlugin());
@@ -199,6 +210,32 @@ public sealed class LatticeShellRenderTests
             builder.AddContent(2, "Toolbar content");
             builder.CloseElement();
         }
+    }
+
+    public sealed class TestStartComponent : ComponentBase
+    {
+        protected override void BuildRenderTree(RenderTreeBuilder builder)
+        {
+            builder.OpenElement(0, "span");
+            builder.AddAttribute(1, "class", "contributed-start");
+            builder.AddContent(2, "Contributed start");
+            builder.CloseElement();
+        }
+    }
+
+    private sealed class ShellPlugin : ILatticePlugin
+    {
+        public PluginId Id => new("app.shell");
+
+        public StringKey DisplayName => new("app", "shell");
+
+        public IReadOnlyList<PluginId> DependsOn => [];
+
+        public void Configure(ILatticePluginBuilder builder) =>
+            builder.AddShellContent(new ShellContentDescriptor(
+                new ShellContentId("app.start"),
+                LatticeShellSlot.StartPage,
+                typeof(TestStartComponent)));
     }
 
     private sealed class ToolbarPlugin : ILatticePlugin

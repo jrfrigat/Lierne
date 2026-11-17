@@ -74,6 +74,9 @@ public interface ILatticePluginBuilder
     /// <summary>Gets the settings-transfer sections declared so far.</summary>
     IReadOnlyList<SettingsTransferDescriptor> SettingsTransfers { get; }
 
+    /// <summary>Gets the shell-surface contributions declared so far.</summary>
+    IReadOnlyList<ShellContentDescriptor> ShellContents { get; }
+
     /// <summary>Declares a document type.</summary>
     /// <param name="descriptor">The document descriptor.</param>
     void AddDocument(DocumentDescriptor descriptor);
@@ -136,4 +139,8 @@ public interface ILatticePluginBuilder
     /// <param name="descriptor">The section descriptor.</param>
     /// <remarks>The section id must be unique among the composed plugins.</remarks>
     void AddSettingsTransfer(SettingsTransferDescriptor descriptor);
+
+    /// <summary>Declares a component that replaces one shell surface.</summary>
+    /// <param name="descriptor">The shell-content descriptor.</param>
+    void AddShellContent(ShellContentDescriptor descriptor);
 }

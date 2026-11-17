@@ -18,6 +18,7 @@ public partial class LatticeShell : IDisposable
     private string? _lastActiveId;
     private bool _leftPinned = true;
     private bool _rightPinned = true;
+    private bool _bottomPinned = true;
 
     /// <summary>Gets or sets the title of the ribbon tab used when no toolbar is contributed.</summary>
     [Parameter]
@@ -31,7 +32,10 @@ public partial class LatticeShell : IDisposable
     [Parameter]
     public RenderFragment? StatusBar { get; set; }
 
-    /// <summary>Gets or sets the host bottom panel content.</summary>
+    /// <summary>
+    /// Gets or sets the host bottom panel content. A <see cref="LatticeShellSlot.BottomPanel"/>
+    /// contribution takes precedence.
+    /// </summary>
     [Parameter]
     public RenderFragment? BottomPanel { get; set; }
 
@@ -56,6 +60,35 @@ public partial class LatticeShell : IDisposable
             .OrderBy(group => group.Order)
             .ThenBy(group => group.Id.Value, StringComparer.Ordinal)
             .ToArray();
+
+    private ShellContentDescriptor? ShellContent(LatticeShellSlot slot) =>
+        Catalog.ShellContents
+            .Where(content => content.Slot == slot)
+            .OrderBy(content => content.Order)
+            .ThenBy(content => content.Id.Value, StringComparer.Ordinal)
+            .FirstOrDefault();
+
+    private RenderFragment? StartSurfaceContent =>
+        ShellContent(LatticeShellSlot.StartPage) is { } page
+            ? RenderComponent(page.Component)
+            : StartContent;
+
+    private RenderFragment? BottomHeaderSurface =>
+        ShellContent(LatticeShellSlot.BottomHeader) is { } header
+            ? RenderComponent(header.Component)
+            : null;
+
+    private RenderFragment? BottomPanelSurface =>
+        ShellContent(LatticeShellSlot.BottomPanel) is { } panel
+            ? RenderComponent(panel.Component)
+            : BottomPanel;
+
+    private static RenderFragment RenderComponent(Type component) => builder =>
+    {
+        builder.OpenComponent<DynamicComponent>(0);
+        builder.AddAttribute(1, nameof(DynamicComponent.Type), component);
+        builder.CloseComponent();
+    };
 
     private IReadOnlyList<MenuGroupDescriptor> MenuGroups =>
         Catalog.MenuGroups
@@ -170,6 +203,8 @@ public partial class LatticeShell : IDisposable
         IsPinned(region) ? IdePanelMode.Docked : IdePanelMode.AutoHide;
 
     private string HostLabel(string name) => Localizer.Get(new StringKey("lattice", name));
+
+    private void OnBottomPinnedChanged(bool pinned) => _bottomPinned = pinned;
 
     private void TogglePin(LatticeToolRegion region)
     {

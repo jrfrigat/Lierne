@@ -152,6 +152,25 @@ public readonly record struct ToolbarId
     public override string ToString() => Value;
 }
 
+/// <summary>Identifies a shell surface contributed by a plugin.</summary>
+public readonly record struct ShellContentId
+{
+    /// <summary>Creates a shell-content id.</summary>
+    /// <param name="value">The stable identifier, for example <c>quas.shell.menubar</c>.</param>
+    /// <exception cref="ArgumentException">The value is null, empty or whitespace.</exception>
+    public ShellContentId(string value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        Value = value;
+    }
+
+    /// <summary>Gets the identifier text.</summary>
+    public string Value { get; }
+
+    /// <inheritdoc />
+    public override string ToString() => Value;
+}
+
 /// <summary>Identifies a settings page contributed by a plugin.</summary>
 public readonly record struct SettingsPageId
 {

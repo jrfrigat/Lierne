@@ -72,6 +72,39 @@ public sealed record ToolWindowDescriptor(
     LatticeToolRegion DefaultRegion = LatticeToolRegion.Left,
     bool DefaultVisible = true);
 
+/// <summary>Describes a shell surface a plugin can replace.</summary>
+public enum LatticeShellSlot
+{
+    /// <summary>The menu bar above the command area.</summary>
+    MenuBar,
+
+    /// <summary>The content shown when no document is active.</summary>
+    StartPage,
+
+    /// <summary>The header of the bottom panel.</summary>
+    BottomHeader,
+
+    /// <summary>The content of the bottom panel.</summary>
+    BottomPanel
+}
+
+/// <summary>Describes a component that replaces one surface of the shell.</summary>
+/// <param name="Id">The stable contribution id.</param>
+/// <param name="Slot">The surface the component replaces.</param>
+/// <param name="Component">
+/// The component that renders the surface. It owns its chrome and talks to the application services
+/// directly; Lattice only mounts it in the slot.
+/// </param>
+/// <param name="Order">
+/// The order among contributions of the same slot. The lowest order wins; ties go to the id. The
+/// built-in surface is the fallback when a slot has no contribution.
+/// </param>
+public sealed record ShellContentDescriptor(
+    ShellContentId Id,
+    LatticeShellSlot Slot,
+    Type Component,
+    int Order = 0);
+
 /// <summary>Describes a command contributed by a plugin.</summary>
 /// <param name="Id">The stable command id.</param>
 /// <param name="Title">The localized command title.</param>

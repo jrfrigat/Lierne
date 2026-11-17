@@ -25,8 +25,14 @@
                 RightToolPanel="@RightTools"
                 Ribbon="@RibbonContent"
                 MenuBar="@MenuBarContent"
-                ChildContent="@StartContent"
-                BottomPanel="@BottomPanel"
+                ChildContent="@StartSurfaceContent"
+                BottomPanel="@BottomPanelSurface"
+                BottomHeaderContent="@BottomHeaderSurface"
+                ShowBottomHeader="@(ShellContent(LatticeShellSlot.BottomHeader) is not null)"
+                ShowBottomPin="true"
+                ShowBottomCollapse="false"
+                BottomPinned="@_bottomPinned"
+                BottomPinnedChanged="OnBottomPinnedChanged"
                 StatusBar="@StatusBarContent"
                 OnActiveDocumentChanged="OnActiveDocumentChanged"
                 OnDocumentCloseRequested="OnDocumentCloseRequested"
@@ -63,7 +69,11 @@
         </FlareRibbon>;
 
     private RenderFragment MenuBarContent => @<text>
-        @if (MenuBar is not null)
+        @if (ShellContent(LatticeShellSlot.MenuBar) is { } shellMenuBar)
+        {
+            <DynamicComponent @key="shellMenuBar.Id.Value" Type="@shellMenuBar.Component" />
+        }
+        else if (MenuBar is not null)
         {
             @MenuBar
         }
