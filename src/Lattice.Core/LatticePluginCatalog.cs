@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Resources;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Lattice;
@@ -229,6 +231,7 @@ public sealed class LatticePluginCatalog
             "Setting",
             diagnostics);
         ValidateSettingsPages(builder, diagnostics);
+        ValidateStringCatalogs(builder, diagnostics);
         ValidateMenus(builder, diagnostics);
 
         var commands = new HashSet<string>(
@@ -270,6 +273,44 @@ public sealed class LatticePluginCatalog
                 diagnostics.Add(LatticeDiagnostic.Error(
                     "lattice.settings.unknown_page",
                     $"Setting '{contribution.Descriptor.Key}' of plugin '{contribution.Plugin}' belongs to unknown page '{page}'."));
+            }
+        }
+    }
+
+    private static void ValidateStringCatalogs(
+        LatticePluginBuilder builder,
+        List<LatticeDiagnostic> diagnostics)
+    {
+        var owners = new Dictionary<string, PluginId>(StringComparer.Ordinal);
+        foreach (var contribution in builder.OwnedStringCatalogs)
+        {
+            var catalog = contribution.Descriptor;
+            if (!owners.TryAdd(catalog.Namespace, contribution.Plugin))
+            {
+                diagnostics.Add(LatticeDiagnostic.Error(
+                    "lattice.strings.duplicate_namespace",
+                    $"String namespace '{catalog.Namespace}' is served by both '{owners[catalog.Namespace]}' and '{contribution.Plugin}'."));
+                continue;
+            }
+
+            try
+            {
+                var resources = catalog.Resources.GetResourceSet(
+                    CultureInfo.InvariantCulture,
+                    createIfNotExists: true,
+                    tryParents: false);
+                if (resources is null)
+                {
+                    diagnostics.Add(LatticeDiagnostic.Error(
+                        "lattice.strings.missing_manifest",
+                        $"String namespace '{catalog.Namespace}' of plugin '{contribution.Plugin}' has no neutral resource manifest."));
+                }
+            }
+            catch (MissingManifestResourceException)
+            {
+                diagnostics.Add(LatticeDiagnostic.Error(
+                    "lattice.strings.missing_manifest",
+                    $"String namespace '{catalog.Namespace}' of plugin '{contribution.Plugin}' has no neutral resource manifest."));
             }
         }
     }

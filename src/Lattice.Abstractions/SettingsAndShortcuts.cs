@@ -38,6 +38,12 @@ public interface ILatticeLocalizer
     /// <returns>The localized text, or the full key text when no catalog contains it.</returns>
     string Get(StringKey key);
 
+    /// <summary>Resolves a stable error code through the contributed resources.</summary>
+    /// <param name="code">The error code, for example <c>lattice.command.not_found</c>.</param>
+    /// <param name="fallback">The message to use when no catalog contains the code.</param>
+    /// <returns>The localized text, the fallback, or the code itself.</returns>
+    string GetError(string code, string? fallback = null);
+
     /// <summary>Changes the active culture.</summary>
     /// <param name="culture">The two-letter culture, for example <c>en</c> or <c>ru</c>.</param>
     void SetCulture(string culture);

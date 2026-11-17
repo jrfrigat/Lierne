@@ -106,8 +106,12 @@ public interface ILatticePluginBuilder
     /// <param name="descriptor">The item descriptor.</param>
     void AddMenuItem(MenuItemDescriptor descriptor);
 
-    /// <summary>Declares a localized string catalog for one culture.</summary>
-    /// <param name="culture">The two-letter culture, for example <c>en</c> or <c>ru</c>.</param>
-    /// <param name="strings">The strings by full <see cref="StringKey"/> text.</param>
-    void AddStrings(string culture, IReadOnlyDictionary<string, string> strings);
+    /// <summary>Declares a localized string catalog backed by embedded resources.</summary>
+    /// <param name="catalog">The catalog and the string-key namespace it serves.</param>
+    /// <remarks>
+    /// The neutral <c>.resx</c> of the resource manager holds the English strings; a culture
+    /// assembly such as <c>.ru.resx</c> holds the translation. The host resolves a
+    /// <see cref="StringKey"/> through the catalog that serves its namespace.
+    /// </remarks>
+    void AddStrings(LatticeStringCatalog catalog);
 }

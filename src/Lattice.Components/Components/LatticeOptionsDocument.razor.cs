@@ -39,6 +39,10 @@ public partial class LatticeOptionsDocument
     private void Set(SettingDescriptor setting, object? value)
     {
         var result = Settings.Set(setting.Key, value);
-        _error = result.Success ? null : result.ErrorMessage;
+        _error = result.Success
+            ? null
+            : result.ErrorCode is { } code
+                ? Localizer.GetError(code, result.ErrorMessage)
+                : result.ErrorMessage;
     }
 }

@@ -44,23 +44,23 @@ public sealed class LatticeCommandService : ILatticeCommandService
     {
         if (!_registrations.TryGetValue(command, out var registration))
         {
-            return LatticeCommandResult.Fail(
+            return Localize(LatticeCommandResult.Fail(
                 "lattice.command.not_found",
-                $"The command '{command}' is not registered.");
+                $"The command '{command}' is not registered."));
         }
 
         if (!(registration.CanExecute?.Invoke(_context) ?? true))
         {
-            return LatticeCommandResult.Fail(
+            return Localize(LatticeCommandResult.Fail(
                 "lattice.command.disabled",
-                $"The command '{command}' is disabled.");
+                $"The command '{command}' is disabled."));
         }
 
         if (!ArgumentMatches(registration.Descriptor.ArgumentType, argument))
         {
-            return LatticeCommandResult.Fail(
+            return Localize(LatticeCommandResult.Fail(
                 "lattice.command.invalid_argument",
-                $"The command '{command}' does not accept the supplied argument.");
+                $"The command '{command}' does not accept the supplied argument."));
         }
 
         var context = new LatticeCommandContext(_services, _context, argument);
@@ -90,12 +90,32 @@ public sealed class LatticeCommandService : ILatticeCommandService
             result = LatticeCommandResult.Fail("lattice.command.failed", exception.Message);
         }
 
+        result = Localize(result);
         foreach (var observer in observers)
         {
             await observer.OnExecutedAsync(execution, result);
         }
 
         return result;
+    }
+
+    private LatticeCommandResult Localize(LatticeCommandResult result)
+    {
+        if (result.Success || result.ErrorCode is not { } code)
+        {
+            return result;
+        }
+
+        var localizer = _services.GetService<ILatticeLocalizer>();
+        if (localizer is null)
+        {
+            return result;
+        }
+
+        var message = localizer.GetError(code, result.ErrorMessage);
+        return string.Equals(message, result.ErrorMessage, StringComparison.Ordinal)
+            ? result
+            : result with { ErrorMessage = message };
     }
 
     private static bool ArgumentMatches(Type? argumentType, object? argument) =>

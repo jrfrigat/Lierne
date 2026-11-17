@@ -133,9 +133,12 @@ tool windows показываются/скрываются/переключаю�
 
 ### Локализация
 
-Плагин добавляет каталоги строк по культурам через `AddStrings(culture, key -> value)`.
-`ILatticeLocalizer` выбирает текущую культуру, затем fallback (`en`), затем возвращает полный
-текст `StringKey`; `Changed` поднимается при смене культуры.
+Плагин добавляет каталог строк через `AddStrings(new LatticeStringCatalog(namespace, resourceManager))`.
+Строки живут в embedded `.resx`: нейтральный файл содержит английский текст, `*.ru.resx` —
+перевод в сателлитной сборке. `ILatticeLocalizer` находит каталог по `StringKey.Namespace` и
+читает `StringKey.Name` из его `ResourceManager`; fallback на нейтральные ресурсы делает сам
+`ResourceManager`, а неизвестный ключ возвращается полным текстом `StringKey`. `Changed`
+поднимается при смене культуры. Словари в коде не используются.
 
 ## 5. Композиция и диагностика
 
@@ -166,6 +169,8 @@ tool windows показываются/скрываются/переключаю�
 | `lattice.menu.unknown_command` | пункт меню вызывает неизвестную команду |
 | `lattice.menu.invalid_item` | у листового пункта нет ни команды, ни детей |
 | `lattice.settings.unknown_page` | настройка ссылается на незарегистрированную страницу |
+| `lattice.strings.duplicate_namespace` | один namespace строк объявлен двумя плагинами |
+| `lattice.strings.missing_manifest` | у каталога строк нет нейтрального ресурса |
 
 ### 5.1 Сервисы времени выполнения
 

@@ -183,17 +183,7 @@ public sealed class LatticeRuntimeStateTests
     public void LocalizationResolvesCultureThenFallback()
     {
         var catalog = Build(builder =>
-        {
-            builder.AddStrings("en", new Dictionary<string, string>
-            {
-                ["app.title"] = "Hello",
-                ["app.only.en"] = "Fallback"
-            });
-            builder.AddStrings("ru", new Dictionary<string, string>
-            {
-                ["app.title"] = "Привет"
-            });
-        });
+            builder.AddStrings(new LatticeStringCatalog("app", TestStrings.ResourceManager)));
         var localizer = new LatticeLocalizer(catalog, "ru");
         var changes = 0;
         localizer.Changed += () => changes++;
@@ -206,6 +196,21 @@ public sealed class LatticeRuntimeStateTests
         Assert.Equal("Hello", localizer.Get(new StringKey("app", "title")));
         localizer.SetCulture("EN");
         Assert.Equal(1, changes);
+    }
+
+    [Fact]
+    public void ErrorCodesResolveThroughCoreAndPluginResources()
+    {
+        var catalog = Build(builder =>
+            builder.AddStrings(new LatticeStringCatalog("app", TestStrings.ResourceManager)));
+        var localizer = new LatticeLocalizer(catalog, "ru");
+
+        Assert.Equal(
+            "Команда не зарегистрирована.",
+            localizer.GetError("lattice.command.not_found"));
+        Assert.Equal("Локализованная ошибка", localizer.GetError("app.failure"));
+        Assert.Equal("fallback", localizer.GetError("app.unknown", "fallback"));
+        Assert.Equal("app.unknown", localizer.GetError("app.unknown"));
     }
 
     [Fact]

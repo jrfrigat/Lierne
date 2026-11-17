@@ -148,6 +148,24 @@ public sealed class LatticeCommandServiceTests
         Assert.Equal("lattice.command.not_found", result.ErrorCode);
     }
 
+    [Fact]
+    public async Task LocalizesAKnownErrorCodeWhenTheHostProvidesALocalizer()
+    {
+        var catalog = Build(_ => { });
+        using var provider = new ServiceCollection()
+            .AddSingleton<ILatticeLocalizer>(new LatticeLocalizer(catalog, "en"))
+            .BuildServiceProvider();
+        var service = new LatticeCommandService(catalog, new LatticeContext(), provider);
+
+        var result = await service.ExecuteAsync(
+            new CommandId("app.missing"),
+            cancellationToken: TestContext.Current.CancellationToken);
+
+        Assert.False(result.Success);
+        Assert.Equal("lattice.command.not_found", result.ErrorCode);
+        Assert.Equal("The command is not registered.", result.ErrorMessage);
+    }
+
     private static LatticePluginCatalog Build(Action<ILatticePluginBuilder> configure) =>
         LatticePluginCatalog.Build([new TestPlugin("app.feature", configure)]);
 

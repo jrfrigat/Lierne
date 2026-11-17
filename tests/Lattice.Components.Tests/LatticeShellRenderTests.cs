@@ -143,15 +143,7 @@ public sealed class LatticeShellRenderTests
                 LatticeSettingKind.Integer,
                 30,
                 Page: new SettingsPageId("app.settings")));
-            builder.AddStrings("en", new Dictionary<string, string>
-            {
-                ["app.document"] = "Document",
-                ["app.explorer"] = "Explorer",
-                ["app.run"] = "Run",
-                ["app.connection"] = "Connection",
-                ["app.settings"] = "Settings",
-                ["app.timeout"] = "Timeout"
-            });
+            builder.AddStrings(new LatticeStringCatalog("app", TestStrings.ResourceManager));
         }
     }
 

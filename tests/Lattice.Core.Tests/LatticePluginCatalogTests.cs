@@ -1,3 +1,4 @@
+using System.Resources;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Lattice.Core.Tests;
@@ -192,10 +193,9 @@ public sealed class LatticePluginCatalogTests
                         new MenuGroupId("app.tools"),
                         TestDescriptors.Key("run"),
                         new CommandId("app.run")));
-                    builder.AddStrings("en", new Dictionary<string, string>
-                    {
-                        ["tests.title"] = "Title"
-                    });
+                    builder.AddStrings(new LatticeStringCatalog(
+                        "tests",
+                        TestStrings.ResourceManager));
                 })
         ]);
 
@@ -303,6 +303,48 @@ public sealed class LatticePluginCatalogTests
         Assert.Contains(
             catalog.Diagnostics,
             diagnostic => diagnostic.Code == "lattice.settings.unknown_page");
+    }
+
+    [Fact]
+    public void ReportsStringNamespacesServedByTwoPlugins()
+    {
+        var catalog = LatticePluginCatalog.Build(
+        [
+            new TestPlugin(
+                "app.one",
+                builder => builder.AddStrings(new LatticeStringCatalog(
+                    "app",
+                    TestStrings.ResourceManager))),
+            new TestPlugin(
+                "app.two",
+                builder => builder.AddStrings(new LatticeStringCatalog(
+                    "app",
+                    TestStrings.ResourceManager)))
+        ]);
+
+        Assert.True(catalog.HasErrors);
+        Assert.Contains(
+            catalog.Diagnostics,
+            diagnostic => diagnostic.Code == "lattice.strings.duplicate_namespace");
+    }
+
+    [Fact]
+    public void ReportsStringCatalogsWithoutANeutralManifest()
+    {
+        var missing = new ResourceManager(
+            "Lattice.Core.Tests.Resources.DoesNotExist",
+            typeof(TestStrings).Assembly);
+        var catalog = LatticePluginCatalog.Build(
+        [
+            new TestPlugin(
+                "app.missing",
+                builder => builder.AddStrings(new LatticeStringCatalog("app", missing)))
+        ]);
+
+        Assert.True(catalog.HasErrors);
+        Assert.Contains(
+            catalog.Diagnostics,
+            diagnostic => diagnostic.Code == "lattice.strings.missing_manifest");
     }
 
     [Fact]

@@ -163,15 +163,14 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
         Add(_menuItems, descriptor);
 
     /// <inheritdoc />
-    public void AddStrings(string culture, IReadOnlyDictionary<string, string> strings)
+    public void AddStrings(LatticeStringCatalog catalog)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(culture);
-        ArgumentNullException.ThrowIfNull(strings);
+        ArgumentNullException.ThrowIfNull(catalog);
+        ArgumentException.ThrowIfNullOrWhiteSpace(catalog.Namespace);
+        ArgumentNullException.ThrowIfNull(catalog.Resources);
         _stringCatalogs.Add(new OwnedContribution<LatticeStringCatalog>(
             CurrentPlugin,
-            new LatticeStringCatalog(
-                culture,
-                new Dictionary<string, string>(strings, StringComparer.Ordinal))));
+            catalog));
     }
 
     private void Add<T>(List<OwnedContribution<T>> contributions, T descriptor)

@@ -1,8 +1,13 @@
+using System.Resources;
+
 namespace Lattice;
 
 /// <summary>Describes one localized string catalog contributed by a plugin.</summary>
-/// <param name="Culture">The two-letter culture, for example <c>en</c> or <c>ru</c>.</param>
-/// <param name="Strings">The strings by full <see cref="StringKey"/> text.</param>
+/// <param name="Namespace">The <see cref="StringKey.Namespace"/> the resources serve.</param>
+/// <param name="Resources">
+/// The resource manager whose neutral resources hold the English strings and whose satellite
+/// assemblies hold the other cultures.
+/// </param>
 public sealed record LatticeStringCatalog(
-    string Culture,
-    IReadOnlyDictionary<string, string> Strings);
+    string Namespace,
+    ResourceManager Resources);

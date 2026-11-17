@@ -51,22 +51,7 @@ public sealed class LatticeHostPlugin : ILatticePlugin
             new StringKey("lattice", "openOptions"),
             OpenOptionsCommand,
             100));
-        builder.AddStrings("en", new Dictionary<string, string>
-        {
-            ["lattice.host"] = "Lattice",
-            ["lattice.options"] = "Options",
-            ["lattice.openOptions"] = "Options...",
-            ["lattice.tools"] = "Tools",
-            ["lattice.noSettings"] = "No settings are contributed."
-        });
-        builder.AddStrings("ru", new Dictionary<string, string>
-        {
-            ["lattice.host"] = "Lattice",
-            ["lattice.options"] = "Параметры",
-            ["lattice.openOptions"] = "Параметры...",
-            ["lattice.tools"] = "Инструменты",
-            ["lattice.noSettings"] = "Настройки не добавлены."
-        });
+        builder.AddStrings(new LatticeStringCatalog("lattice", LatticeHostStrings.ResourceManager));
     }
 
     private static Task<LatticeCommandResult> OpenOptionsAsync(

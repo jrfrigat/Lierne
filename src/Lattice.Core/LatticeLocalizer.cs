@@ -2,13 +2,10 @@ using System.Globalization;
 
 namespace Lattice;
 
-/// <summary>Merges the plugin string catalogs and resolves keys by culture.</summary>
+/// <summary>Resolves string keys through the resource catalogs contributed by the plugins.</summary>
 public sealed class LatticeLocalizer : ILatticeLocalizer
 {
-    private const string FallbackCulture = "en";
-    private readonly Dictionary<string, Dictionary<string, string>> _catalogs =
-        new(StringComparer.OrdinalIgnoreCase);
-    private readonly string _fallbackCulture;
+    private readonly IReadOnlyList<LatticeStringCatalog> _catalogs;
 
     /// <summary>Creates the localizer for the current UI culture.</summary>
     /// <param name="catalog">The composed plugin catalog.</param>
@@ -24,22 +21,8 @@ public sealed class LatticeLocalizer : ILatticeLocalizer
     {
         ArgumentNullException.ThrowIfNull(catalog);
         ArgumentException.ThrowIfNullOrWhiteSpace(culture);
-        foreach (var entry in catalog.StringCatalogs)
-        {
-            if (!_catalogs.TryGetValue(entry.Culture, out var strings))
-            {
-                strings = new Dictionary<string, string>(StringComparer.Ordinal);
-                _catalogs[entry.Culture] = strings;
-            }
-
-            foreach (var pair in entry.Strings)
-            {
-                strings[pair.Key] = pair.Value;
-            }
-        }
-
+        _catalogs = catalog.StringCatalogs;
         CurrentCulture = culture;
-        _fallbackCulture = _catalogs.ContainsKey(FallbackCulture) ? FallbackCulture : culture;
     }
 
     /// <inheritdoc />
@@ -51,13 +34,44 @@ public sealed class LatticeLocalizer : ILatticeLocalizer
     /// <inheritdoc />
     public string Get(StringKey key)
     {
-        var text = key.ToString();
-        if (TryGet(CurrentCulture, text, out var value))
+        var culture = CultureInfo.GetCultureInfo(CurrentCulture);
+        foreach (var catalog in _catalogs)
         {
-            return value;
+            if (!string.Equals(catalog.Namespace, key.Namespace, StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            // The resource manager falls back from the satellite culture to the neutral resources,
+            // which hold the English text.
+            if (catalog.Resources.GetString(key.Name, culture) is { } value)
+            {
+                return value;
+            }
         }
 
-        return TryGet(_fallbackCulture, text, out value) ? value : text;
+        return key.ToString();
+    }
+
+    /// <inheritdoc />
+    public string GetError(string code, string? fallback = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        var culture = CultureInfo.GetCultureInfo(CurrentCulture);
+        if (LatticeCoreStrings.ResourceManager.GetString(code, culture) is { } core)
+        {
+            return core;
+        }
+
+        foreach (var catalog in _catalogs)
+        {
+            if (catalog.Resources.GetString(code, culture) is { } value)
+            {
+                return value;
+            }
+        }
+
+        return string.IsNullOrWhiteSpace(fallback) ? code : fallback;
     }
 
     /// <inheritdoc />
@@ -71,18 +85,5 @@ public sealed class LatticeLocalizer : ILatticeLocalizer
 
         CurrentCulture = culture;
         Changed?.Invoke();
-    }
-
-    private bool TryGet(string culture, string key, out string value)
-    {
-        if (_catalogs.TryGetValue(culture, out var strings) &&
-            strings.TryGetValue(key, out var text))
-        {
-            value = text;
-            return true;
-        }
-
-        value = string.Empty;
-        return false;
     }
 }
