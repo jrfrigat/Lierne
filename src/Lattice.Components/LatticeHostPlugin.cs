@@ -14,8 +14,19 @@ public sealed class LatticeHostPlugin : ILatticePlugin
     /// <summary>The command that opens the settings document.</summary>
     public static readonly CommandId OpenOptionsCommand = new("lattice.options.open");
 
+    /// <summary>The built-in Commands settings page.</summary>
+    public static readonly SettingsPageId CommandsPage = new("lattice.settings.commands");
+
+    /// <summary>The built-in Themes settings page.</summary>
+    public static readonly SettingsPageId ThemesPage = new("lattice.settings.themes");
+
     /// <summary>The built-in Tools menu group; applications add their items to this group.</summary>
     public static readonly MenuGroupId ToolsMenuGroup = new("lattice.tools");
+
+    /// <summary>Creates a key in the built-in Lattice string namespace.</summary>
+    /// <param name="name">The key name.</param>
+    /// <returns>The key.</returns>
+    public static StringKey Key(string name) => new("lattice", name);
 
     /// <inheritdoc />
     public PluginId Id => new("lattice.host");
@@ -51,6 +62,18 @@ public sealed class LatticeHostPlugin : ILatticePlugin
             new StringKey("lattice", "openOptions"),
             OpenOptionsCommand,
             100));
+        builder.AddSettingsPage(new SettingsPageDescriptor(
+            CommandsPage,
+            Key("commands"),
+            10,
+            typeof(LatticeCommandsSettingsPage),
+            LatticeSettingsGroup.General));
+        builder.AddSettingsPage(new SettingsPageDescriptor(
+            ThemesPage,
+            Key("themes"),
+            20,
+            typeof(LatticeThemesSettingsPage),
+            LatticeSettingsGroup.General));
         builder.AddStrings(new LatticeStringCatalog("lattice", LatticeHostStrings.ResourceManager));
     }
 

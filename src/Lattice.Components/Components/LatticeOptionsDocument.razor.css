@@ -12,6 +12,26 @@
     border-inline-end: 1px solid var(--flare-color-outline-variant);
 }
 
+.lattice-options__group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-block-end: 10px;
+}
+
+::deep .lattice-options__group-title {
+    padding: 4px 10px 2px;
+    color: var(--flare-color-on-surface-variant);
+    font-size: var(--flare-typescale-label-small-size);
+    text-transform: uppercase;
+}
+
+::deep .lattice-options__page {
+    justify-content: flex-start;
+    padding-inline-start: 18px;
+    text-align: start;
+}
+
 .lattice-options__pane {
     flex: 1 1 auto;
     min-inline-size: 0;

@@ -21,4 +21,14 @@
   <data name="pin" xml:space="preserve"><value>Закрепить</value></data>
   <data name="unpin" xml:space="preserve"><value>Открепить</value></data>
   <data name="close" xml:space="preserve"><value>Закрыть</value></data>
+  <data name="general" xml:space="preserve"><value>Основное</value></data>
+  <data name="commands" xml:space="preserve"><value>Команды</value></data>
+  <data name="themes" xml:space="preserve"><value>Темы</value></data>
+  <data name="theme" xml:space="preserve"><value>Тема</value></data>
+  <data name="palette" xml:space="preserve"><value>Палитра</value></data>
+  <data name="mode" xml:space="preserve"><value>Режим</value></data>
+  <data name="modeLight" xml:space="preserve"><value>Светлая</value></data>
+  <data name="modeDark" xml:space="preserve"><value>Тёмная</value></data>
+  <data name="modeAuto" xml:space="preserve"><value>Автоматически</value></data>
+  <data name="shortcutConflict" xml:space="preserve"><value>Конфликтующие сочетания: {0}</value></data>
 </root>

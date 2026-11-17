@@ -152,6 +152,16 @@ public sealed record RibbonItemDescriptor(
     int Order = 0,
     string? IconKey = null);
 
+/// <summary>Describes where a settings page appears in the settings tree.</summary>
+public enum LatticeSettingsGroup
+{
+    /// <summary>The built-in General node at the top of the tree.</summary>
+    General,
+
+    /// <summary>The node of the plugin that contributed the page.</summary>
+    Plugin
+}
+
 /// <summary>Describes a settings page contributed by a plugin.</summary>
 /// <param name="Id">The stable page id.</param>
 /// <param name="Title">The localized page title.</param>
@@ -160,11 +170,15 @@ public sealed record RibbonItemDescriptor(
 /// A custom page component, or <see langword="null"/> to generate the page from
 /// <see cref="SettingDescriptor"/> entries.
 /// </param>
+/// <param name="Group">The settings-tree group that hosts the page.</param>
+/// <param name="Plugin">The contributing plugin, stamped by the builder.</param>
 public sealed record SettingsPageDescriptor(
     SettingsPageId Id,
     StringKey Title,
     int Order = 0,
-    Type? Component = null);
+    Type? Component = null,
+    LatticeSettingsGroup Group = LatticeSettingsGroup.Plugin,
+    PluginId? Plugin = null);
 
 /// <summary>Describes one setting.</summary>
 /// <param name="Key">The stable setting key.</param>

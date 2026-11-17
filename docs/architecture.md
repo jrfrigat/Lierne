@@ -212,8 +212,10 @@ tool windows показываются/скрываются/переключаю�
   (выравнивание, порядок, иконка, команда или компонент с `LatticeStatusBarContext`);
   фрагмент `StatusBar`, переданный хостом, имеет приоритет;
 - `BottomPanel`, `ChildContent` (стартовый контент) — параметры хоста;
-- документ параметров — `LatticeHostPlugin` и `LatticeOptionsDocument` (страницы и
-  сгенерированные контролы из схемы); приложение обязано добавить плагин явно.
+- документ параметров — `LatticeHostPlugin` и `LatticeOptionsDocument`: дерево настроек с узлом
+  «Основное» (встроенные страницы «Команды» и «Темы») и узлом каждого плагина; страница с
+  `Component` рендерит свой компонент, иначе контролы генерируются из схемы `SettingDescriptor`;
+  приложение обязано добавить плагин явно.
 
 Контракт компонентов плагина: `LatticeDocumentComponent`, `LatticeToolWindowComponent` и
 `LatticeToolbarComponent` с параметром `Context`

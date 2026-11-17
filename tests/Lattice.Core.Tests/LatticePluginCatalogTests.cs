@@ -179,8 +179,7 @@ public sealed class LatticePluginCatalogTests
                         new CommandId("app.run")));
                     builder.AddSettingsPage(new SettingsPageDescriptor(
                         new SettingsPageId("app.settings"),
-                        TestDescriptors.Key("settings")));
-                    builder.AddSetting(new SettingDescriptor(
+                        TestDescriptors.Key("settings")));                    builder.AddSetting(new SettingDescriptor(
                         new SettingsKey("app.timeout"),
                         TestDescriptors.Key("timeout"),
                         LatticeSettingKind.Integer,
@@ -213,6 +212,12 @@ public sealed class LatticePluginCatalogTests
         Assert.Single(catalog.RibbonGroups);
         Assert.Single(catalog.RibbonItems);
         Assert.Single(catalog.SettingsPages);
+        Assert.Equal(
+            new PluginId("app.feature"),
+            Assert.Single(catalog.SettingsPages).Plugin);
+        Assert.Equal(
+            LatticeSettingsGroup.Plugin,
+            Assert.Single(catalog.SettingsPages).Group);
         Assert.Single(catalog.Settings);
         Assert.Single(catalog.MenuGroups);
         Assert.Single(catalog.MenuItems);

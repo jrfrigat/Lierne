@@ -21,4 +21,14 @@
   <data name="pin" xml:space="preserve"><value>Pin</value></data>
   <data name="unpin" xml:space="preserve"><value>Unpin</value></data>
   <data name="close" xml:space="preserve"><value>Close</value></data>
+  <data name="general" xml:space="preserve"><value>General</value></data>
+  <data name="commands" xml:space="preserve"><value>Commands</value></data>
+  <data name="themes" xml:space="preserve"><value>Themes</value></data>
+  <data name="theme" xml:space="preserve"><value>Theme</value></data>
+  <data name="palette" xml:space="preserve"><value>Palette</value></data>
+  <data name="mode" xml:space="preserve"><value>Mode</value></data>
+  <data name="modeLight" xml:space="preserve"><value>Light</value></data>
+  <data name="modeDark" xml:space="preserve"><value>Dark</value></data>
+  <data name="modeAuto" xml:space="preserve"><value>Auto</value></data>
+  <data name="shortcutConflict" xml:space="preserve"><value>Conflicting shortcuts: {0}</value></data>
 </root>

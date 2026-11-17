@@ -164,8 +164,13 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
         Add(_ribbonItems, descriptor);
 
     /// <inheritdoc />
-    public void AddSettingsPage(SettingsPageDescriptor descriptor) =>
-        Add(_settingsPages, descriptor);
+    public void AddSettingsPage(SettingsPageDescriptor descriptor)
+    {
+        ArgumentNullException.ThrowIfNull(descriptor);
+        _settingsPages.Add(new OwnedContribution<SettingsPageDescriptor>(
+            CurrentPlugin,
+            descriptor with { Plugin = descriptor.Plugin ?? CurrentPlugin }));
+    }
 
     /// <inheritdoc />
     public void AddSetting(SettingDescriptor descriptor) =>
