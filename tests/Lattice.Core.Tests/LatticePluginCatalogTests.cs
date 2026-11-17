@@ -208,6 +208,9 @@ public sealed class LatticePluginCatalogTests
         Assert.Single(catalog.Documents);
         Assert.Single(catalog.ToolWindows);
         Assert.Single(catalog.Commands);
+        Assert.Equal(
+            new PluginId("app.feature"),
+            Assert.Single(catalog.CommandRegistrations).Plugin);
         Assert.Single(catalog.CommandRegistrations);
         Assert.Single(catalog.RibbonGroups);
         Assert.Single(catalog.RibbonItems);
