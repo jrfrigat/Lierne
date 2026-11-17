@@ -15,6 +15,19 @@ public readonly record struct StringKey
         Name = name;
     }
 
+    /// <summary>The reserved namespace of literal text that needs no resource catalog.</summary>
+    public const string LiteralNamespace = "lattice.text";
+
+    /// <summary>Creates a key that resolves to the supplied text in every culture.</summary>
+    /// <param name="text">The text, for example the title of an untitled document.</param>
+    /// <returns>The literal key.</returns>
+    /// <exception cref="ArgumentException">The text is null, empty or whitespace.</exception>
+    public static StringKey Literal(string text)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(text);
+        return new StringKey(LiteralNamespace, text);
+    }
+
     /// <summary>Gets the namespace that owns the string.</summary>
     public string Namespace { get; }
 

@@ -68,6 +68,9 @@ public sealed class LatticeRuntimeStateTests
         Assert.Same(second.Data, documents.Active);
         Assert.Single(documents.Documents);
 
+        Assert.True(documents.SetTitle(second.Data.Id, StringKey.Literal("Renamed")).Success);
+        Assert.Equal(StringKey.Literal("Renamed"), documents.Active!.Title);
+
         Assert.True(documents.Move(second.Data.Id, LatticeDockLocation.Left).Success);
         Assert.Equal(LatticeDockLocation.Left, documents.Active!.Location);
         Assert.Equal(LatticeDockLocation.Left, documents.Documents[0].Location);

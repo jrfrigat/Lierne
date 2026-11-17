@@ -75,6 +75,28 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
     }
 
     /// <inheritdoc />
+    public LatticeResult SetTitle(string instanceId, StringKey title)
+    {
+        var index = IndexOf(instanceId);
+        if (index < 0)
+        {
+            return LatticeResult.Fail(
+                "lattice.document.unknown_instance",
+                $"The document '{instanceId}' is not open.");
+        }
+
+        var document = _documents[index];
+        if (document.Title == title)
+        {
+            return LatticeResult.Ok;
+        }
+
+        _documents[index] = document with { Title = title };
+        Changed?.Invoke();
+        return LatticeResult.Ok;
+    }
+
+    /// <inheritdoc />
     public LatticeResult Move(string instanceId, LatticeDockLocation location)
     {
         var index = IndexOf(instanceId);

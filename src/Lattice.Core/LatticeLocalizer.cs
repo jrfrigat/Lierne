@@ -34,6 +34,11 @@ public sealed class LatticeLocalizer : ILatticeLocalizer
     /// <inheritdoc />
     public string Get(StringKey key)
     {
+        if (string.Equals(key.Namespace, StringKey.LiteralNamespace, StringComparison.Ordinal))
+        {
+            return key.Name;
+        }
+
         var culture = CultureInfo.GetCultureInfo(CurrentCulture);
         foreach (var catalog in _catalogs)
         {

@@ -42,6 +42,12 @@ public interface ILatticeDocumentService
     /// <returns>Whether the document exists and became active.</returns>
     LatticeResult Activate(string instanceId);
 
+    /// <summary>Changes the title of an open document.</summary>
+    /// <param name="instanceId">The document instance id.</param>
+    /// <param name="title">The new title key.</param>
+    /// <returns>Whether the document exists and the title changed.</returns>
+    LatticeResult SetTitle(string instanceId, StringKey title);
+
     /// <summary>Moves a document to another region.</summary>
     /// <param name="instanceId">The document instance id.</param>
     /// <param name="location">The destination region.</param>
