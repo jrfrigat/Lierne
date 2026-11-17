@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <RootNamespace>Lattice</RootNamespace>
+    <AssemblyName>Lattice.Core</AssemblyName>
+    <Description>Plugin catalog, contribution registries and composition validation of the Lattice IDE composition framework.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Lattice.Abstractions\Lattice.Abstractions.csproj" />
+  </ItemGroup>
+</Project>

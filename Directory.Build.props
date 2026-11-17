@@ -1,0 +1,23 @@
+<Project>
+  <PropertyGroup>
+    <Authors>FrigaT</Authors>
+    <Company>FrigaT</Company>
+    <Copyright>Copyright (c) 2026 FrigaT</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <IsPackable>false</IsPackable>
+    <Version>0.1.0</Version>
+    <VersionPrefix>0.1.0</VersionPrefix>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <RepoRoot>$(MSBuildThisFileDirectory)</RepoRoot>
+  </PropertyGroup>
+
+  <!-- Local-only overrides, normally created from Directory.Build.local.props.example.
+       The file is git-ignored, so CI and other machines keep the package build. -->
+  <Import Project="$(MSBuildThisFileDirectory)Directory.Build.local.props"
+          Condition="Exists('$(MSBuildThisFileDirectory)Directory.Build.local.props')" />
+</Project>

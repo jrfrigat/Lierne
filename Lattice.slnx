@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Lattice.Abstractions/Lattice.Abstractions.csproj" />
+    <Project Path="src/Lattice.Core/Lattice.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Lattice.Core.Tests/Lattice.Core.Tests.csproj" />
+  </Folder>
+</Solution>

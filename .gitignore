@@ -1,0 +1,30 @@
+# Aiko keeps the project knowledge on this machine (local-only git policy).
+/.aiko/
+/.mcp.json
+/.cursor/mcp.json
+/.zcode/config.json
+/.cline/
+/.clinerules/
+/.codex/
+/.agents/
+
+# .NET build output and local tooling.
+bin/
+obj/
+.vs/
+TestResults/
+*.user
+*.suo
+*.nupkg
+*.snupkg
+.vscode/
+.idea/
+
+# Local-only build overrides; see Directory.Build.local.props.example.
+Directory.Build.local.props
+
+# AI assistant files stay local; they are not part of the product.
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+/.claude/
