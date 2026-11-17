@@ -97,7 +97,7 @@ public sealed class LatticeSettingsTransfer
 
             document = parsed;
         }
-        catch (JsonException exception)
+        catch (Exception exception) when (exception is JsonException or ArgumentException)
         {
             return LatticeResult.Fail(
                 "lattice.settings.invalid_json",
@@ -129,14 +129,23 @@ public sealed class LatticeSettingsTransfer
         var known = _catalog.SettingsTransfers.ToDictionary(
             descriptor => descriptor.Section,
             StringComparer.Ordinal);
-        foreach (var section in sections)
+        try
         {
-            if (!known.ContainsKey(section.Key))
+            foreach (var section in sections)
             {
-                return LatticeResult.Fail(
-                    "lattice.settings.unknown_section",
-                    $"Section '{section.Key}' is not declared by any plugin.");
+                if (!known.ContainsKey(section.Key))
+                {
+                    return LatticeResult.Fail(
+                        "lattice.settings.unknown_section",
+                        $"Section '{section.Key}' is not declared by any plugin.");
+                }
             }
+        }
+        catch (ArgumentException exception)
+        {
+            return LatticeResult.Fail(
+                "lattice.settings.duplicate_section",
+                $"The settings document repeats a section: {exception.Message}");
         }
 
         var snapshots = new Dictionary<string, JsonNode?>(StringComparer.Ordinal);

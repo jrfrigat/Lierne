@@ -90,6 +90,7 @@ public sealed class LatticeSettingsTransferTests
     [InlineData("""{"format":"lattice.settings","version":99,"sections":{}}""", "lattice.settings.unsupported_version")]
     [InlineData("""{"format":"lattice.settings","version":1}""", "lattice.settings.missing_sections")]
     [InlineData("""{"format":"lattice.settings","version":1,"sections":{"app.unknown":{}}}""", "lattice.settings.unknown_section")]
+    [InlineData("""{"format":"lattice.settings","version":1,"sections":{"app.first":1,"app.first":2}}""", "lattice.settings.duplicate_section")]
     public void RejectsDocumentsNamingTheProblem(string json, string errorCode)
     {
         var transfer = CreateTransfer(new Dictionary<string, string>(StringComparer.Ordinal));

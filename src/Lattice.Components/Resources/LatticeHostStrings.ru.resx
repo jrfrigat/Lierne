@@ -45,6 +45,7 @@
   <data name="lattice.settings.unsupported_version" xml:space="preserve"><value>Версия документа настроек не поддерживается этой сборкой.</value></data>
   <data name="lattice.settings.missing_sections" xml:space="preserve"><value>В документе настроек нет разделов.</value></data>
   <data name="lattice.settings.unknown_section" xml:space="preserve"><value>Документ настроек содержит раздел, который не объявлен ни одним плагином.</value></data>
+  <data name="lattice.settings.duplicate_section" xml:space="preserve"><value>Документ настроек повторяет раздел.</value></data>
   <data name="lattice.settings.import_failed" xml:space="preserve"><value>Не удалось импортировать документ настроек.</value></data>
   <data name="lattice.settings.export_failed" xml:space="preserve"><value>Не удалось экспортировать настройки.</value></data>
   <data name="lattice.settings.file_too_large" xml:space="preserve"><value>Файл настроек слишком большой (предел — 4 МБ).</value></data>
