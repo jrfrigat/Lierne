@@ -13,11 +13,12 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
 {
     private readonly List<OwnedContribution<DocumentDescriptor>> _documents = [];
     private readonly List<OwnedContribution<ToolWindowDescriptor>> _toolWindows = [];
-    private readonly List<OwnedContribution<CommandDescriptor>> _commands = [];
+    private readonly List<OwnedContribution<LatticeCommandRegistration>> _commands = [];
     private readonly List<OwnedContribution<RibbonGroupDescriptor>> _ribbonGroups = [];
     private readonly List<OwnedContribution<RibbonItemDescriptor>> _ribbonItems = [];
     private readonly List<OwnedContribution<SettingsPageDescriptor>> _settingsPages = [];
     private readonly List<OwnedContribution<SettingDescriptor>> _settings = [];
+    private readonly List<OwnedContribution<LatticeStringCatalog>> _stringCatalogs = [];
 
     /// <summary>Creates the builder.</summary>
     /// <param name="services">The service collection the plugins register into.</param>
@@ -43,6 +44,12 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
 
     /// <inheritdoc />
     public IReadOnlyList<CommandDescriptor> Commands =>
+        _commands
+            .Select(contribution => contribution.Descriptor.Descriptor)
+            .ToArray();
+
+    /// <summary>Gets the command registrations with their handlers.</summary>
+    public IReadOnlyList<LatticeCommandRegistration> CommandRegistrations =>
         _commands.Select(contribution => contribution.Descriptor).ToArray();
 
     /// <inheritdoc />
@@ -61,6 +68,10 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
     public IReadOnlyList<SettingDescriptor> Settings =>
         _settings.Select(contribution => contribution.Descriptor).ToArray();
 
+    /// <inheritdoc />
+    public IReadOnlyList<LatticeStringCatalog> StringCatalogs =>
+        _stringCatalogs.Select(contribution => contribution.Descriptor).ToArray();
+
     /// <summary>Gets the documents with their declaring plugin.</summary>
     public IReadOnlyList<OwnedContribution<DocumentDescriptor>> OwnedDocuments => _documents;
 
@@ -68,7 +79,7 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
     public IReadOnlyList<OwnedContribution<ToolWindowDescriptor>> OwnedToolWindows => _toolWindows;
 
     /// <summary>Gets the commands with their declaring plugin.</summary>
-    public IReadOnlyList<OwnedContribution<CommandDescriptor>> OwnedCommands => _commands;
+    public IReadOnlyList<OwnedContribution<LatticeCommandRegistration>> OwnedCommands => _commands;
 
     /// <summary>Gets the ribbon groups with their declaring plugin.</summary>
     public IReadOnlyList<OwnedContribution<RibbonGroupDescriptor>> OwnedRibbonGroups => _ribbonGroups;
@@ -81,6 +92,10 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
 
     /// <summary>Gets the settings with their declaring plugin.</summary>
     public IReadOnlyList<OwnedContribution<SettingDescriptor>> OwnedSettings => _settings;
+
+    /// <summary>Gets the string catalogs with their declaring plugin.</summary>
+    public IReadOnlyList<OwnedContribution<LatticeStringCatalog>> OwnedStringCatalogs =>
+        _stringCatalogs;
 
     /// <summary>Starts collecting contributions for one plugin.</summary>
     /// <param name="plugin">The plugin whose configuration is starting.</param>
@@ -95,8 +110,17 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
         Add(_toolWindows, descriptor);
 
     /// <inheritdoc />
-    public void AddCommand(CommandDescriptor descriptor) =>
-        Add(_commands, descriptor);
+    public void AddCommand(
+        CommandDescriptor descriptor,
+        LatticeCommandHandler handler,
+        Func<ILatticeContext, bool>? canExecute = null)
+    {
+        ArgumentNullException.ThrowIfNull(descriptor);
+        ArgumentNullException.ThrowIfNull(handler);
+        _commands.Add(new OwnedContribution<LatticeCommandRegistration>(
+            CurrentPlugin,
+            new LatticeCommandRegistration(descriptor, handler, canExecute)));
+    }
 
     /// <inheritdoc />
     public void AddRibbonGroup(RibbonGroupDescriptor descriptor) =>
@@ -113,6 +137,18 @@ internal sealed class LatticePluginBuilder : ILatticePluginBuilder
     /// <inheritdoc />
     public void AddSetting(SettingDescriptor descriptor) =>
         Add(_settings, descriptor);
+
+    /// <inheritdoc />
+    public void AddStrings(string culture, IReadOnlyDictionary<string, string> strings)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(culture);
+        ArgumentNullException.ThrowIfNull(strings);
+        _stringCatalogs.Add(new OwnedContribution<LatticeStringCatalog>(
+            CurrentPlugin,
+            new LatticeStringCatalog(
+                culture,
+                new Dictionary<string, string>(strings, StringComparer.Ordinal))));
+    }
 
     private void Add<T>(List<OwnedContribution<T>> contributions, T descriptor)
         where T : class

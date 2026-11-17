@@ -13,20 +13,24 @@ public sealed class LatticePluginCatalog
         IReadOnlyList<DocumentDescriptor> documents,
         IReadOnlyList<ToolWindowDescriptor> toolWindows,
         IReadOnlyList<CommandDescriptor> commands,
+        IReadOnlyList<LatticeCommandRegistration> commandRegistrations,
         IReadOnlyList<RibbonGroupDescriptor> ribbonGroups,
         IReadOnlyList<RibbonItemDescriptor> ribbonItems,
         IReadOnlyList<SettingsPageDescriptor> settingsPages,
         IReadOnlyList<SettingDescriptor> settings,
+        IReadOnlyList<LatticeStringCatalog> stringCatalogs,
         IReadOnlyList<LatticeDiagnostic> diagnostics)
     {
         Plugins = plugins;
         Documents = documents;
         ToolWindows = toolWindows;
         Commands = commands;
+        CommandRegistrations = commandRegistrations;
         RibbonGroups = ribbonGroups;
         RibbonItems = ribbonItems;
         SettingsPages = settingsPages;
         Settings = settings;
+        StringCatalogs = stringCatalogs;
         Diagnostics = diagnostics;
     }
 
@@ -42,6 +46,9 @@ public sealed class LatticePluginCatalog
     /// <summary>Gets the commands in plugin order.</summary>
     public IReadOnlyList<CommandDescriptor> Commands { get; }
 
+    /// <summary>Gets the command registrations with their handlers in plugin order.</summary>
+    public IReadOnlyList<LatticeCommandRegistration> CommandRegistrations { get; }
+
     /// <summary>Gets the ribbon groups in plugin order.</summary>
     public IReadOnlyList<RibbonGroupDescriptor> RibbonGroups { get; }
 
@@ -53,6 +60,9 @@ public sealed class LatticePluginCatalog
 
     /// <summary>Gets the settings in plugin order.</summary>
     public IReadOnlyList<SettingDescriptor> Settings { get; }
+
+    /// <summary>Gets the localized string catalogs in plugin order.</summary>
+    public IReadOnlyList<LatticeStringCatalog> StringCatalogs { get; }
 
     /// <summary>Gets the diagnostics found while composing the plugins.</summary>
     public IReadOnlyList<LatticeDiagnostic> Diagnostics { get; }
@@ -90,11 +100,15 @@ public sealed class LatticePluginCatalog
                 .ToArray(),
             builder.OwnedDocuments.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedToolWindows.Select(contribution => contribution.Descriptor).ToArray(),
+            builder.OwnedCommands
+                .Select(contribution => contribution.Descriptor.Descriptor)
+                .ToArray(),
             builder.OwnedCommands.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedRibbonGroups.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedRibbonItems.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedSettingsPages.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedSettings.Select(contribution => contribution.Descriptor).ToArray(),
+            builder.OwnedStringCatalogs.Select(contribution => contribution.Descriptor).ToArray(),
             diagnostics);
     }
 
@@ -179,7 +193,7 @@ public sealed class LatticePluginCatalog
             diagnostics);
         ValidateDuplicateIds(
             builder.OwnedCommands,
-            contribution => contribution.Id.Value,
+            contribution => contribution.Descriptor.Id.Value,
             "Command",
             diagnostics);
         ValidateDuplicateIds(
@@ -204,7 +218,7 @@ public sealed class LatticePluginCatalog
             diagnostics);
 
         var commands = new HashSet<string>(
-            builder.OwnedCommands.Select(contribution => contribution.Descriptor.Id.Value),
+            builder.OwnedCommands.Select(contribution => contribution.Descriptor.Descriptor.Id.Value),
             StringComparer.Ordinal);
         var groups = new HashSet<string>(
             builder.OwnedRibbonGroups.Select(contribution => contribution.Descriptor.Id.Value),

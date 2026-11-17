@@ -18,6 +18,11 @@ public static class LatticeServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(configure);
+        if (services.Any(descriptor => descriptor.ServiceType == typeof(LatticePluginCatalog)))
+        {
+            return services;
+        }
+
         var options = new LatticeOptions();
         configure(options);
         var catalog = LatticePluginCatalog.Build(options.Plugins, services);
@@ -27,6 +32,13 @@ public static class LatticeServiceCollectionExtensions
         }
 
         services.AddSingleton(catalog);
+        services.AddScoped<ILatticeContext, LatticeContext>();
+        services.AddScoped<ILatticeCommandService, LatticeCommandService>();
+        services.AddScoped<ILatticeDocumentService, LatticeDocumentService>();
+        services.AddScoped<ILatticeToolWindowService, LatticeToolWindowService>();
+        services.AddScoped<ISettingsStore, LatticeSettingsStore>();
+        services.AddScoped<ILatticeLocalizer, LatticeLocalizer>();
+        services.AddScoped<ILatticeShortcutService, LatticeShortcutService>();
         return services;
     }
 }

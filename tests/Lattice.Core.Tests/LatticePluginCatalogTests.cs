@@ -8,13 +8,17 @@ public sealed class LatticePluginCatalogTests
     [Fact]
     public void OrdersPluginsByDependenciesBeforeDeclaration()
     {
-        var dependent = Plugin(
+        var dependent = new TestPlugin(
             "app.connection",
-            builder => builder.AddCommand(Command("app.connection.connect")),
+            builder => builder.AddCommand(
+                TestDescriptors.Command("app.connection.connect"),
+                TestDescriptors.NoOp),
             "app.core");
-        var core = Plugin(
+        var core = new TestPlugin(
             "app.core",
-            builder => builder.AddCommand(Command("app.core.open")));
+            builder => builder.AddCommand(
+                TestDescriptors.Command("app.core.open"),
+                TestDescriptors.NoOp));
 
         var catalog = LatticePluginCatalog.Build([dependent, core]);
 
@@ -28,7 +32,8 @@ public sealed class LatticePluginCatalogTests
     [Fact]
     public void ReportsDuplicatePluginIds()
     {
-        var catalog = LatticePluginCatalog.Build([Plugin("app.same"), Plugin("app.same")]);
+        var catalog = LatticePluginCatalog.Build(
+            [new TestPlugin("app.same"), new TestPlugin("app.same")]);
 
         Assert.True(catalog.HasErrors);
         Assert.Contains(
@@ -39,7 +44,8 @@ public sealed class LatticePluginCatalogTests
     [Fact]
     public void ReportsMissingDependencies()
     {
-        var catalog = LatticePluginCatalog.Build([Plugin("app.connection", "app.missing")]);
+        var catalog = LatticePluginCatalog.Build(
+            [new TestPlugin("app.connection", "app.missing")]);
 
         Assert.True(catalog.HasErrors);
         Assert.Contains(
@@ -54,8 +60,8 @@ public sealed class LatticePluginCatalogTests
     {
         var catalog = LatticePluginCatalog.Build(
         [
-            Plugin("app.a", "app.b"),
-            Plugin("app.b", "app.a")
+            new TestPlugin("app.a", "app.b"),
+            new TestPlugin("app.b", "app.a")
         ]);
 
         Assert.True(catalog.HasErrors);
@@ -69,8 +75,16 @@ public sealed class LatticePluginCatalogTests
     {
         var catalog = LatticePluginCatalog.Build(
         [
-            Plugin("app.one", builder => builder.AddCommand(Command("app.shared.run"))),
-            Plugin("app.two", builder => builder.AddCommand(Command("app.shared.run")))
+            new TestPlugin(
+                "app.one",
+                builder => builder.AddCommand(
+                    TestDescriptors.Command("app.shared.run"),
+                    TestDescriptors.NoOp)),
+            new TestPlugin(
+                "app.two",
+                builder => builder.AddCommand(
+                    TestDescriptors.Command("app.shared.run"),
+                    TestDescriptors.NoOp))
         ]);
 
         Assert.True(catalog.HasErrors);
@@ -86,13 +100,13 @@ public sealed class LatticePluginCatalogTests
     {
         var catalog = LatticePluginCatalog.Build(
         [
-            Plugin(
+            new TestPlugin(
                 "app.ribbon",
                 builder =>
                 {
                     builder.AddRibbonGroup(new RibbonGroupDescriptor(
                         new RibbonGroupId("app.group"),
-                        Key("group")));
+                        TestDescriptors.Key("group")));
                     builder.AddRibbonItem(new RibbonItemDescriptor(
                         new RibbonItemId("app.item"),
                         new RibbonGroupId("app.group"),
@@ -113,11 +127,13 @@ public sealed class LatticePluginCatalogTests
     {
         var catalog = LatticePluginCatalog.Build(
         [
-            Plugin(
+            new TestPlugin(
                 "app.ribbon",
                 builder =>
                 {
-                    builder.AddCommand(Command("app.run"));
+                    builder.AddCommand(
+                        TestDescriptors.Command("app.run"),
+                        TestDescriptors.NoOp);
                     builder.AddRibbonItem(new RibbonItemDescriptor(
                         new RibbonItemId("app.item"),
                         new RibbonGroupId("app.missing"),
@@ -136,36 +152,42 @@ public sealed class LatticePluginCatalogTests
     {
         var catalog = LatticePluginCatalog.Build(
         [
-            Plugin(
+            new TestPlugin(
                 "app.feature",
                 builder =>
                 {
                     builder.AddDocument(new DocumentDescriptor(
                         new DocumentTypeId("app.document"),
-                        Key("document"),
+                        TestDescriptors.Key("document"),
                         null,
                         typeof(object)));
                     builder.AddToolWindow(new ToolWindowDescriptor(
                         new ToolWindowId("app.tool"),
-                        Key("tool"),
+                        TestDescriptors.Key("tool"),
                         "tool",
                         typeof(object)));
-                    builder.AddCommand(Command("app.run"));
+                    builder.AddCommand(
+                        TestDescriptors.Command("app.run"),
+                        TestDescriptors.NoOp);
                     builder.AddRibbonGroup(new RibbonGroupDescriptor(
                         new RibbonGroupId("app.group"),
-                        Key("group")));
+                        TestDescriptors.Key("group")));
                     builder.AddRibbonItem(new RibbonItemDescriptor(
                         new RibbonItemId("app.item"),
                         new RibbonGroupId("app.group"),
                         new CommandId("app.run")));
                     builder.AddSettingsPage(new SettingsPageDescriptor(
                         new SettingsPageId("app.settings"),
-                        Key("settings")));
+                        TestDescriptors.Key("settings")));
                     builder.AddSetting(new SettingDescriptor(
                         new SettingsKey("app.timeout"),
-                        Key("timeout"),
+                        TestDescriptors.Key("timeout"),
                         LatticeSettingKind.Integer,
                         30));
+                    builder.AddStrings("en", new Dictionary<string, string>
+                    {
+                        ["tests.title"] = "Title"
+                    });
                 })
         ]);
 
@@ -173,10 +195,12 @@ public sealed class LatticePluginCatalogTests
         Assert.Single(catalog.Documents);
         Assert.Single(catalog.ToolWindows);
         Assert.Single(catalog.Commands);
+        Assert.Single(catalog.CommandRegistrations);
         Assert.Single(catalog.RibbonGroups);
         Assert.Single(catalog.RibbonItems);
         Assert.Single(catalog.SettingsPages);
         Assert.Single(catalog.Settings);
+        Assert.Single(catalog.StringCatalogs);
     }
 
     [Fact]
@@ -184,7 +208,7 @@ public sealed class LatticePluginCatalogTests
     {
         var services = new ServiceCollection();
         services.AddLattice(options => options.AddPlugin(
-            Plugin(
+            new TestPlugin(
                 "app.feature",
                 builder => builder.Services.AddSingleton<PluginService>())));
 
@@ -200,49 +224,12 @@ public sealed class LatticePluginCatalogTests
         var services = new ServiceCollection();
 
         var exception = Assert.Throws<LatticeCompositionException>(() =>
-            services.AddLattice(options => options.AddPlugin(Plugin("app.connection", "app.missing"))));
+            services.AddLattice(options => options.AddPlugin(
+                new TestPlugin("app.connection", "app.missing"))));
 
         Assert.Contains(
             exception.Diagnostics,
             diagnostic => diagnostic.Code == "lattice.plugin.missing_dependency");
-    }
-
-    private static TestPlugin Plugin(string id, params string[] dependsOn) =>
-        new(id, null, dependsOn);
-
-    private static TestPlugin Plugin(
-        string id,
-        Action<ILatticePluginBuilder> configure,
-        params string[] dependsOn) =>
-        new(id, configure, dependsOn);
-
-    private static CommandDescriptor Command(string id) =>
-        new(new CommandId(id), Key(id));
-
-    private static StringKey Key(string name) => new("tests", name);
-
-    private sealed class TestPlugin : ILatticePlugin
-    {
-        private readonly Action<ILatticePluginBuilder>? _configure;
-
-        public TestPlugin(
-            string id,
-            Action<ILatticePluginBuilder>? configure,
-            string[] dependsOn)
-        {
-            Id = new PluginId(id);
-            DisplayName = new StringKey("tests", id);
-            DependsOn = dependsOn.Select(value => new PluginId(value)).ToArray();
-            _configure = configure;
-        }
-
-        public PluginId Id { get; }
-
-        public StringKey DisplayName { get; }
-
-        public IReadOnlyList<PluginId> DependsOn { get; }
-
-        public void Configure(ILatticePluginBuilder builder) => _configure?.Invoke(builder);
     }
 
     private sealed class PluginService

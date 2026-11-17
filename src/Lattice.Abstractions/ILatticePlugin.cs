@@ -56,6 +56,9 @@ public interface ILatticePluginBuilder
     /// <summary>Gets the settings declared so far.</summary>
     IReadOnlyList<SettingDescriptor> Settings { get; }
 
+    /// <summary>Gets the localized string catalogs declared so far.</summary>
+    IReadOnlyList<LatticeStringCatalog> StringCatalogs { get; }
+
     /// <summary>Declares a document type.</summary>
     /// <param name="descriptor">The document descriptor.</param>
     void AddDocument(DocumentDescriptor descriptor);
@@ -64,9 +67,14 @@ public interface ILatticePluginBuilder
     /// <param name="descriptor">The tool window descriptor.</param>
     void AddToolWindow(ToolWindowDescriptor descriptor);
 
-    /// <summary>Declares a command.</summary>
-    /// <param name="descriptor">The command descriptor.</param>
-    void AddCommand(CommandDescriptor descriptor);
+    /// <summary>Declares a command with its handler.</summary>
+    /// <param name="descriptor">The command metadata.</param>
+    /// <param name="handler">The handler that executes the command.</param>
+    /// <param name="canExecute">The optional predicate over the shared state.</param>
+    void AddCommand(
+        CommandDescriptor descriptor,
+        LatticeCommandHandler handler,
+        Func<ILatticeContext, bool>? canExecute = null);
 
     /// <summary>Declares a ribbon group.</summary>
     /// <param name="descriptor">The group descriptor.</param>
@@ -83,4 +91,9 @@ public interface ILatticePluginBuilder
     /// <summary>Declares a setting.</summary>
     /// <param name="descriptor">The setting descriptor.</param>
     void AddSetting(SettingDescriptor descriptor);
+
+    /// <summary>Declares a localized string catalog for one culture.</summary>
+    /// <param name="culture">The two-letter culture, for example <c>en</c> or <c>ru</c>.</param>
+    /// <param name="strings">The strings by full <see cref="StringKey"/> text.</param>
+    void AddStrings(string culture, IReadOnlyDictionary<string, string> strings);
 }

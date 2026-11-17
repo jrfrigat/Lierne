@@ -13,12 +13,15 @@ connection (Database Explorer plus the connection toolbox).
 
 The architecture is being built incrementally. What exists today:
 
-- `Lattice.Abstractions` - typed ids, plugin contract, contribution descriptors;
-- `Lattice.Core` - plugin catalog with dependency ordering, duplicate detection and ribbon validation;
-- `Lattice.Core.Tests` - tests for ordering, diagnostics and service registration.
+- `Lattice.Abstractions` - typed ids, plugin contract, contribution descriptors, runtime contracts;
+- `Lattice.Core` - plugin catalog with dependency ordering and validation, command execution with
+  observers and shortcuts, documents and tool windows, schema-driven settings, observable context,
+  localized string catalogs;
+- `Lattice.Core.Tests` - tests for ordering, diagnostics, execution, state and registration.
 
-The Flare UI host (`Lattice.Components`), command execution and persistent workspace state are the
-next increments; see [docs/architecture.md](docs/architecture.md).
+The Flare UI host (`Lattice.Components`), persistent workspace state and the first real plugin
+(Quas database connection) are the next increments; plugins live in the consuming application, not
+in Lattice. See [docs/architecture.md](docs/architecture.md).
 
 ## Quick start
 
