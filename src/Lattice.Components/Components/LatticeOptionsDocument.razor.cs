@@ -6,6 +6,7 @@ namespace Lattice;
 public partial class LatticeOptionsDocument
 {
     private IReadOnlyList<SettingsGroupNode> _groups = [];
+    private readonly HashSet<string> _collapsedGroups = new(StringComparer.Ordinal);
     private SettingsPageId? _selectedPageId;
     private string? _error;
 
@@ -70,6 +71,16 @@ public partial class LatticeOptionsDocument
     }
 
     private void Select(SettingsPageId pageId) => _selectedPageId = pageId;
+
+    private bool IsCollapsed(string key) => _collapsedGroups.Contains(key);
+
+    private void ToggleGroup(string key)
+    {
+        if (!_collapsedGroups.Add(key))
+        {
+            _collapsedGroups.Remove(key);
+        }
+    }
 
     private int? ReadInt(SettingsKey key) =>
         Settings.GetValue(key) is int value ? value : null;

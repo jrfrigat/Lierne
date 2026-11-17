@@ -19,10 +19,11 @@
     margin-block-end: 10px;
 }
 
-::deep .lattice-options__group-title {
-    padding: 4px 10px 2px;
+::deep .lattice-options__group-toggle {
+    justify-content: flex-start;
+    padding-inline-start: 6px;
     color: var(--flare-color-on-surface-variant);
-    font-size: var(--flare-typescale-label-small-size);
+    font-size: var(--flare-typescale-label-medium-size);
     text-transform: uppercase;
 }
 

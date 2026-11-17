@@ -1,5 +1,6 @@
 @namespace Lattice
 @using Flare.Components
+@using Flare.Icons
 @inherits LatticeDocumentComponent
 @inject LatticePluginCatalog Catalog
 @inject ISettingsStore Settings
@@ -10,17 +11,29 @@
         @foreach (var group in Groups)
         {
             <div class="lattice-options__group" @key="group.Key">
-                <span class="lattice-options__group-title">@Localizer.Get(group.Title)</span>
-                @foreach (var page in group.Pages)
+                <FlareButton Variant="ButtonVariant.Text"
+                             Size="ButtonSize.Xs"
+                             Class="lattice-options__group-toggle"
+                             FullWidth="true"
+                             OnClick="() => ToggleGroup(group.Key)">
+                    <LeadingIcon>
+                        <FlareIconView Value="@(IsCollapsed(group.Key) ? FlareIcons.ChevronRight : FlareIcons.ExpandMore)" />
+                    </LeadingIcon>
+                    <ChildContent>@Localizer.Get(group.Title)</ChildContent>
+                </FlareButton>
+                @if (!IsCollapsed(group.Key))
                 {
-                    <FlareButton Variant="ButtonVariant.Text"
-                                 Size="ButtonSize.Xs"
-                                 Class="lattice-options__page"
-                                 FullWidth="true"
-                                 Selected="@(SelectedPage?.Id == page.Id)"
-                                 role="tab"
-                                 aria-selected="@(SelectedPage?.Id == page.Id ? "true" : "false")"
-                                 OnClick="() => Select(page.Id)">@Localizer.Get(page.Title)</FlareButton>
+                    @foreach (var page in group.Pages)
+                    {
+                        <FlareButton Variant="ButtonVariant.Text"
+                                     Size="ButtonSize.Xs"
+                                     Class="lattice-options__page"
+                                     FullWidth="true"
+                                     Selected="@(SelectedPage?.Id == page.Id)"
+                                     role="tab"
+                                     aria-selected="@(SelectedPage?.Id == page.Id ? "true" : "false")"
+                                     OnClick="() => Select(page.Id)">@Localizer.Get(page.Title)</FlareButton>
+                    }
                 }
             </div>
         }
