@@ -85,7 +85,10 @@ public enum LatticeShellSlot
     BottomHeader,
 
     /// <summary>The content of the bottom panel.</summary>
-    BottomPanel
+    BottomPanel,
+
+    /// <summary>The status bar.</summary>
+    StatusBar
 }
 
 /// <summary>Describes a component that replaces one surface of the shell.</summary>

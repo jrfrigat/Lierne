@@ -106,6 +106,11 @@ public partial class LatticeShell : IDisposable
             ? RenderComponent(panel.Component)
             : BottomPanel;
 
+    private RenderFragment? StatusBarSurface =>
+        ShellContent(LatticeShellSlot.StatusBar) is { } status
+            ? RenderComponent(status.Component)
+            : StatusBar ?? (Catalog.StatusBarItems.Count > 0 ? DefaultStatusBar : null);
+
     private static RenderFragment RenderComponent(Type component) => builder =>
     {
         builder.OpenComponent<DynamicComponent>(0);

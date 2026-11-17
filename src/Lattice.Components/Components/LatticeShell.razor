@@ -132,8 +132,7 @@
 
     private LatticeToolbarContext ToolbarContext => new(Commands, Localizer, Services);
 
-    private RenderFragment? StatusBarContent =>
-        StatusBar ?? (Catalog.StatusBarItems.Count > 0 ? DefaultStatusBar : null);
+    private RenderFragment? StatusBarContent => StatusBarSurface;
 
     private RenderFragment DefaultStatusBar => @<FlareStatusBar>
         <LeftContent>@RenderStatusItems(LatticeStatusBarAlignment.Left)</LeftContent>
