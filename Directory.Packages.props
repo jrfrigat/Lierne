@@ -5,11 +5,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Lattice's host uses the Flare 0.58 document model (Documents/ActiveDocuments/
-         DocumentContent). The 0.58 packages must be published before the committed package build
-         restores; local development uses the sibling Flare checkout via Directory.Build.local.props. -->
-    <PackageVersion Include="Flare.Blazor" Version="0.58.0" />
-    <PackageVersion Include="Flare.Components.IDE" Version="0.58.0" />
+    <!-- Lattice's host uses the Flare 0.59 document model (Documents/ActiveDocuments/
+         DocumentContent). The 0.59 packages are published; local development uses the sibling Flare
+         checkout via Directory.Build.local.props. -->
+    <PackageVersion Include="Flare.Blazor" Version="0.59.0" />
+    <PackageVersion Include="Flare.Components.IDE" Version="0.59.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="11.0.0" />
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
   </ItemGroup>
