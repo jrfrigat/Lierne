@@ -1,3 +1,4 @@
+using Flare.Components;
 using Flare.Components.IDE;
 using Flare.Icons;
 using Microsoft.AspNetCore.Components;
@@ -63,10 +64,15 @@ public partial class LatticeShell : IDisposable
     private string? ActiveCenterKey =>
         Documents.Active is { Location: LatticeDockLocation.Main } active ? active.Id : null;
 
-    private FlareIcon? DocumentIcon(LatticeDocumentInstance document) =>
-        Icons.Resolve(Catalog.Documents
+    private FlareIcon? DocumentIcon(LatticeDocumentInstance document)
+    {
+        var icon = Icons.Resolve(document.IconKey ?? Catalog.Documents
             .FirstOrDefault(descriptor => descriptor.Id == document.TypeId)?
             .IconKey);
+        return icon is not null && !string.IsNullOrWhiteSpace(document.IconColor)
+            ? icon with { Color = FlareColor.Custom(document.IconColor) }
+            : icon;
+    }
 
     private void OnTabActivated(string key)
     {

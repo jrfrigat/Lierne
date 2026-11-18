@@ -6,12 +6,18 @@ namespace Lattice;
 /// <param name="Title">The localized title key.</param>
 /// <param name="Payload">The document payload, when any.</param>
 /// <param name="Location">The region that hosts the document.</param>
+/// <param name="IconKey">The host icon key override, or <see langword="null"/> for the type icon.</param>
+/// <param name="IconColor">
+/// The icon color as a CSS color, or <see langword="null"/> for the host's default icon color.
+/// </param>
 public sealed record LatticeDocumentInstance(
     string Id,
     DocumentTypeId TypeId,
     StringKey Title,
     object? Payload,
-    LatticeDockLocation Location);
+    LatticeDockLocation Location,
+    string? IconKey = null,
+    string? IconColor = null);
 
 /// <summary>Owns the open documents of one host scope.</summary>
 public interface ILatticeDocumentService
@@ -47,6 +53,13 @@ public interface ILatticeDocumentService
     /// <param name="title">The new title key.</param>
     /// <returns>Whether the document exists and the title changed.</returns>
     LatticeResult SetTitle(string instanceId, StringKey title);
+
+    /// <summary>Changes the icon of an open document.</summary>
+    /// <param name="instanceId">The document instance id.</param>
+    /// <param name="iconKey">The host icon key override, or <see langword="null"/> for the type icon.</param>
+    /// <param name="iconColor">The CSS icon color, or <see langword="null"/> for the default.</param>
+    /// <returns>Whether the document exists and the icon changed.</returns>
+    LatticeResult SetIcon(string instanceId, string? iconKey, string? iconColor);
 
     /// <summary>Moves a document to another region.</summary>
     /// <param name="instanceId">The document instance id.</param>
