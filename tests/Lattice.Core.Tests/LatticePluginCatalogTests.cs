@@ -371,6 +371,36 @@ public sealed class LatticePluginCatalogTests
     }
 
     [Fact]
+    public void RejectsGeneratedActionsThatCannotSupplyACommandArgument()
+    {
+        var command = new CommandId("app.typed");
+        var menu = new MenuGroupId("app.menu");
+        var ribbon = new RibbonGroupId("app.ribbon");
+        var catalog = LatticePluginCatalog.Build([new TestPlugin("app.typed", builder =>
+        {
+            builder.AddCommand(TestDescriptors.Command(command.Value, typeof(string)), TestDescriptors.NoOp);
+            builder.AddMenuGroup(new MenuGroupDescriptor(menu, TestDescriptors.Key("menu")));
+            builder.AddMenuItem(new MenuItemDescriptor(new("app.menu.item"), menu, TestDescriptors.Key("item"), command));
+            builder.AddRibbonGroup(new RibbonGroupDescriptor(ribbon, TestDescriptors.Key("ribbon")));
+            builder.AddRibbonItem(new RibbonItemDescriptor(new("app.ribbon.item"), ribbon, command));
+            builder.AddStatusBarItem(new StatusBarItemDescriptor(new("app.status"), TestDescriptors.Key("status"), Command: command));
+        })]);
+
+        Assert.Equal(3, catalog.Diagnostics.Count(diagnostic => diagnostic.Code == "lattice.command.argument_required"));
+    }
+
+    [Fact]
+    public void RejectsASettingDefaultOutsideItsDeclaredRange()
+    {
+        var catalog = LatticePluginCatalog.Build([new TestPlugin("app.settings", builder =>
+            builder.AddSetting(new SettingDescriptor(
+                new SettingsKey("app.size"), TestDescriptors.Key("size"),
+                LatticeSettingKind.Integer, DefaultValue: 6, Max: 5)))]);
+
+        Assert.Contains(catalog.Diagnostics, diagnostic => diagnostic.Code == "lattice.settings.invalid_default");
+    }
+
+    [Fact]
     public void ReportsStringNamespacesServedByTwoPlugins()
     {
         var catalog = LatticePluginCatalog.Build(

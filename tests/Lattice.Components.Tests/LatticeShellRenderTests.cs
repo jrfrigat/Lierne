@@ -95,6 +95,104 @@ public sealed class LatticeShellRenderTests
         Assert.DoesNotContain("flare-ribbon", html, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public async Task KeepsTheCenterDocumentWhenOpeningASideDocumentAndSelectsTheMovedTab()
+    {
+        await using var provider = BuildProvider();
+        var documents = provider.GetRequiredService<ILatticeDocumentService>();
+        var type = new DocumentTypeId("app.document");
+        documents.Open(type, payload: "center-body");
+        await using var renderer = CreateRenderer(provider);
+
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var root = await renderer.RenderComponentAsync<LatticeShell>(ShellParameters);
+            var side = documents.Open(type, payload: "side-body", location: LatticeDockLocation.Left).Data!;
+            var both = root.ToHtmlString();
+            Assert.Contains("center-body", both, StringComparison.Ordinal);
+            Assert.Contains("side-body", both, StringComparison.Ordinal);
+
+            Assert.True(documents.Move(side.Id, LatticeDockLocation.Main).Success);
+            var moved = root.ToHtmlString();
+            Assert.Matches("""data-region="Center"><span class="test-document">[^<]*side-body</span>""", moved);
+            Assert.Contains($"data-flare-doc-key=\"{side.Id}\"", moved, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public async Task ShowsAndHidesABottomToolAlongsideTheHostContent()
+    {
+        var tool = new ToolWindowId("app.bottom");
+        await using var provider = BuildProvider(new TestContribution("app.bottom", builder =>
+            builder.AddToolWindow(new ToolWindowDescriptor(
+                tool, StringKey.Literal("Bottom tool"), null, typeof(TestToolWindowComponent),
+                LatticeToolRegion.Bottom, DefaultVisible: false))));
+        var tools = provider.GetRequiredService<ILatticeToolWindowService>();
+        await using var renderer = CreateRenderer(provider);
+
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var root = await renderer.RenderComponentAsync<LatticeShell>(ShellParameters);
+            Assert.DoesNotContain("Bottom tool", root.ToHtmlString(), StringComparison.Ordinal);
+
+            Assert.True(tools.Show(tool).Success);
+            var visible = root.ToHtmlString();
+            Assert.Contains("Bottom tool", visible, StringComparison.Ordinal);
+            Assert.Contains("host-bottom-content", visible, StringComparison.Ordinal);
+
+            Assert.True(tools.Hide(tool).Success);
+            var hidden = root.ToHtmlString();
+            Assert.DoesNotContain("Bottom tool", hidden, StringComparison.Ordinal);
+            Assert.Contains("host-bottom-content", hidden, StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
+    public async Task UpdatesShortcutsForPluginsWithTheSameDisplayName()
+    {
+        var first = new CommandId("app.first.run");
+        var second = new CommandId("app.second.run");
+        await using var provider = BuildProvider(
+            new TestContribution("app.first", builder => RegisterCommand(builder, first)),
+            new TestContribution("app.second", builder => RegisterCommand(builder, second)));
+        var shortcuts = provider.GetRequiredService<ILatticeShortcutService>();
+        await using var renderer = CreateRenderer(provider);
+
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var page = await renderer.RenderComponentAsync<LatticeCommandsSettingsPage>();
+            Assert.True(shortcuts.ApplyOverrides(new Dictionary<string, string> { [second.Value] = "Ctrl+K" }).Success);
+            Assert.Contains("Ctrl+K", WebUtility.HtmlDecode(page.ToHtmlString()), StringComparison.Ordinal);
+        });
+    }
+
+    [Theory]
+    [InlineData(true, typeof(string), "lattice.component.invalid_type")]
+    [InlineData(false, typeof(TestStartComponent), "lattice.component.invalid_context")]
+    public void RejectsInvalidDocumentComponentsDuringRegistration(bool componentsFirst, Type component, string code)
+    {
+        var services = new ServiceCollection();
+        var plugin = new TestContribution("app.document", builder => builder.AddDocument(
+            new DocumentDescriptor(new("app.document"), StringKey.Literal("Document"), null, component)));
+
+        var exception = Assert.Throws<LatticeCompositionException>(() =>
+        {
+            if (componentsFirst)
+            {
+                services.AddLatticeComponents();
+            }
+
+            services.AddLattice(options => options.AddPlugin(plugin));
+            services.AddLatticeComponents();
+        });
+
+        Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == code);
+    }
+
+    private static void RegisterCommand(ILatticePluginBuilder builder, CommandId command) =>
+        builder.AddCommand(new CommandDescriptor(command, StringKey.Literal(command.Value)),
+            (_, _) => Task.FromResult(LatticeCommandResult.Ok()));
+
     private static ServiceProvider BuildProvider(params ILatticePlugin[] extraPlugins)
     {
         var services = new ServiceCollection();
@@ -117,17 +215,31 @@ public sealed class LatticeShellRenderTests
 
     private static async Task<string> RenderAsync(IServiceProvider provider)
     {
-        provider.GetRequiredService<ILatticeLocalizer>().SetCulture("en");
-        await using var renderer = new HtmlRenderer(
-            provider,
-            provider.GetRequiredService<ILoggerFactory>());
-        var parameters = ParameterView.FromDictionary(new Dictionary<string, object?>
-        {
-            [nameof(LatticeShell.StartContent)] =
-                (RenderFragment)(content => content.AddContent(0, "Start content"))
-        });
+        await using var renderer = CreateRenderer(provider);
         return WebUtility.HtmlDecode(await renderer.Dispatcher.InvokeAsync(async () =>
-            (await renderer.RenderComponentAsync<LatticeShell>(parameters)).ToHtmlString()));
+            (await renderer.RenderComponentAsync<LatticeShell>(ShellParameters)).ToHtmlString()));
+    }
+
+    private static HtmlRenderer CreateRenderer(IServiceProvider provider)
+    {
+        provider.GetRequiredService<ILatticeLocalizer>().SetCulture("en");
+        return new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+    }
+
+    private static ParameterView ShellParameters => ParameterView.FromDictionary(new Dictionary<string, object?>
+    {
+        [nameof(LatticeShell.StartContent)] =
+            (RenderFragment)(content => content.AddContent(0, "Start content")),
+        [nameof(LatticeShell.BottomPanel)] =
+            (RenderFragment)(content => content.AddContent(0, "host-bottom-content"))
+    });
+
+    private sealed class TestContribution(string id, Action<ILatticePluginBuilder> configure) : ILatticePlugin
+    {
+        public PluginId Id { get; } = new(id);
+        public StringKey DisplayName => StringKey.Literal("Shared display name");
+        public IReadOnlyList<PluginId> DependsOn => [];
+        public void Configure(ILatticePluginBuilder builder) => configure(builder);
     }
 
     private sealed class TestPlugin : ILatticePlugin
@@ -186,6 +298,7 @@ public sealed class LatticeShellRenderTests
             builder.OpenElement(0, "span");
             builder.AddAttribute(1, "class", "test-document");
             builder.AddContent(2, Context.Document.Title.ToString());
+            builder.AddContent(3, Context.Document.Payload?.ToString());
             builder.CloseElement();
         }
     }

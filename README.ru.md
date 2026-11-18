@@ -66,8 +66,8 @@ dotnet build Lattice.slnx -c Release
 dotnet test Lattice.slnx -c Release --no-build
 ```
 
-Коммитируемая сборка использует Flare 0.58.0 из NuGet; пакеты должны быть опубликованы до этой
-сборки. Для работы с соседним checkout Flare скопируйте `Directory.Build.local.props.example` в
+По умолчанию сборка использует Flare 0.59.0 из NuGet. Для работы с соседним checkout Flare скопируйте
+`Directory.Build.local.props.example` в
 git-ignored `Directory.Build.local.props`; `UseLocalFlare=true` заменит package references на
 project references.
 

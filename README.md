@@ -66,8 +66,7 @@ dotnet build Lattice.slnx -c Release
 dotnet test Lattice.slnx -c Release --no-build
 ```
 
-The committed build uses the Flare 0.58.0 packages from NuGet; they must be published before that
-build restores. To build against the sibling Flare checkout, copy
+The build uses Flare 0.59.0 from NuGet by default. To build against the sibling Flare checkout, copy
 `Directory.Build.local.props.example` to the git-ignored `Directory.Build.local.props`;
 `UseLocalFlare=true` swaps the package references for project references.
 

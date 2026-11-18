@@ -48,7 +48,7 @@ public sealed class LatticeSettingsStore : ISettingsStore
         return LatticeResult.Ok;
     }
 
-    private static bool IsValid(SettingDescriptor descriptor, object? value, out string error)
+    internal static bool IsValid(SettingDescriptor descriptor, object? value, out string error)
     {
         error = string.Empty;
         if (value is null)

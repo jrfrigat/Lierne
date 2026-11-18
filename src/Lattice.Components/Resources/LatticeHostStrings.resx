@@ -23,6 +23,8 @@
   <data name="close" xml:space="preserve"><value>Close</value></data>
   <data name="closeAll" xml:space="preserve"><value>Close All</value></data>
   <data name="closeOthers" xml:space="preserve"><value>Close Others</value></data>
+  <data name="dockLeft" xml:space="preserve"><value>Left</value></data>
+  <data name="dockRight" xml:space="preserve"><value>Right</value></data>
   <data name="general" xml:space="preserve"><value>General</value></data>
   <data name="commands" xml:space="preserve"><value>Commands</value></data>
   <data name="themes" xml:space="preserve"><value>Themes</value></data>
@@ -48,6 +50,9 @@
   <data name="lattice.settings.missing_sections" xml:space="preserve"><value>The settings document has no sections.</value></data>
   <data name="lattice.settings.unknown_section" xml:space="preserve"><value>The settings document contains a section that no plugin declares.</value></data>
   <data name="lattice.settings.duplicate_section" xml:space="preserve"><value>The settings document repeats a section.</value></data>
+  <data name="lattice.settings.duplicate_property" xml:space="preserve"><value>The settings document repeats a property.</value></data>
+  <data name="lattice.settings.snapshot_failed" xml:space="preserve"><value>Could not save a copy of the current settings. The import was cancelled.</value></data>
+  <data name="lattice.settings.rollback_failed" xml:space="preserve"><value>The import failed and some previous settings could not be restored.</value></data>
   <data name="lattice.settings.import_failed" xml:space="preserve"><value>Could not import the settings document.</value></data>
   <data name="lattice.settings.export_failed" xml:space="preserve"><value>Could not export the settings.</value></data>
   <data name="lattice.settings.file_too_large" xml:space="preserve"><value>The settings file is too large (the limit is 4 MB).</value></data>

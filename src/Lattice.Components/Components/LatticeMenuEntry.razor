@@ -13,7 +13,7 @@ else if (Item.Children is { Count: > 0 } children)
     <FlareSubMenu Label="@Localizer.Get(Item.Title)" Disabled="@Disabled">
         @foreach (var child in children)
         {
-            <LatticeMenuEntry Item="child" />
+            <LatticeMenuEntry Item="child" ExecuteCommand="ExecuteCommand" />
         }
     </FlareSubMenu>
 }
@@ -29,6 +29,10 @@ else
     [Parameter, EditorRequired]
     public MenuItemDescriptor Item { get; set; } = null!;
 
+    /// <summary>Handles command execution and any failure feedback in the enclosing shell.</summary>
+    [Parameter]
+    public EventCallback<CommandId> ExecuteCommand { get; set; }
+
     private bool Disabled => Item.Command is { } command && !Commands.CanExecute(command);
 
     private string? ShortcutText => Item.Command is { } command
@@ -37,7 +41,13 @@ else
             ?.EffectiveShortcut
         : null;
 
-    private Task InvokeAsync() => Item.Command is { } command
-        ? Commands.ExecuteAsync(command)
-        : Task.CompletedTask;
+    private Task InvokeAsync()
+    {
+        if (Item.Command is not { } command)
+        {
+            return Task.CompletedTask;
+        }
+
+        return ExecuteCommand.HasDelegate ? ExecuteCommand.InvokeAsync(command) : Commands.ExecuteAsync(command);
+    }
 }

@@ -107,8 +107,10 @@ public sealed class LatticeCommandServiceTests
         Assert.Equal("boom", result.ErrorMessage);
     }
 
-    [Fact]
-    public async Task NotifiesObserversAroundTheHandlerInRegistrationOrder()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NotifiesObserversAroundTheHandlerInRegistrationOrder(bool observerFails)
     {
         var log = new List<string>();
         var catalog = Build(builder => builder.AddCommand(
@@ -120,14 +122,20 @@ public sealed class LatticeCommandServiceTests
             }));
         var services = new ServiceCollection();
         services.AddSingleton<ILatticeCommandObserver>(new RecordingObserver(log, "first"));
+        if (observerFails)
+        {
+            services.AddSingleton<ILatticeCommandObserver>(new ThrowingObserver());
+        }
+
         services.AddSingleton<ILatticeCommandObserver>(new RecordingObserver(log, "second"));
         using var provider = services.BuildServiceProvider();
         var service = new LatticeCommandService(catalog, new LatticeContext(), provider);
 
-        await service.ExecuteAsync(
+        var result = await service.ExecuteAsync(
             new CommandId("app.run"),
             cancellationToken: TestContext.Current.CancellationToken);
 
+        Assert.True(result.Success);
         Assert.Equal(
             ["first.before", "second.before", "run", "first.after", "second.after"],
             log);
@@ -168,6 +176,15 @@ public sealed class LatticeCommandServiceTests
 
     private static LatticePluginCatalog Build(Action<ILatticePluginBuilder> configure) =>
         LatticePluginCatalog.Build([new TestPlugin("app.feature", configure)]);
+
+    private sealed class ThrowingObserver : ILatticeCommandObserver
+    {
+        public ValueTask OnExecutingAsync(LatticeCommandExecution execution) =>
+            throw new InvalidOperationException("Observer failed before the command.");
+
+        public ValueTask OnExecutedAsync(LatticeCommandExecution execution, LatticeCommandResult result) =>
+            ValueTask.FromException(new InvalidOperationException("Observer failed after the command."));
+    }
 
     private sealed class RecordingObserver(List<string> log, string name) : ILatticeCommandObserver
     {

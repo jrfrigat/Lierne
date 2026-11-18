@@ -254,7 +254,7 @@ public sealed class LatticePluginCatalog
             contribution => contribution.Key.Value,
             "Setting",
             diagnostics);
-        ValidateSettingsPages(builder, diagnostics);
+        ValidateSettings(builder, diagnostics);
         ValidateStringCatalogs(builder, diagnostics);
         ValidateDuplicateIds(
             builder.OwnedToolbars,
@@ -266,7 +266,6 @@ public sealed class LatticePluginCatalog
             contribution => contribution.Id.Value,
             "Status-bar item",
             diagnostics);
-        ValidateStatusBarItems(builder, diagnostics);
         ValidateDuplicateIds(
             builder.OwnedSettingsTransfers,
             contribution => contribution.Section,
@@ -277,11 +276,17 @@ public sealed class LatticePluginCatalog
             contribution => contribution.Id.Value,
             "Shell content",
             diagnostics);
-        ValidateMenus(builder, diagnostics);
 
         var commands = new HashSet<string>(
             builder.OwnedCommands.Select(contribution => contribution.Descriptor.Descriptor.Id.Value),
             StringComparer.Ordinal);
+        var commandsWithArguments = builder.OwnedCommands
+            .Select(contribution => contribution.Descriptor.Descriptor)
+            .Where(command => command.ArgumentType is not null)
+            .Select(command => command.Id)
+            .ToHashSet();
+        ValidateStatusBarItems(builder, commands, commandsWithArguments, diagnostics);
+        ValidateMenus(builder, commands, commandsWithArguments, diagnostics);
         var groups = new HashSet<string>(
             builder.OwnedRibbonGroups.Select(contribution => contribution.Descriptor.Id.Value),
             StringComparer.Ordinal);
@@ -294,6 +299,10 @@ public sealed class LatticePluginCatalog
                     "lattice.ribbon.unknown_command",
                     $"Ribbon item '{item.Id}' of plugin '{contribution.Plugin}' invokes unknown command '{item.Command}'."));
             }
+            else if (commandsWithArguments.Contains(item.Command))
+            {
+                diagnostics.Add(ArgumentRequired("Ribbon item", item.Id.Value, contribution.Plugin, item.Command));
+            }
 
             if (!groups.Contains(item.Group.Value))
             {
@@ -304,7 +313,7 @@ public sealed class LatticePluginCatalog
         }
     }
 
-    private static void ValidateSettingsPages(
+    private static void ValidateSettings(
         LatticePluginBuilder builder,
         List<LatticeDiagnostic> diagnostics)
     {
@@ -313,11 +322,19 @@ public sealed class LatticePluginCatalog
             StringComparer.Ordinal);
         foreach (var contribution in builder.OwnedSettings)
         {
-            if (contribution.Descriptor.Page is { } page && !pages.Contains(page.Value))
+            var setting = contribution.Descriptor;
+            if (setting.Page is { } page && !pages.Contains(page.Value))
             {
                 diagnostics.Add(LatticeDiagnostic.Error(
                     "lattice.settings.unknown_page",
-                    $"Setting '{contribution.Descriptor.Key}' of plugin '{contribution.Plugin}' belongs to unknown page '{page}'."));
+                    $"Setting '{setting.Key}' of plugin '{contribution.Plugin}' belongs to unknown page '{page}'."));
+            }
+
+            if (!LatticeSettingsStore.IsValid(setting, setting.DefaultValue, out var error))
+            {
+                diagnostics.Add(LatticeDiagnostic.Error(
+                    "lattice.settings.invalid_default",
+                    $"Invalid default for '{setting.Key}' of plugin '{contribution.Plugin}'. {error}"));
             }
         }
     }
@@ -362,11 +379,10 @@ public sealed class LatticePluginCatalog
 
     private static void ValidateStatusBarItems(
         LatticePluginBuilder builder,
+        HashSet<string> commands,
+        HashSet<CommandId> commandsWithArguments,
         List<LatticeDiagnostic> diagnostics)
     {
-        var commands = new HashSet<string>(
-            builder.OwnedCommands.Select(contribution => contribution.Descriptor.Descriptor.Id.Value),
-            StringComparer.Ordinal);
         foreach (var contribution in builder.OwnedStatusBarItems)
         {
             var item = contribution.Descriptor;
@@ -376,11 +392,18 @@ public sealed class LatticePluginCatalog
                     "lattice.statusbar.unknown_command",
                     $"Status-bar item '{item.Id}' of plugin '{contribution.Plugin}' invokes unknown command '{command}'."));
             }
+            else if (item.Component is null && item.Command is { } generatedCommand &&
+                     commandsWithArguments.Contains(generatedCommand))
+            {
+                diagnostics.Add(ArgumentRequired("Status-bar item", item.Id.Value, contribution.Plugin, generatedCommand));
+            }
         }
     }
 
     private static void ValidateMenus(
         LatticePluginBuilder builder,
+        HashSet<string> commands,
+        HashSet<CommandId> commandsWithArguments,
         List<LatticeDiagnostic> diagnostics)
     {
         ValidateDuplicateIds(
@@ -390,9 +413,6 @@ public sealed class LatticePluginCatalog
             diagnostics);
         var groups = new HashSet<string>(
             builder.OwnedMenuGroups.Select(contribution => contribution.Descriptor.Id.Value),
-            StringComparer.Ordinal);
-        var commands = new HashSet<string>(
-            builder.OwnedCommands.Select(contribution => contribution.Descriptor.Descriptor.Id.Value),
             StringComparer.Ordinal);
         var items = new List<OwnedMenuEntry>();
         foreach (var contribution in builder.OwnedMenuItems)
@@ -437,6 +457,10 @@ public sealed class LatticePluginCatalog
                         "lattice.menu.unknown_command",
                         $"Menu item '{item.Id}' of plugin '{entry.Plugin}' invokes unknown command '{command}'."));
                 }
+                else if (item.Children is not { Count: > 0 } && commandsWithArguments.Contains(command))
+                {
+                    diagnostics.Add(ArgumentRequired("Menu item", item.Id.Value, entry.Plugin, command));
+                }
             }
             else if (item.Children is null || item.Children.Count == 0)
             {
@@ -446,6 +470,11 @@ public sealed class LatticePluginCatalog
             }
         }
     }
+
+    private static LatticeDiagnostic ArgumentRequired(string kind, string id, PluginId plugin, CommandId command) =>
+        LatticeDiagnostic.Error(
+            "lattice.command.argument_required",
+            $"{kind} '{id}' of plugin '{plugin}' cannot supply the required argument for command '{command}'.");
 
     private static void FlattenMenu(
         PluginId plugin,

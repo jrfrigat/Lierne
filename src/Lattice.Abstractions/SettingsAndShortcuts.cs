@@ -82,7 +82,8 @@ public sealed record LatticeShortcutConflict(
 /// <param name="Import">
 /// Applies the section value. The implementation must validate the whole value before it changes any
 /// state, so a rejected section leaves the current settings intact; the host restores the other
-/// sections when an import fails.
+/// sections when an import fails. It must also accept its own exported snapshot for restoration,
+/// including <see langword="null"/> when the current section is omitted.
 /// </param>
 public sealed record SettingsTransferDescriptor(
     string Section,

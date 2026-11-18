@@ -82,6 +82,7 @@ public sealed record LatticeCommandExecution(
     LatticeCommandContext Context);
 
 /// <summary>Observes command executions in registration order.</summary>
+/// <remarks>An observer failure is reported through tracing and does not affect the command or other observers.</remarks>
 public interface ILatticeCommandObserver
 {
     /// <summary>Called before the command handler runs.</summary>

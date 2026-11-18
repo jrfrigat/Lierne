@@ -31,6 +31,14 @@ public static class LatticeServiceCollectionExtensions
             throw new LatticeCompositionException(catalog.Diagnostics);
         }
 
+        foreach (var descriptor in services)
+        {
+            if (!descriptor.IsKeyedService && descriptor.ImplementationInstance is CatalogValidation validation)
+            {
+                RunValidation(catalog, validation.Validate);
+            }
+        }
+
         services.AddSingleton(catalog);
         services.AddScoped<ILatticeContext, LatticeContext>();
         services.AddScoped<ILatticeCommandService, LatticeCommandService>();
@@ -42,4 +50,43 @@ public static class LatticeServiceCollectionExtensions
         services.AddScoped<LatticeSettingsTransfer>();
         return services;
     }
+
+    /// <summary>Adds an application-specific composition check for an existing or future catalog.</summary>
+    /// <param name="services">The service collection.</param>
+    /// <param name="validate">The check to perform at registration time.</param>
+    /// <returns>The same service collection.</returns>
+    public static IServiceCollection AddLatticeValidation(
+        this IServiceCollection services,
+        Func<LatticePluginCatalog, IEnumerable<LatticeDiagnostic>> validate)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        ArgumentNullException.ThrowIfNull(validate);
+        if (services.LastOrDefault(descriptor =>
+                descriptor.ServiceType == typeof(LatticePluginCatalog) && !descriptor.IsKeyedService)
+            ?.ImplementationInstance is LatticePluginCatalog catalog)
+        {
+            RunValidation(catalog, validate);
+        }
+        else if (!services.Any(descriptor =>
+                     descriptor.ServiceType == typeof(CatalogValidation) && !descriptor.IsKeyedService &&
+                     descriptor.ImplementationInstance is CatalogValidation existing && existing.Validate == validate))
+        {
+            services.AddSingleton(new CatalogValidation(validate));
+        }
+
+        return services;
+    }
+
+    private static void RunValidation(
+        LatticePluginCatalog catalog,
+        Func<LatticePluginCatalog, IEnumerable<LatticeDiagnostic>> validate)
+    {
+        var diagnostics = validate(catalog).ToArray();
+        if (diagnostics.Any(diagnostic => diagnostic.Severity == LatticeDiagnosticSeverity.Error))
+        {
+            throw new LatticeCompositionException(diagnostics);
+        }
+    }
+
+    private sealed record CatalogValidation(Func<LatticePluginCatalog, IEnumerable<LatticeDiagnostic>> Validate);
 }

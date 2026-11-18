@@ -12,7 +12,8 @@ namespace Lattice;
 /// <c>{ "format": "lattice.settings", "version": 1, "sections": { "&lt;section id&gt;": ... } }</c>.
 /// The envelope and the validation belong to Lattice; the value of each section belongs to the plugin
 /// that declared it. An import snapshots every participating section before it applies anything, so a
-/// failure restores the values already changed by the same document.
+/// failure can restore the values already changed by the same document. A failed restoration is
+/// reported separately.
 /// </remarks>
 public sealed class LatticeSettingsTransfer
 {
@@ -74,7 +75,7 @@ public sealed class LatticeSettingsTransfer
     /// <summary>Validates and applies a settings document.</summary>
     /// <param name="json">The document text.</param>
     /// <param name="services">The application services the sections write their state through.</param>
-    /// <returns>The outcome; a failure names the stable error code and leaves the settings as they were.</returns>
+    /// <returns>The outcome, including a separate error if the previous settings could not be restored.</returns>
     public LatticeResult Import(string json, IServiceProvider services)
     {
         ArgumentNullException.ThrowIfNull(services);
@@ -85,150 +86,173 @@ public sealed class LatticeSettingsTransfer
                 "The settings document is empty.");
         }
 
-        JsonObject document;
+        JsonDocument parsed;
         try
         {
-            if (JsonNode.Parse(json) is not JsonObject parsed)
-            {
-                return LatticeResult.Fail(
-                    "lattice.settings.invalid_format",
-                    "The settings document is not a JSON object.");
-            }
-
-            document = parsed;
+            parsed = JsonDocument.Parse(json);
         }
-        catch (Exception exception) when (exception is JsonException or ArgumentException)
+        catch (JsonException exception)
         {
             return LatticeResult.Fail(
                 "lattice.settings.invalid_json",
                 $"The settings document is not valid JSON: {exception.Message}");
         }
 
-        if (!string.Equals(ReadString(document, "format"), FormatName, StringComparison.Ordinal))
+        using var input = parsed;
+        var document = input.RootElement;
+        if (document.ValueKind != JsonValueKind.Object)
+        {
+            return LatticeResult.Fail(
+                "lattice.settings.invalid_format",
+                "The settings document is not a JSON object.");
+        }
+
+        if (FindDuplicateProperty(document) is { } property)
+        {
+            return LatticeResult.Fail(
+                "lattice.settings.duplicate_property",
+                $"The settings document repeats the property '{property}'.");
+        }
+
+        if (!document.TryGetProperty("format", out var format) ||
+            format.ValueKind != JsonValueKind.String ||
+            !string.Equals(format.GetString(), FormatName, StringComparison.Ordinal))
         {
             return LatticeResult.Fail(
                 "lattice.settings.invalid_format",
                 $"The settings document is not a '{FormatName}' document.");
         }
 
-        if (ReadInt32(document, "version") is not { } version || version != FormatVersion)
+        if (!document.TryGetProperty("version", out var version) ||
+            version.ValueKind != JsonValueKind.Number ||
+            !version.TryGetInt32(out var versionNumber) || versionNumber != FormatVersion)
         {
             return LatticeResult.Fail(
                 "lattice.settings.unsupported_version",
                 $"The settings document version is not supported; this build reads version {FormatVersion}.");
         }
 
-        if (!document.TryGetPropertyValue("sections", out var sectionsNode) ||
-            sectionsNode is not JsonObject sections)
+        if (!document.TryGetProperty("sections", out var sections) ||
+            sections.ValueKind != JsonValueKind.Object)
         {
             return LatticeResult.Fail(
                 "lattice.settings.missing_sections",
                 "The settings document has no sections object.");
         }
 
-        var known = _catalog.SettingsTransfers.ToDictionary(
-            descriptor => descriptor.Section,
-            StringComparer.Ordinal);
-        try
-        {
-            foreach (var section in sections)
-            {
-                if (!known.ContainsKey(section.Key))
-                {
-                    return LatticeResult.Fail(
-                        "lattice.settings.unknown_section",
-                        $"Section '{section.Key}' is not declared by any plugin.");
-                }
-            }
-        }
-        catch (ArgumentException exception)
+        if (FindDuplicateProperty(sections) is { } duplicate)
         {
             return LatticeResult.Fail(
                 "lattice.settings.duplicate_section",
-                $"The settings document repeats a section: {exception.Message}");
+                $"The settings document repeats the section '{duplicate}'.");
         }
 
-        var snapshots = new Dictionary<string, JsonNode?>(StringComparer.Ordinal);
-        var applied = new List<SettingsTransferDescriptor>();
+        var known = _catalog.SettingsTransfers
+            .Select(descriptor => descriptor.Section)
+            .ToHashSet(StringComparer.Ordinal);
+        foreach (var section in sections.EnumerateObject())
+        {
+            if (!known.Contains(section.Name))
+            {
+                return LatticeResult.Fail(
+                    "lattice.settings.unknown_section",
+                    $"Section '{section.Name}' is not declared by any plugin.");
+            }
+        }
+
+        var imports = new List<SectionImport>();
         foreach (var descriptor in _catalog.SettingsTransfers)
         {
-            if (!sections.TryGetPropertyValue(descriptor.Section, out var value))
+            if (!sections.TryGetProperty(descriptor.Section, out var value))
             {
                 continue;
             }
 
-            snapshots[descriptor.Section] = Snapshot(descriptor, services);
-            LatticeResult result;
             try
             {
-                result = descriptor.Import(services, value?.DeepClone());
+                var snapshot = descriptor.Export(services)?.DeepClone();
+                imports.Add(new SectionImport(descriptor, JsonNode.Parse(value.GetRawText()), snapshot));
             }
             catch (Exception exception)
             {
-                result = LatticeResult.Fail(
+                return LatticeResult.Fail(
+                    "lattice.settings.snapshot_failed",
+                    $"The section '{descriptor.Section}' could not be prepared for import: {exception.Message}");
+            }
+        }
+
+        for (var index = 0; index < imports.Count; index++)
+        {
+            var entry = imports[index];
+            LatticeResult result;
+            try
+            {
+                result = entry.Descriptor.Import(services, entry.Value);
+            }
+            catch (Exception exception)
+            {
+                // An exception can occur after the section has already changed.
+                var failure = LatticeResult.Fail(
                     "lattice.settings.import_failed",
-                    $"The section '{descriptor.Section}' could not be imported: {exception.Message}");
+                    $"The section '{entry.Descriptor.Section}' could not be imported: {exception.Message}");
+                return Restore(imports, index, services, failure);
             }
 
+            // A plugin that rejects its input guarantees its own section was not changed.
             if (!result.Success)
             {
-                Restore(applied, snapshots, services);
-                return LatticeResult.Fail(
-                    result.ErrorCode ?? "lattice.settings.import_failed",
-                    result.ErrorMessage ?? "The settings document could not be imported.");
+                return Restore(imports, index - 1, services, result);
             }
-
-            applied.Add(descriptor);
         }
 
         return LatticeResult.Ok;
     }
 
-    private static JsonNode? Snapshot(
-        SettingsTransferDescriptor descriptor,
-        IServiceProvider services)
+    private static LatticeResult Restore(
+        IReadOnlyList<SectionImport> imports,
+        int lastChanged,
+        IServiceProvider services,
+        LatticeResult failure)
     {
-        try
+        var errors = new List<string>();
+        for (var index = lastChanged; index >= 0; index--)
         {
-            return descriptor.Export(services)?.DeepClone();
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static void Restore(
-        IReadOnlyList<SettingsTransferDescriptor> applied,
-        IReadOnlyDictionary<string, JsonNode?> snapshots,
-        IServiceProvider services)
-    {
-        for (var index = applied.Count - 1; index >= 0; index--)
-        {
-            var descriptor = applied[index];
-            snapshots.TryGetValue(descriptor.Section, out var snapshot);
+            var entry = imports[index];
             try
             {
-                descriptor.Import(services, snapshot?.DeepClone());
+                var restored = entry.Descriptor.Import(services, entry.Snapshot);
+                if (!restored.Success)
+                {
+                    errors.Add($"{entry.Descriptor.Section}: {restored.ErrorMessage ?? restored.ErrorCode}");
+                }
             }
-            catch
+            catch (Exception exception)
             {
-                // A failing rollback is best effort; the import result already reports the failure.
+                errors.Add($"{entry.Descriptor.Section}: {exception.Message}");
             }
         }
+
+        var message = failure.ErrorMessage ?? "The settings document could not be imported.";
+        return errors.Count == 0
+            ? LatticeResult.Fail(failure.ErrorCode ?? "lattice.settings.import_failed", message)
+            : LatticeResult.Fail(
+                "lattice.settings.rollback_failed",
+                $"{message} The following sections could not be restored: {string.Join("; ", errors)}");
     }
 
-    private static string? ReadString(JsonObject document, string name) =>
-        document.TryGetPropertyValue(name, out var node) &&
-        node is JsonValue value &&
-        value.TryGetValue<string>(out var text)
-            ? text
-            : null;
+    private static string? FindDuplicateProperty(JsonElement element)
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var property in element.EnumerateObject())
+        {
+            if (!names.Add(property.Name))
+            {
+                return property.Name;
+            }
+        }
 
-    private static int? ReadInt32(JsonObject document, string name) =>
-        document.TryGetPropertyValue(name, out var node) &&
-        node is JsonValue value &&
-        value.TryGetValue<int>(out var number)
-            ? number
-            : null;
+        return null;
+    }
+
+    private sealed record SectionImport(SettingsTransferDescriptor Descriptor, JsonNode? Value, JsonNode? Snapshot);
 }

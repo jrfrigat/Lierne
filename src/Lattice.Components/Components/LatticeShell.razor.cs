@@ -17,9 +17,11 @@ public partial class LatticeShell : IDisposable
     };
 
     private string? _lastActiveId;
+    private LatticeDockLocation? _lastActiveLocation;
     private bool _leftPinned = true;
     private bool _rightPinned = true;
     private bool _bottomPinned = true;
+    private LatticeCommandResult? _commandFailure;
 
     /// <summary>Gets or sets the title of the ribbon tab used when no toolbar is contributed.</summary>
     [Parameter]
@@ -61,8 +63,13 @@ public partial class LatticeShell : IDisposable
             .Where(document => document.Location == LatticeDockLocation.Main)
             .ToArray();
 
-    private string? ActiveCenterKey =>
-        Documents.Active is { Location: LatticeDockLocation.Main } active ? active.Id : null;
+    private string? ActiveCenterKey => _selection[IdeDocumentRegion.Center];
+
+    private IReadOnlyList<FlareDocumentDockTarget> CenterDockTargets =>
+    [
+        new(nameof(IdeDocumentRegion.Left), HostLabel("dockLeft")),
+        new(nameof(IdeDocumentRegion.Right), HostLabel("dockRight"))
+    ];
 
     private FlareIcon? DocumentIcon(LatticeDocumentInstance document)
     {
@@ -78,8 +85,16 @@ public partial class LatticeShell : IDisposable
     {
         if (!string.IsNullOrEmpty(key))
         {
-            Documents.Activate(key);
+            OnActiveDocumentChanged(new IdeDocumentSelection(IdeDocumentRegion.Center, key));
         }
+    }
+
+    private void OnTabDockRequested(FlareDocumentDockRequest request)
+    {
+        var location = request.Target.Key == nameof(IdeDocumentRegion.Left)
+            ? LatticeDockLocation.Left
+            : LatticeDockLocation.Right;
+        MoveDocument(request.DocumentKey, location);
     }
 
     private void OnTabCloseRequested(string key) => Documents.Close(key);
@@ -127,7 +142,7 @@ public partial class LatticeShell : IDisposable
             ? RenderComponent(header.Component)
             : null;
 
-    private RenderFragment? BottomPanelSurface =>
+    private RenderFragment? CustomBottomPanel =>
         ShellContent(LatticeShellSlot.BottomPanel) is { } panel
             ? RenderComponent(panel.Component)
             : BottomPanel;
@@ -165,6 +180,12 @@ public partial class LatticeShell : IDisposable
         ToolWindows.Changed += OnStateChanged;
         Localizer.Changed += OnStateChanged;
         State.Changed += OnStateChanged;
+        Shortcuts.Changed += OnStateChanged;
+        foreach (var document in Documents.Documents)
+        {
+            _selection[ToRegion(document.Location)] = document.Id;
+        }
+
         SyncSelection();
     }
 
@@ -175,6 +196,7 @@ public partial class LatticeShell : IDisposable
         ToolWindows.Changed -= OnStateChanged;
         Localizer.Changed -= OnStateChanged;
         State.Changed -= OnStateChanged;
+        Shortcuts.Changed -= OnStateChanged;
     }
 
     private IEnumerable<RibbonItemDescriptor> ItemsFor(RibbonGroupId group) =>
@@ -195,7 +217,13 @@ public partial class LatticeShell : IDisposable
     private string CommandLabel(CommandId command) =>
         FindCommand(command) is { } descriptor ? Localizer.Get(descriptor.Title) : command.Value;
 
-    private Task ExecuteAsync(CommandId command) => Commands.ExecuteAsync(command);
+    private async Task ExecuteAsync(CommandId command)
+    {
+        var result = await Commands.ExecuteAsync(command);
+        _commandFailure = result.Success ? null : result;
+    }
+
+    private void DismissCommandFailure() => _commandFailure = null;
 
     private RenderFragment RenderDocument(IdeDocument document) => builder =>
     {
@@ -247,8 +275,12 @@ public partial class LatticeShell : IDisposable
         Catalog.ToolWindows.Any(descriptor =>
             descriptor.DefaultRegion == region && ToolWindows.IsVisible(descriptor.Id));
 
-    private bool IsPinned(LatticeToolRegion region) =>
-        region == LatticeToolRegion.Right ? _rightPinned : _leftPinned;
+    private bool IsPinned(LatticeToolRegion region) => region switch
+    {
+        LatticeToolRegion.Right => _rightPinned,
+        LatticeToolRegion.Bottom => _bottomPinned,
+        _ => _leftPinned
+    };
 
     private FlareIcon PinIcon(LatticeToolRegion region) =>
         Icons.Resolve(IsPinned(region) ? "pin" : "unpin") ?? FlareIcons.PushPin;
@@ -262,13 +294,17 @@ public partial class LatticeShell : IDisposable
 
     private void TogglePin(LatticeToolRegion region)
     {
-        if (region == LatticeToolRegion.Right)
+        switch (region)
         {
-            _rightPinned = !_rightPinned;
-        }
-        else
-        {
-            _leftPinned = !_leftPinned;
+            case LatticeToolRegion.Right:
+                _rightPinned = !_rightPinned;
+                break;
+            case LatticeToolRegion.Bottom:
+                _bottomPinned = !_bottomPinned;
+                break;
+            default:
+                _leftPinned = !_leftPinned;
+                break;
         }
     }
 
@@ -296,29 +332,44 @@ public partial class LatticeShell : IDisposable
     private void OnDocumentCloseRequested(IdeDocument document) => Documents.Close(document.Key);
 
     private void OnDocumentMove(IdeDocumentMove move) =>
-        Documents.Move(move.Document.Key, ToLocation(move.Destination));
+        MoveDocument(move.Document.Key, ToLocation(move.Destination));
 
-    private void OnDocumentsChanged()
+    private void MoveDocument(string key, LatticeDockLocation location)
     {
-        if (!string.Equals(Documents.Active?.Id, _lastActiveId, StringComparison.Ordinal))
+        if (Documents.Move(key, location).Success)
         {
-            SyncSelection();
+            OnActiveDocumentChanged(new IdeDocumentSelection(ToRegion(location), key));
         }
-
-        _ = InvokeAsync(StateHasChanged);
     }
+
+    private void OnDocumentsChanged() => _ = InvokeAsync(() =>
+    {
+        SyncSelection();
+        StateHasChanged();
+    });
 
     private void OnStateChanged() => _ = InvokeAsync(StateHasChanged);
 
     private void SyncSelection()
     {
-        _selection[IdeDocumentRegion.Center] =
-            Documents.Active is { Location: LatticeDockLocation.Main } center ? center.Id : null;
-        _selection[IdeDocumentRegion.Left] =
-            Documents.Active is { Location: LatticeDockLocation.Left } left ? left.Id : null;
-        _selection[IdeDocumentRegion.Right] =
-            Documents.Active is { Location: LatticeDockLocation.Right } right ? right.Id : null;
-        _lastActiveId = Documents.Active?.Id;
+        var documents = Documents.Documents;
+        foreach (var (region, key) in _selection)
+        {
+            var location = ToLocation(region);
+            if (key is not null && !documents.Any(document => document.Id == key && document.Location == location))
+            {
+                _selection[region] = documents.LastOrDefault(document => document.Location == location)?.Id;
+            }
+        }
+
+        var active = Documents.Active;
+        if (active is not null && (active.Id != _lastActiveId || active.Location != _lastActiveLocation))
+        {
+            _selection[ToRegion(active.Location)] = active.Id;
+        }
+
+        _lastActiveId = active?.Id;
+        _lastActiveLocation = active?.Location;
     }
 
     private static IdeDocumentRegion ToRegion(LatticeDockLocation location) =>

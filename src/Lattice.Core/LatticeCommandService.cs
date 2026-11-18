@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Lattice;
@@ -68,7 +69,14 @@ public sealed class LatticeCommandService : ILatticeCommandService
         var observers = _services.GetServices<ILatticeCommandObserver>().ToArray();
         foreach (var observer in observers)
         {
-            await observer.OnExecutingAsync(execution);
+            try
+            {
+                await observer.OnExecutingAsync(execution);
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceError("Observer {0} failed before command {1}: {2}", observer.GetType(), command, exception);
+            }
         }
 
         LatticeCommandResult result;
@@ -93,7 +101,14 @@ public sealed class LatticeCommandService : ILatticeCommandService
         result = Localize(result);
         foreach (var observer in observers)
         {
-            await observer.OnExecutedAsync(execution, result);
+            try
+            {
+                await observer.OnExecutedAsync(execution, result);
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceError("Observer {0} failed after command {1}: {2}", observer.GetType(), command, exception);
+            }
         }
 
         return result;

@@ -1,0 +1,16 @@
+.lattice-bottom-surfaces,
+.lattice-bottom-surfaces > div {
+    display: contents;
+}
+
+.lattice-bottom-surfaces--split {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    height: 100%;
+}
+
+.lattice-bottom-surfaces--split > div {
+    display: block;
+    min-height: 0;
+    overflow: auto;
+}
