@@ -1,0 +1,7 @@
+@inherits LatticeToolWindowComponent
+
+<div class="sample-note">
+    <FlareButton OnClick="() => Context.Commands.ExecuteAsync(NotesPlugin.NewNote)">
+        @Context.Localizer.Get(NotesPlugin.Text("newNote"))
+    </FlareButton>
+</div>

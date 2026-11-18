@@ -24,8 +24,9 @@ Lattice — фреймворк композиции IDE-подобных при�
   (генерируется из схемы настроек) и группу меню «Инструменты»;
 - `Lattice.Core.Tests` и `Lattice.Components.Tests` — композиция, runtime и рендер оболочки.
 
-Дальше — персистентное состояние и первый реальный плагин (подключение к БД в Quas): плагины
-живут в приложении-потребителе, а не в Lattice. См. [docs/architecture.md](docs/architecture.md).
+Quas уже использует Lattice для своих плагинов. Lattice сохраняет настройки и восстанавливает
+рабочую область, если приложение зарегистрировало хранилище. Контракт описан в
+[документации архитектуры](docs/architecture.md).
 
 ## Быстрый старт
 
@@ -36,6 +37,7 @@ services.AddLattice(options => options
     .AddPlugin<CorePlugin>()
     .AddPlugin<ConnectionPlugin>());
 services.AddLatticeComponents();     // резолвер иконок и сервисы хоста
+services.AddLatticeBrowserStateStorage("my-ide"); // необязательно для интерактивного веб-хоста
 
 public sealed class ConnectionPlugin : ILatticePlugin
 {
@@ -59,6 +61,21 @@ public sealed class ConnectionPlugin : ILatticePlugin
 Композиция проверяется до запуска хоста: дубликаты id, отсутствующие зависимости, циклы и пункты
 риббона, ссылающиеся на неизвестные команды, падают с диагностикой, где названы оба плагина.
 
+Для настольного или Hybrid-хоста зарегистрируйте `ILatticeStateStorage` с реализацией
+`LatticeFileStateStorage` и передайте каталог данных приложения. В веб-хосте
+`AddLatticeBrowserStateStorage` сохраняет данные в текущем браузере для данного origin.
+`LatticeShell` восстанавливает состояние при переходе в интерактивный режим.
+
+## Пример IDE
+
+```sh
+dotnet run --project samples/Lattice.SampleIde
+```
+
+Откройте заметку, измените её и перезагрузите страницу, чтобы проверить восстановление.
+В **Инструменты > Параметры** можно задать сочетание клавиш и заголовок новых заметок.
+Пример использует браузерное хранилище и версионированный формат данных документа.
+
 ## Сборка и тесты
 
 ```sh
@@ -70,6 +87,10 @@ dotnet test Lattice.slnx -c Release --no-build
 `Directory.Build.local.props.example` в
 git-ignored `Directory.Build.local.props`; `UseLocalFlare=true` заменит package references на
 project references.
+
+Для сборки локальных NuGet-пакетов выполните
+`dotnet pack Lattice.slnx -c Release -p:UseLocalFlare=false -o artifacts/packages`.
+Добавьте выходной каталог как источник пакетов и подключите `Lattice.Components` в IDE-хосте.
 
 ## Лицензия
 

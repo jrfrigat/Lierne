@@ -25,6 +25,10 @@
   <data name="closeOthers" xml:space="preserve"><value>Закрыть остальные</value></data>
   <data name="dockLeft" xml:space="preserve"><value>Слева</value></data>
   <data name="dockRight" xml:space="preserve"><value>Справа</value></data>
+  <data name="stateLoading" xml:space="preserve"><value>Восстановление рабочей области...</value></data>
+  <data name="stateLoadFailed" xml:space="preserve"><value>Часть сохранённого состояния не удалось восстановить.</value></data>
+  <data name="stateSaveFailed" xml:space="preserve"><value>Не удалось сохранить последние изменения.</value></data>
+  <data name="stateLayoutWatchFailed" xml:space="preserve"><value>Не удалось отследить изменение размеров панелей.</value></data>
   <data name="general" xml:space="preserve"><value>Основное</value></data>
   <data name="commands" xml:space="preserve"><value>Команды</value></data>
   <data name="themes" xml:space="preserve"><value>Темы</value></data>

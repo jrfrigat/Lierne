@@ -8,4 +8,7 @@
     <Project Path="tests/Lattice.Core.Tests/Lattice.Core.Tests.csproj" />
     <Project Path="tests/Lattice.Components.Tests/Lattice.Components.Tests.csproj" />
   </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/Lattice.SampleIde/Lattice.SampleIde.csproj" />
+  </Folder>
 </Solution>

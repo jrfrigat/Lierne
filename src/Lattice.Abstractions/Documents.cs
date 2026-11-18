@@ -61,6 +61,10 @@ public interface ILatticeDocumentService
     /// <returns>Whether the document exists and the icon changed.</returns>
     LatticeResult SetIcon(string instanceId, string? iconKey, string? iconColor);
 
+    /// <summary>Replaces a document's payload and notifies the host so it can save the new state.</summary>
+    LatticeResult SetPayload(string instanceId, object? payload) =>
+        LatticeResult.Fail("lattice.document.payload_not_supported", "The document service cannot replace payloads.");
+
     /// <summary>Moves a document to another region.</summary>
     /// <param name="instanceId">The document instance id.</param>
     /// <param name="location">The destination region.</param>

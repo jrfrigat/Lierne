@@ -224,6 +224,16 @@ public sealed class LatticePluginCatalog
             contribution => contribution.Id.Value,
             "Document type",
             diagnostics);
+        foreach (var contribution in builder.OwnedDocuments)
+        {
+            if (contribution.Descriptor.StateCodec is { } codec &&
+                (codec.Version < 1 || codec.Write is null || codec.Read is null))
+            {
+                diagnostics.Add(LatticeDiagnostic.Error(
+                    "lattice.document.invalid_state_codec",
+                    $"The state codec for '{contribution.Descriptor.Id}' of plugin '{contribution.Plugin}' needs a positive version, a writer and a reader."));
+            }
+        }
         ValidateDuplicateIds(
             builder.OwnedToolWindows,
             contribution => contribution.Id.Value,

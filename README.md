@@ -23,9 +23,9 @@ The architecture is being built incrementally. What exists today:
   from the settings schema) and the Tools menu group;
 - `Lattice.Core.Tests` and `Lattice.Components.Tests` - composition, runtime and shell rendering.
 
-Persistent workspace state and the first real plugin (Quas database connection) are the next
-increments; plugins live in the consuming application, not in Lattice. See
-[docs/architecture.md](docs/architecture.md).
+Quas already uses Lattice for its application plugins. Lattice can save preferences and restore
+the workspace when the application registers storage. The [architecture guide](docs/architecture.md)
+describes the persistence contract.
 
 ## Quick start
 
@@ -36,6 +36,7 @@ services.AddLattice(options => options
     .AddPlugin<CorePlugin>()
     .AddPlugin<ConnectionPlugin>());
 services.AddLatticeComponents();     // icon resolver and host services
+services.AddLatticeBrowserStateStorage("my-ide"); // optional in an interactive web host
 
 public sealed class ConnectionPlugin : ILatticePlugin
 {
@@ -59,6 +60,21 @@ public sealed class ConnectionPlugin : ILatticePlugin
 Composition is validated before the host starts: duplicate ids, missing dependencies, dependency
 cycles and ribbon items that invoke unknown commands fail with a diagnostic that names both plugins.
 
+For a desktop or Hybrid host, register `ILatticeStateStorage` with a
+`LatticeFileStateStorage` pointing to the application's data directory. In a web host,
+`AddLatticeBrowserStateStorage` uses the current browser and origin. State is restored when
+`LatticeShell` first becomes interactive.
+
+## Sample IDE
+
+```sh
+dotnet run --project samples/Lattice.SampleIde
+```
+
+Open a note, edit it, and reload the page to restore it. Open **Tools > Options** to assign a
+shortcut or set the default title for new notes. The sample includes a versioned document payload
+codec and uses browser storage.
+
 ## Build and test
 
 ```sh
@@ -69,6 +85,10 @@ dotnet test Lattice.slnx -c Release --no-build
 The build uses Flare 0.59.0 from NuGet by default. To build against the sibling Flare checkout, copy
 `Directory.Build.local.props.example` to the git-ignored `Directory.Build.local.props`;
 `UseLocalFlare=true` swaps the package references for project references.
+
+To create local NuGet packages, run
+`dotnet pack Lattice.slnx -c Release -p:UseLocalFlare=false -o artifacts/packages`.
+Add the output directory as a package source and reference `Lattice.Components` in an IDE host.
 
 ## License
 

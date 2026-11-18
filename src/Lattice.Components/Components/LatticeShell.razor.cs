@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Components.Rendering;
 namespace Lattice;
 
 /// <summary>Composes the Flare IDE layout from the Lattice plugin catalog.</summary>
-public partial class LatticeShell : IDisposable
+public partial class LatticeShell : IDisposable, IAsyncDisposable
 {
     private readonly Dictionary<IdeDocumentRegion, string?> _selection = new()
     {
@@ -18,9 +18,6 @@ public partial class LatticeShell : IDisposable
 
     private string? _lastActiveId;
     private LatticeDockLocation? _lastActiveLocation;
-    private bool _leftPinned = true;
-    private bool _rightPinned = true;
-    private bool _bottomPinned = true;
     private LatticeCommandResult? _commandFailure;
 
     /// <summary>Gets or sets the title of the ribbon tab used when no toolbar is contributed.</summary>
@@ -177,26 +174,38 @@ public partial class LatticeShell : IDisposable
     protected override void OnInitialized()
     {
         Documents.Changed += OnDocumentsChanged;
-        ToolWindows.Changed += OnStateChanged;
+        ToolWindows.Changed += OnToolWindowsChanged;
         Localizer.Changed += OnStateChanged;
         State.Changed += OnStateChanged;
-        Shortcuts.Changed += OnStateChanged;
+        Shortcuts.Changed += OnShortcutsChanged;
+        InitializePersistence();
+        InitializeDocumentSelection();
+    }
+
+    private void InitializeDocumentSelection()
+    {
         foreach (var document in Documents.Documents)
         {
             _selection[ToRegion(document.Location)] = document.Id;
         }
 
+        _lastActiveId = null;
         SyncSelection();
     }
 
     /// <inheritdoc />
     public void Dispose()
     {
+        _disposed = true;
         Documents.Changed -= OnDocumentsChanged;
-        ToolWindows.Changed -= OnStateChanged;
+        ToolWindows.Changed -= OnToolWindowsChanged;
         Localizer.Changed -= OnStateChanged;
         State.Changed -= OnStateChanged;
-        Shortcuts.Changed -= OnStateChanged;
+        Shortcuts.Changed -= OnShortcutsChanged;
+        if (_settings is not null)
+        {
+            _settings.Changed -= OnSettingChanged;
+        }
     }
 
     private IEnumerable<RibbonItemDescriptor> ItemsFor(RibbonGroupId group) =>
@@ -275,12 +284,7 @@ public partial class LatticeShell : IDisposable
         Catalog.ToolWindows.Any(descriptor =>
             descriptor.DefaultRegion == region && ToolWindows.IsVisible(descriptor.Id));
 
-    private bool IsPinned(LatticeToolRegion region) => region switch
-    {
-        LatticeToolRegion.Right => _rightPinned,
-        LatticeToolRegion.Bottom => _bottomPinned,
-        _ => _leftPinned
-    };
+    private bool IsPinned(LatticeToolRegion region) => _panels[region].Pinned;
 
     private FlareIcon PinIcon(LatticeToolRegion region) =>
         Icons.Resolve(IsPinned(region) ? "pin" : "unpin") ?? FlareIcons.PushPin;
@@ -290,23 +294,10 @@ public partial class LatticeShell : IDisposable
 
     private string HostLabel(string name) => Localizer.Get(new StringKey("lattice", name));
 
-    private void OnBottomPinnedChanged(bool pinned) => _bottomPinned = pinned;
+    private void OnBottomPinnedChanged(bool pinned) =>
+        SetPanel(LatticeToolRegion.Bottom, _panels[LatticeToolRegion.Bottom] with { Pinned = pinned });
 
-    private void TogglePin(LatticeToolRegion region)
-    {
-        switch (region)
-        {
-            case LatticeToolRegion.Right:
-                _rightPinned = !_rightPinned;
-                break;
-            case LatticeToolRegion.Bottom:
-                _bottomPinned = !_bottomPinned;
-                break;
-            default:
-                _leftPinned = !_leftPinned;
-                break;
-        }
-    }
+    private void TogglePin(LatticeToolRegion region) => SetPanel(region, _panels[region] with { Pinned = !IsPinned(region) });
 
     private void CloseRegion(LatticeToolRegion region)
     {
@@ -327,6 +318,8 @@ public partial class LatticeShell : IDisposable
         {
             Documents.Activate(selection.Key);
         }
+
+        SaveWorkspace();
     }
 
     private void OnDocumentCloseRequested(IdeDocument document) => Documents.Close(document.Key);
@@ -345,6 +338,7 @@ public partial class LatticeShell : IDisposable
     private void OnDocumentsChanged() => _ = InvokeAsync(() =>
     {
         SyncSelection();
+        SaveWorkspace();
         StateHasChanged();
     });
 

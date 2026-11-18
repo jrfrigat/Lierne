@@ -25,6 +25,10 @@
   <data name="closeOthers" xml:space="preserve"><value>Close Others</value></data>
   <data name="dockLeft" xml:space="preserve"><value>Left</value></data>
   <data name="dockRight" xml:space="preserve"><value>Right</value></data>
+  <data name="stateLoading" xml:space="preserve"><value>Restoring the workspace...</value></data>
+  <data name="stateLoadFailed" xml:space="preserve"><value>Some saved state could not be restored.</value></data>
+  <data name="stateSaveFailed" xml:space="preserve"><value>Could not save the latest changes.</value></data>
+  <data name="stateLayoutWatchFailed" xml:space="preserve"><value>Changes to panel sizes could not be tracked.</value></data>
   <data name="general" xml:space="preserve"><value>General</value></data>
   <data name="commands" xml:space="preserve"><value>Commands</value></data>
   <data name="themes" xml:space="preserve"><value>Themes</value></data>

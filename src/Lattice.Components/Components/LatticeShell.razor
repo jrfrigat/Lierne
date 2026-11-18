@@ -13,62 +13,80 @@
 @inject ILatticeIconResolver Icons
 @inject IServiceProvider Services
 
-<FlareIdeLayout Documents="@IdeDocuments"
-                ActiveDocuments="@ActiveDocuments"
-                Height="100%"
-                LeftPanelWidth="270px"
-                RightPanelWidth="280px"
-                BottomPanelHeight="150px"
-                DocumentMounting="IdeDocumentMounting.ActiveOnly"
-                LeftRegionVisible="@HasLeftRegion"
-                RightRegionVisible="@HasRightRegion"
-                LeftToolPanel="@RenderTools(LatticeToolRegion.Left, ToolPanelPosition.Left)"
-                RightToolPanel="@RenderTools(LatticeToolRegion.Right, ToolPanelPosition.Right)"
-                Ribbon="@RibbonContent"
-                MenuBar="@MenuBarContent"
-                ChildContent="@StartSurfaceContent"
-                BottomPanel="@BottomPanelSurface"
-                BottomHeaderContent="@BottomHeaderSurface"
-                ShowBottomHeader="@(ShellContent(LatticeShellSlot.BottomHeader) is not null)"
-                ShowBottomPin="true"
-                ShowBottomCollapse="false"
-                BottomPinned="@_bottomPinned"
-                BottomPinnedChanged="OnBottomPinnedChanged"
-                StatusBar="@StatusBarContent"
-                OnActiveDocumentChanged="OnActiveDocumentChanged"
-                OnDocumentCloseRequested="OnDocumentCloseRequested"
-                OnDocumentMove="OnDocumentMove">
-    <CenterDockHeader>
-        <div class="q-main-tabs">
-            <FlareDocumentTabs StripOnly="true"
-                               Dockable="true"
-                               DockTargets="@CenterDockTargets"
-                               OnDockRequested="OnTabDockRequested"
-                               ControlledSelection="true"
-                               ActiveKey="@ActiveCenterKey"
-                               ActiveKeyChanged="OnTabActivated"
-                               OnCloseRequested="OnTabCloseRequested">
-                <ContextMenuContent Context="key">
-                    <FlareMenuItem OnClick="() => CloseTab(key)">@Localizer.Get(LatticeHostPlugin.Key("close"))</FlareMenuItem>
-                    <FlareMenuItem OnClick="CloseAllTabs">@Localizer.Get(LatticeHostPlugin.Key("closeAll"))</FlareMenuItem>
-                    <FlareMenuItem OnClick="() => CloseOtherTabs(key)">@Localizer.Get(LatticeHostPlugin.Key("closeOthers"))</FlareMenuItem>
-                </ContextMenuContent>
-                <ChildContent>
-                    @foreach (var document in MainDocuments)
-                    {
-                        <FlareDocumentTab @key="document.Id"
-                                          Key="@document.Id"
-                                          Title="@Localizer.Get(document.Title)"
-                                          Icon="@DocumentIcon(document)"
-                                          Closeable="true" />
-                    }
-                </ChildContent>
-            </FlareDocumentTabs>
-        </div>
-    </CenterDockHeader>
+@if (!_workspaceReady)
+{
+    <div role="status">@HostLabel("stateLoading")</div>
+}
+else
+{
+    <FlareIdeLayout id="@(_persistence is null ? null : _layoutId)"
+                    Documents="@IdeDocuments"
+                    ActiveDocuments="@ActiveDocuments"
+                    Height="100%"
+                    LeftPanelWidth="@PanelSize(LatticeToolRegion.Left)"
+                    RightPanelWidth="@PanelSize(LatticeToolRegion.Right)"
+                    BottomPanelHeight="@PanelSize(LatticeToolRegion.Bottom)"
+                    LeftCollapsed="@_panels[LatticeToolRegion.Left].Collapsed"
+                    LeftCollapsedChanged="collapsed => SetCollapsed(LatticeToolRegion.Left, collapsed)"
+                    RightCollapsed="@_panels[LatticeToolRegion.Right].Collapsed"
+                    RightCollapsedChanged="collapsed => SetCollapsed(LatticeToolRegion.Right, collapsed)"
+                    BottomCollapsed="@_panels[LatticeToolRegion.Bottom].Collapsed"
+                    BottomCollapsedChanged="collapsed => SetCollapsed(LatticeToolRegion.Bottom, collapsed)"
+                    LeftActiveToolKey="@_panels[LatticeToolRegion.Left].ToolKey"
+                    LeftActiveToolKeyChanged="key => SetSelectedTool(LatticeToolRegion.Left, key)"
+                    RightActiveToolKey="@_panels[LatticeToolRegion.Right].ToolKey"
+                    RightActiveToolKeyChanged="key => SetSelectedTool(LatticeToolRegion.Right, key)"
+                    DocumentMounting="IdeDocumentMounting.ActiveOnly"
+                    LeftRegionVisible="@HasLeftRegion"
+                    RightRegionVisible="@HasRightRegion"
+                    LeftToolPanel="@RenderTools(LatticeToolRegion.Left, ToolPanelPosition.Left)"
+                    RightToolPanel="@RenderTools(LatticeToolRegion.Right, ToolPanelPosition.Right)"
+                    Ribbon="@RibbonContent"
+                    MenuBar="@MenuBarContent"
+                    ChildContent="@StartSurfaceContent"
+                    BottomPanel="@BottomPanelSurface"
+                    BottomHeaderContent="@BottomHeaderSurface"
+                    ShowBottomHeader="@(ShellContent(LatticeShellSlot.BottomHeader) is not null)"
+                    ShowBottomPin="true"
+                    ShowBottomCollapse="false"
+                    BottomPinned="@IsPinned(LatticeToolRegion.Bottom)"
+                    BottomPinnedChanged="OnBottomPinnedChanged"
+                    StatusBar="@StatusBarContent"
+                    OnActiveDocumentChanged="OnActiveDocumentChanged"
+                    OnDocumentCloseRequested="OnDocumentCloseRequested"
+                    OnDocumentMove="OnDocumentMove">
+        <CenterDockHeader>
+            <div class="q-main-tabs">
+                <FlareDocumentTabs StripOnly="true"
+                                   Dockable="true"
+                                   DockTargets="@CenterDockTargets"
+                                   OnDockRequested="OnTabDockRequested"
+                                   ControlledSelection="true"
+                                   ActiveKey="@ActiveCenterKey"
+                                   ActiveKeyChanged="OnTabActivated"
+                                   OnCloseRequested="OnTabCloseRequested">
+                    <ContextMenuContent Context="key">
+                        <FlareMenuItem OnClick="() => CloseTab(key)">@Localizer.Get(LatticeHostPlugin.Key("close"))</FlareMenuItem>
+                        <FlareMenuItem OnClick="CloseAllTabs">@Localizer.Get(LatticeHostPlugin.Key("closeAll"))</FlareMenuItem>
+                        <FlareMenuItem OnClick="() => CloseOtherTabs(key)">@Localizer.Get(LatticeHostPlugin.Key("closeOthers"))</FlareMenuItem>
+                    </ContextMenuContent>
+                    <ChildContent>
+                        @foreach (var document in MainDocuments)
+                        {
+                            <FlareDocumentTab @key="document.Id"
+                                              Key="@document.Id"
+                                              Title="@Localizer.Get(document.Title)"
+                                              Icon="@DocumentIcon(document)"
+                                              Closeable="true" />
+                        }
+                    </ChildContent>
+                </FlareDocumentTabs>
+            </div>
+        </CenterDockHeader>
 
-    <DocumentContent Context="document">@RenderDocument(document)</DocumentContent>
-</FlareIdeLayout>
+        <DocumentContent Context="document">@RenderDocument(document)</DocumentContent>
+    </FlareIdeLayout>
+}
 
 @code {
     private IReadOnlyList<ToolbarDescriptor> Toolbars =>
@@ -144,6 +162,13 @@
             <FlareAlert @key="failure" Severity="AlertSeverity.Error"
                         Dismissible="true" OnDismiss="DismissCommandFailure">
                 @Localizer.GetError(failure.ErrorCode ?? "lattice.command.failed", failure.ErrorMessage)
+            </FlareAlert>
+        }
+        @if (_stateWarning is { } warning)
+        {
+            <FlareAlert Severity="AlertSeverity.Warning"
+                        Dismissible="true" OnDismiss="@(() => _stateWarning = null)">
+                @HostLabel(warning)
             </FlareAlert>
         }
     </text>;
@@ -230,6 +255,8 @@
 
     private RenderFragment RenderTools(LatticeToolRegion region, ToolPanelPosition position) =>
         @<FlareToolPanelGroup Position="@position"
+                                                               ActiveKey="@_panels[region].ToolKey"
+                                                               ActiveKeyChanged="key => SetSelectedTool(region, key)"
                                                                TabStripPlacement="TabStripPlacement.Bottom"
                                                                ShowTabStripWhenFloating="false"
                                                                ShowCollapseButton="false">

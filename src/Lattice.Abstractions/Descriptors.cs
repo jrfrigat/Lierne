@@ -55,7 +55,13 @@ public sealed record DocumentDescriptor(
     string? IconKey,
     Type Component,
     bool Persistent = true,
-    LatticeDockLocation DefaultLocation = LatticeDockLocation.Main);
+    LatticeDockLocation DefaultLocation = LatticeDockLocation.Main)
+{
+    /// <summary>
+    /// Gets or sets the payload codec. With no codec, only documents with a null payload can be restored.
+    /// </summary>
+    public LatticeDocumentStateCodec? StateCodec { get; init; }
+}
 
 /// <summary>Describes a tool window contributed by a plugin.</summary>
 /// <param name="Id">The stable tool window id.</param>

@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace Lattice;
 
 /// <summary>Owns the open documents of one host scope.</summary>
@@ -5,7 +7,7 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
 {
     private readonly Dictionary<DocumentTypeId, DocumentDescriptor> _types;
     private readonly List<LatticeDocumentInstance> _documents = [];
-    private int _nextId;
+    private long _nextId;
     private string? _activeId;
 
     /// <summary>Creates the document service.</summary>
@@ -42,7 +44,7 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
         }
 
         var document = new LatticeDocumentInstance(
-            $"document-{++_nextId}",
+            $"document-{(++_nextId).ToString(CultureInfo.InvariantCulture)}",
             typeId,
             title ?? descriptor.Title,
             payload,
@@ -142,6 +144,22 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
     }
 
     /// <inheritdoc />
+    public LatticeResult SetPayload(string instanceId, object? payload)
+    {
+        var index = IndexOf(instanceId);
+        if (index < 0)
+        {
+            return LatticeResult.Fail(
+                "lattice.document.unknown_instance",
+                $"The document '{instanceId}' is not open.");
+        }
+
+        _documents[index] = _documents[index] with { Payload = payload };
+        Changed?.Invoke();
+        return LatticeResult.Ok;
+    }
+
+    /// <inheritdoc />
     public LatticeResult Close(string instanceId)
     {
         var document = Find(instanceId);
@@ -166,6 +184,40 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
     {
         var index = IndexOf(instanceId);
         return index < 0 ? null : _documents[index];
+    }
+
+    internal bool Restore(IReadOnlyList<LatticeDocumentInstance> documents, string? activeId)
+    {
+        if (_documents.Count != 0)
+        {
+            return false;
+        }
+
+        foreach (var document in documents)
+        {
+            if (TryReadSequence(document.Id, out var sequence))
+            {
+                _nextId = Math.Max(_nextId, sequence);
+            }
+        }
+
+        _documents.AddRange(documents);
+        _activeId = _documents.Any(document => document.Id == activeId) ? activeId : _documents.LastOrDefault()?.Id;
+        if (_documents.Count > 0)
+        {
+            Changed?.Invoke();
+        }
+
+        return true;
+    }
+
+    internal static bool TryReadSequence(string id, out long sequence)
+    {
+        const string prefix = "document-";
+        sequence = 0;
+        return id.StartsWith(prefix, StringComparison.Ordinal) &&
+            long.TryParse(id.AsSpan(prefix.Length), NumberStyles.None, CultureInfo.InvariantCulture, out sequence) &&
+            sequence is > 0 and < long.MaxValue;
     }
 
     private int IndexOf(string instanceId) =>

@@ -1,0 +1,16 @@
+html, body, .sample-workspace {
+    height: 100%;
+    margin: 0;
+}
+
+.sample-note,
+.sample-start {
+    padding: var(--flare-spacing-4, 1rem);
+}
+
+.sample-start {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--flare-spacing-3, 0.75rem);
+}

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype"><value>text/microsoft-resx</value></resheader>
+  <resheader name="version"><value>2.0</value></resheader>
+  <data name="app" xml:space="preserve"><value>Lattice Sample IDE</value></data>
+  <data name="note" xml:space="preserve"><value>Note</value></data>
+  <data name="newNote" xml:space="preserve"><value>New note</value></data>
+  <data name="tools" xml:space="preserve"><value>Notes</value></data>
+  <data name="settings" xml:space="preserve"><value>Notes</value></data>
+  <data name="noteTitle" xml:space="preserve"><value>Default note title</value></data>
+  <data name="content" xml:space="preserve"><value>Note text</value></data>
+  <data name="welcome" xml:space="preserve"><value>Open a note to start writing.</value></data>
+</root>
