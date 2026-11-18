@@ -17,6 +17,7 @@
                     <span class="lattice-commands__title">@Localizer.Get(binding.Title)</span>
                     <div class="lattice-commands__shortcut">
                         <FlareShortcutEditor Compact="true"
+                                             AriaLabel="@Localizer.Get(binding.Title)"
                                              Value="@binding.EffectiveShortcut"
                                              DefaultValue="@binding.DefaultShortcut"
                                              AssignedShortcuts="@AssignedFor(binding)"

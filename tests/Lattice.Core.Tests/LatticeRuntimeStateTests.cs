@@ -71,6 +71,13 @@ public sealed class LatticeRuntimeStateTests
         Assert.True(documents.SetTitle(second.Data.Id, StringKey.Literal("Renamed")).Success);
         Assert.Equal(StringKey.Literal("Renamed"), documents.Active!.Title);
 
+        Assert.True(documents.SetIcon(second.Data.Id, "database", "#4CAF50").Success);
+        Assert.Equal("database", documents.Active!.IconKey);
+        Assert.Equal("#4CAF50", documents.Active.IconColor);
+        Assert.Equal(
+            "lattice.document.unknown_instance",
+            documents.SetIcon("missing", null, null).ErrorCode);
+
         Assert.True(documents.Move(second.Data.Id, LatticeDockLocation.Left).Success);
         Assert.Equal(LatticeDockLocation.Left, documents.Active!.Location);
         Assert.Equal(LatticeDockLocation.Left, documents.Documents[0].Location);
