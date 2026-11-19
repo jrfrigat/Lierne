@@ -62,21 +62,25 @@ public sealed class LatticeShortcutService : ILatticeShortcutService
     /// <inheritdoc />
     public LatticeResult<CommandId> Resolve(string gesture)
     {
-        var normalized = Normalize(gesture);
-        if (normalized is null)
+        var normalized = gesture.AsSpan().Trim();
+        if (normalized.IsEmpty)
         {
             return LatticeResult<CommandId>.Fail(
                 "lattice.shortcut.invalid_gesture",
                 "A shortcut gesture is required.");
         }
 
-        var binding = _bindings.FirstOrDefault(candidate =>
-            string.Equals(candidate.EffectiveShortcut, normalized, StringComparison.OrdinalIgnoreCase));
-        return binding is null
-            ? LatticeResult<CommandId>.Fail(
-                "lattice.shortcut.not_found",
-                $"No command uses the shortcut '{normalized}'.")
-            : LatticeResult<CommandId>.Ok(binding.Command);
+        foreach (var binding in _bindings)
+        {
+            if (normalized.Equals(binding.EffectiveShortcut.AsSpan(), StringComparison.OrdinalIgnoreCase))
+            {
+                return LatticeResult<CommandId>.Ok(binding.Command);
+            }
+        }
+
+        return LatticeResult<CommandId>.Fail(
+            "lattice.shortcut.not_found",
+            $"No command uses the shortcut '{normalized}'.");
     }
 
     /// <inheritdoc />

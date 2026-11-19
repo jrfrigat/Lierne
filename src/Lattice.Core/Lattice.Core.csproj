@@ -8,5 +8,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Lattice.Abstractions\Lattice.Abstractions.csproj" />
+    <InternalsVisibleTo Include="Lattice.Components" />
   </ItemGroup>
 </Project>

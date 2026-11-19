@@ -22,6 +22,11 @@ public sealed class LatticeStatePersistence(
     };
 
     private readonly SemaphoreSlim _writes = new(1);
+    private readonly Lock _workspaceQueue = new();
+    private readonly Dictionary<DocumentTypeId, DocumentDescriptor> _persistentTypes =
+        catalog.Documents.Where(type => type.Persistent).ToDictionary(type => type.Id);
+    private WorkspaceSave? _pendingWorkspace;
+    private Task? _workspaceWrites;
     private bool _preferencesLoaded;
     private bool _workspaceLoaded;
     private LatticeWorkspaceLayout? _layout;
@@ -141,12 +146,96 @@ public sealed class LatticeStatePersistence(
             return Task.CompletedTask;
         }
 
-        _layout = layout;
-        var savedDocuments = new List<DocumentState>();
-        foreach (var document in documents.Documents)
+        return WriteAsync(LatticeStateSection.Workspace, CaptureWorkspace(layout), cancellationToken);
+    }
+
+    internal void QueueWorkspaceSave(Func<LatticeWorkspaceLayout> getLayout, Action<Exception> reportError)
+    {
+        if (!_workspaceLoaded)
         {
-            var type = catalog.Documents.FirstOrDefault(descriptor => descriptor.Id == document.TypeId);
-            if (type is not { Persistent: true } || (type.StateCodec is null && document.Payload is not null))
+            return;
+        }
+
+        lock (_workspaceQueue)
+        {
+            _pendingWorkspace = new WorkspaceSave(getLayout, reportError);
+            _workspaceWrites ??= WritePendingWorkspacesAsync();
+        }
+    }
+
+    private async Task WritePendingWorkspacesAsync()
+    {
+        // Combine changes from the same renderer dispatch before taking the first snapshot.
+        await Task.Yield();
+        while (true)
+        {
+            lock (_workspaceQueue)
+            {
+                if (_pendingWorkspace is null)
+                {
+                    _workspaceWrites = null;
+                    return;
+                }
+            }
+
+            await _writes.WaitAsync();
+            WorkspaceSave request;
+            lock (_workspaceQueue)
+            {
+                // Only this worker takes requests, so one is still pending after acquiring storage.
+                request = _pendingWorkspace!.Value;
+                _pendingWorkspace = null;
+            }
+
+            Exception? failure = null;
+            try
+            {
+                var text = JsonSerializer.Serialize(CaptureWorkspace(request.GetLayout()), Json);
+                await storage!.WriteAsync(LatticeStateSection.Workspace, text);
+            }
+            catch (Exception exception)
+            {
+                failure = exception;
+            }
+            finally
+            {
+                _writes.Release();
+            }
+            if (failure is not null)
+            {
+                request.ReportError(failure);
+            }
+        }
+    }
+
+    /// <summary>Waits for the writes currently queued by this scope.</summary>
+    public async Task FlushAsync(CancellationToken cancellationToken = default)
+    {
+        Task? workspaceWrites;
+        lock (_workspaceQueue)
+        {
+            workspaceWrites = _workspaceWrites;
+        }
+        if (workspaceWrites is not null)
+        {
+            await workspaceWrites.WaitAsync(cancellationToken);
+        }
+
+        await _writes.WaitAsync(cancellationToken);
+        _writes.Release();
+    }
+
+    private WorkspaceState CaptureWorkspace(LatticeWorkspaceLayout layout)
+    {
+        _layout = layout;
+        var openDocuments = documents.Documents;
+        var savedDocuments = new List<DocumentState>();
+        var ids = new HashSet<string>(StringComparer.Ordinal);
+        for (var index = 0; index < openDocuments.Count; index++)
+        {
+            var document = openDocuments[index];
+            if (!_persistentTypes.TryGetValue(document.TypeId, out var type) ||
+                (type.StateCodec is null && document.Payload is not null))
             {
                 continue;
             }
@@ -155,42 +244,37 @@ public sealed class LatticeStatePersistence(
                 document.Id, document.TypeId.Value, document.Title.Namespace, document.Title.Name,
                 document.Location, document.IconKey, document.IconColor, type.StateCodec?.Version ?? 0,
                 type.StateCodec?.Write(document.Payload)));
+            ids.Add(document.Id);
         }
 
-        var ids = savedDocuments.Select(document => document.Id).ToHashSet(StringComparer.Ordinal);
-        var active = documents.Active?.Id;
-        var snapshotLayout = layout with
+        var selection = new Dictionary<LatticeDockLocation, string?>(layout.Documents.Count);
+        foreach (var (location, id) in layout.Documents)
         {
-            Documents = layout.Documents.Where(pair => pair.Value is null || ids.Contains(pair.Value))
-                .ToDictionary()
-        };
-        var snapshot = new WorkspaceState(
+            if (id is null || ids.Contains(id))
+            {
+                selection.Add(location, id);
+            }
+        }
+
+        var active = documents.Active?.Id;
+        return new WorkspaceState(
             Version,
             savedDocuments,
             active is not null && ids.Contains(active) ? active : null,
             tools.ToolWindows.ToDictionary(tool => tool.Id.Value, tool => tool.Visible, StringComparer.Ordinal),
-            snapshotLayout);
-        return WriteAsync(LatticeStateSection.Workspace, snapshot, cancellationToken);
-    }
-
-    /// <summary>Waits for the writes currently queued by this scope.</summary>
-    public async Task FlushAsync(CancellationToken cancellationToken = default)
-    {
-        await _writes.WaitAsync(cancellationToken);
-        _writes.Release();
+            layout with { Documents = selection });
     }
 
     private List<LatticeDocumentInstance> ReadDocuments(IReadOnlyList<DocumentState> saved)
     {
         var restored = new List<LatticeDocumentInstance>();
         var ids = new HashSet<string>(StringComparer.Ordinal);
-        var types = catalog.Documents.Where(type => type.Persistent).ToDictionary(type => type.Id.Value, StringComparer.Ordinal);
         foreach (var entry in saved)
         {
             if (entry is null || string.IsNullOrWhiteSpace(entry.Id) || string.IsNullOrWhiteSpace(entry.Type) ||
                 string.IsNullOrWhiteSpace(entry.TitleNamespace) || string.IsNullOrWhiteSpace(entry.TitleName) ||
                 !Enum.IsDefined(entry.Location) || !LatticeDocumentService.TryReadSequence(entry.Id, out _) ||
-                !types.TryGetValue(entry.Type, out var type) || !ids.Add(entry.Id))
+                !_persistentTypes.TryGetValue(new DocumentTypeId(entry.Type), out var type) || !ids.Add(entry.Id))
             {
                 continue;
             }
@@ -302,4 +386,6 @@ public sealed class LatticeStatePersistence(
     private sealed record DocumentState(
         string Id, string Type, string TitleNamespace, string TitleName, LatticeDockLocation Location,
         string? IconKey, string? IconColor, int PayloadVersion, JsonElement? Payload);
+
+    private readonly record struct WorkspaceSave(Func<LatticeWorkspaceLayout> GetLayout, Action<Exception> ReportError);
 }

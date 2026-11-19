@@ -21,13 +21,13 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
     /// <inheritdoc />
     public event Action? Changed;
 
+    internal event Action<LatticeDocumentChange>? DocumentChanged;
+
     /// <inheritdoc />
     public IReadOnlyList<LatticeDocumentInstance> Documents => _documents;
 
     /// <inheritdoc />
-    public LatticeDocumentInstance? Active =>
-        _documents.FirstOrDefault(document =>
-            string.Equals(document.Id, _activeId, StringComparison.Ordinal));
+    public LatticeDocumentInstance? Active => _activeId is { } id ? Find(id) : null;
 
     /// <inheritdoc />
     public LatticeResult<LatticeDocumentInstance> Open(
@@ -51,7 +51,7 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
             location ?? descriptor.DefaultLocation);
         _documents.Add(document);
         _activeId = document.Id;
-        Changed?.Invoke();
+        NotifyChanged(LatticeDocumentChange.Structure);
         return LatticeResult<LatticeDocumentInstance>.Ok(document);
     }
 
@@ -72,7 +72,7 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
         }
 
         _activeId = document.Id;
-        Changed?.Invoke();
+        NotifyChanged(LatticeDocumentChange.Selection | LatticeDocumentChange.Workspace);
         return LatticeResult.Ok;
     }
 
@@ -94,7 +94,7 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
         }
 
         _documents[index] = document with { Title = title };
-        Changed?.Invoke();
+        NotifyChanged(LatticeDocumentChange.Tabs | LatticeDocumentChange.Workspace);
         return LatticeResult.Ok;
     }
 
@@ -117,7 +117,7 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
         }
 
         _documents[index] = document with { IconKey = iconKey, IconColor = iconColor };
-        Changed?.Invoke();
+        NotifyChanged(LatticeDocumentChange.Tabs | LatticeDocumentChange.Workspace);
         return LatticeResult.Ok;
     }
 
@@ -140,7 +140,7 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
         }
 
         _documents[index] = document with { StatusIconKey = iconKey, StatusIconColor = iconColor };
-        Changed?.Invoke();
+        NotifyChanged(LatticeDocumentChange.Tabs);
         return LatticeResult.Ok;
     }
 
@@ -162,7 +162,7 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
         }
 
         _documents[index] = document with { Location = location };
-        Changed?.Invoke();
+        NotifyChanged(LatticeDocumentChange.Structure);
         return LatticeResult.Ok;
     }
 
@@ -177,29 +177,41 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
                 $"The document '{instanceId}' is not open.");
         }
 
-        _documents[index] = _documents[index] with { Payload = payload };
-        Changed?.Invoke();
+        var document = _documents[index];
+        var change = LatticeDocumentChange.Workspace;
+        if (!ReferenceEquals(document.Payload, payload))
+        {
+            _documents[index] = document with { Payload = payload };
+            change |= LatticeDocumentChange.Content;
+        }
+        else if (payload is not null and not string)
+        {
+            // Passing the same object can signal an in-place edit that still needs rendering.
+            change |= LatticeDocumentChange.Content;
+        }
+
+        NotifyChanged(change);
         return LatticeResult.Ok;
     }
 
     /// <inheritdoc />
     public LatticeResult Close(string instanceId)
     {
-        var document = Find(instanceId);
-        if (document is null)
+        var index = IndexOf(instanceId);
+        if (index < 0)
         {
             return LatticeResult.Fail(
                 "lattice.document.unknown_instance",
                 $"The document '{instanceId}' is not open.");
         }
 
-        _documents.Remove(document);
-        if (string.Equals(_activeId, document.Id, StringComparison.Ordinal))
+        _documents.RemoveAt(index);
+        if (string.Equals(_activeId, instanceId, StringComparison.Ordinal))
         {
             _activeId = _documents.LastOrDefault()?.Id;
         }
 
-        Changed?.Invoke();
+        NotifyChanged(LatticeDocumentChange.Structure);
         return LatticeResult.Ok;
     }
 
@@ -225,10 +237,10 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
         }
 
         _documents.AddRange(documents);
-        _activeId = _documents.Any(document => document.Id == activeId) ? activeId : _documents.LastOrDefault()?.Id;
+        _activeId = activeId is not null && IndexOf(activeId) >= 0 ? activeId : _documents.LastOrDefault()?.Id;
         if (_documents.Count > 0)
         {
-            Changed?.Invoke();
+            NotifyChanged(LatticeDocumentChange.Structure);
         }
 
         return true;
@@ -243,7 +255,32 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
             sequence is > 0 and < long.MaxValue;
     }
 
-    private int IndexOf(string instanceId) =>
-        _documents.FindIndex(document =>
-            string.Equals(document.Id, instanceId, StringComparison.Ordinal));
+    private int IndexOf(string instanceId)
+    {
+        for (var index = 0; index < _documents.Count; index++)
+        {
+            if (string.Equals(_documents[index].Id, instanceId, StringComparison.Ordinal))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private void NotifyChanged(LatticeDocumentChange change)
+    {
+        DocumentChanged?.Invoke(change);
+        Changed?.Invoke();
+    }
+}
+
+[Flags]
+internal enum LatticeDocumentChange
+{
+    Tabs = 1,
+    Selection = 2,
+    Workspace = 4,
+    Content = 8,
+    Structure = Tabs | Selection | Workspace
 }

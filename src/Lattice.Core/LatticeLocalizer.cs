@@ -6,6 +6,7 @@ namespace Lattice;
 public sealed class LatticeLocalizer : ILatticeLocalizer
 {
     private readonly IReadOnlyList<LatticeStringCatalog> _catalogs;
+    private CultureInfo? _culture;
 
     /// <summary>Creates the localizer for the current UI culture.</summary>
     /// <param name="catalog">The composed plugin catalog.</param>
@@ -39,9 +40,10 @@ public sealed class LatticeLocalizer : ILatticeLocalizer
             return key.Name;
         }
 
-        var culture = CultureInfo.GetCultureInfo(CurrentCulture);
-        foreach (var catalog in _catalogs)
+        var culture = _culture ??= CultureInfo.GetCultureInfo(CurrentCulture);
+        for (var index = 0; index < _catalogs.Count; index++)
         {
+            var catalog = _catalogs[index];
             if (!string.Equals(catalog.Namespace, key.Namespace, StringComparison.Ordinal))
             {
                 continue;
@@ -62,15 +64,15 @@ public sealed class LatticeLocalizer : ILatticeLocalizer
     public string GetError(string code, string? fallback = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
-        var culture = CultureInfo.GetCultureInfo(CurrentCulture);
+        var culture = _culture ??= CultureInfo.GetCultureInfo(CurrentCulture);
         if (LatticeCoreStrings.ResourceManager.GetString(code, culture) is { } core)
         {
             return core;
         }
 
-        foreach (var catalog in _catalogs)
+        for (var index = 0; index < _catalogs.Count; index++)
         {
-            if (catalog.Resources.GetString(code, culture) is { } value)
+            if (_catalogs[index].Resources.GetString(code, culture) is { } value)
             {
                 return value;
             }
@@ -89,6 +91,7 @@ public sealed class LatticeLocalizer : ILatticeLocalizer
         }
 
         CurrentCulture = culture;
+        _culture = null;
         Changed?.Invoke();
     }
 }

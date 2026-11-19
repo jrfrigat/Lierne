@@ -17,6 +17,8 @@ public partial class LatticeShell
     private LatticeStatePersistence? _persistence;
     private ISettingsStore? _settings;
     private bool _workspaceReady = true;
+    private Func<LatticeWorkspaceLayout>? _captureWorkspace;
+    private Action<Exception>? _reportWorkspaceSaveError;
     private bool _watchRequested;
     private bool _disposed;
     private string? _stateWarning;
@@ -97,10 +99,9 @@ public partial class LatticeShell
         _panels[LatticeToolRegion.Bottom] = CoercePanel(layout.Bottom, _panels[LatticeToolRegion.Bottom]);
         foreach (var (location, key) in layout.Documents ?? [])
         {
-            if (Enum.IsDefined(location) && (key is null ||
-                Documents.Documents.Any(document => document.Id == key && document.Location == location)))
+            if (Enum.IsDefined(location) && (key is null || FindDocument(key)?.Location == location))
             {
-                _selection[ToRegion(location)] = key;
+                SelectDocument(ToRegion(location), key);
             }
         }
     }
@@ -177,14 +178,25 @@ public partial class LatticeShell
     {
         if (_workspaceReady && !_disposed && _persistence is { } persistence)
         {
-            var layout = new LatticeWorkspaceLayout
-            {
-                Documents = _selection.ToDictionary(pair => ToLocation(pair.Key), pair => pair.Value),
-                Left = _panels[LatticeToolRegion.Left],
-                Right = _panels[LatticeToolRegion.Right],
-                Bottom = _panels[LatticeToolRegion.Bottom]
-            };
-            _ = RunStateOperationAsync(() => persistence.SaveWorkspaceAsync(layout), "stateSaveFailed");
+            persistence.QueueWorkspaceSave(
+                _captureWorkspace ??= CaptureWorkspaceLayout,
+                _reportWorkspaceSaveError ??= OnWorkspaceSaveError);
+        }
+    }
+
+    private LatticeWorkspaceLayout CaptureWorkspaceLayout() => new()
+    {
+        Documents = _selection.ToDictionary(pair => ToLocation(pair.Key), pair => pair.Value),
+        Left = _panels[LatticeToolRegion.Left],
+        Right = _panels[LatticeToolRegion.Right],
+        Bottom = _panels[LatticeToolRegion.Bottom]
+    };
+
+    private void OnWorkspaceSaveError(Exception exception)
+    {
+        if (exception is not JSDisconnectedException)
+        {
+            ReportStateError("stateSaveFailed", exception);
         }
     }
 

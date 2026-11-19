@@ -4,6 +4,7 @@ namespace Lattice;
 public sealed class LatticeToolWindowService : ILatticeToolWindowService
 {
     private readonly Dictionary<ToolWindowId, LatticeToolWindowInstance> _windows;
+    private IReadOnlyList<LatticeToolWindowInstance>? _snapshot;
 
     /// <summary>Creates the tool window service from the composed catalog.</summary>
     /// <param name="catalog">The composed plugin catalog.</param>
@@ -22,7 +23,8 @@ public sealed class LatticeToolWindowService : ILatticeToolWindowService
     public event Action? Changed;
 
     /// <inheritdoc />
-    public IReadOnlyList<LatticeToolWindowInstance> ToolWindows => _windows.Values.ToArray();
+    public IReadOnlyList<LatticeToolWindowInstance> ToolWindows =>
+        _snapshot ??= Array.AsReadOnly(_windows.Values.ToArray());
 
     /// <inheritdoc />
     public LatticeResult Show(ToolWindowId toolWindow) => SetVisible(toolWindow, true);
@@ -58,6 +60,7 @@ public sealed class LatticeToolWindowService : ILatticeToolWindowService
         }
 
         _windows[toolWindow] = window with { Visible = visible };
+        _snapshot = null;
         Changed?.Invoke();
         return LatticeResult.Ok;
     }

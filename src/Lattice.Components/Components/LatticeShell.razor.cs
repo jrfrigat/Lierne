@@ -19,6 +19,18 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
     private string? _lastActiveId;
     private LatticeDockLocation? _lastActiveLocation;
     private LatticeCommandResult? _commandFailure;
+    private IReadOnlyList<IdeDocument>? _ideDocuments;
+    private IReadOnlyList<LatticeDocumentInstance>? _mainDocuments;
+    private IReadOnlyDictionary<IdeDocumentRegion, string?>? _activeDocuments;
+    private IReadOnlyList<RibbonGroupDescriptor>? _ribbonGroups;
+    private IReadOnlyList<MenuGroupDescriptor>? _menuGroups;
+    private ILookup<RibbonGroupId, RibbonItemDescriptor>? _ribbonItems;
+    private ILookup<MenuGroupId, MenuItemDescriptor>? _menuItems;
+    private ILookup<LatticeToolRegion, ToolWindowDescriptor>? _toolDescriptors;
+    private Dictionary<LatticeShellSlot, ShellContentDescriptor>? _shellContent;
+    private Dictionary<CommandId, CommandDescriptor>? _commandDescriptors;
+    private Dictionary<DocumentTypeId, DocumentDescriptor>? _documentDescriptors;
+    private Action? _saveWorkspaceAction;
 
     /// <summary>Gets or sets the title of the ribbon tab used when no toolbar is contributed.</summary>
     [Parameter]
@@ -44,7 +56,7 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
     public RenderFragment? StartContent { get; set; }
 
     private IReadOnlyList<IdeDocument> IdeDocuments =>
-        Documents.Documents
+        _ideDocuments ??= Documents.Documents
             .Select(document => new IdeDocument(
                 document.Id,
                 Localizer.Get(document.Title),
@@ -53,10 +65,10 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
             .ToArray();
 
     private IReadOnlyDictionary<IdeDocumentRegion, string?> ActiveDocuments =>
-        new Dictionary<IdeDocumentRegion, string?>(_selection);
+        _activeDocuments ??= new Dictionary<IdeDocumentRegion, string?>(_selection);
 
     private IReadOnlyList<LatticeDocumentInstance> MainDocuments =>
-        Documents.Documents
+        _mainDocuments ??= Documents.Documents
             .Where(document => document.Location == LatticeDockLocation.Main)
             .ToArray();
 
@@ -70,9 +82,7 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
 
     private FlareIcon? DocumentIcon(LatticeDocumentInstance document) =>
         ResolveIcon(
-            document.IconKey ?? Catalog.Documents
-                .FirstOrDefault(descriptor => descriptor.Id == document.TypeId)?
-                .IconKey,
+            document.IconKey ?? DocumentDescriptor(document.TypeId)?.IconKey,
             document.IconColor);
 
     private FlareIcon? DocumentStatusIcon(LatticeDocumentInstance document) =>
@@ -100,7 +110,7 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
 
     private void CloseAllTabs()
     {
-        foreach (var document in MainDocuments.ToArray())
+        foreach (var document in MainDocuments)
         {
             Documents.Close(document.Id);
         }
@@ -108,41 +118,37 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
 
     private void CloseOtherTabs(string key)
     {
-        foreach (var document in MainDocuments
-                     .Where(document => !string.Equals(document.Id, key, StringComparison.Ordinal))
-                     .ToArray())
+        foreach (var document in MainDocuments)
         {
-            Documents.Close(document.Id);
+            if (!string.Equals(document.Id, key, StringComparison.Ordinal))
+            {
+                Documents.Close(document.Id);
+            }
         }
     }
 
     private IReadOnlyList<RibbonGroupDescriptor> RibbonGroups =>
-        Catalog.RibbonGroups
+        _ribbonGroups ??= Catalog.RibbonGroups
             .OrderBy(group => group.Order)
             .ThenBy(group => group.Id.Value, StringComparer.Ordinal)
             .ToArray();
 
     private ShellContentDescriptor? ShellContent(LatticeShellSlot slot) =>
-        Catalog.ShellContents
-            .Where(content => content.Slot == slot)
+        (_shellContent ??= Catalog.ShellContents
             .OrderBy(content => content.Order)
             .ThenBy(content => content.Id.Value, StringComparer.Ordinal)
-            .FirstOrDefault();
+            .GroupBy(content => content.Slot)
+            .ToDictionary(group => group.Key, group => group.First()))
+            .GetValueOrDefault(slot);
 
     private RenderFragment? StartSurfaceContent =>
-        ShellContent(LatticeShellSlot.StartPage) is { } page
-            ? RenderComponent(page.Component)
-            : StartContent;
+        ShellContent(LatticeShellSlot.StartPage) is { } page ? RenderComponent(page.Component) : StartContent;
 
     private RenderFragment? BottomHeaderSurface =>
-        ShellContent(LatticeShellSlot.BottomHeader) is { } header
-            ? RenderComponent(header.Component)
-            : null;
+        ShellContent(LatticeShellSlot.BottomHeader) is { } header ? RenderComponent(header.Component) : null;
 
     private RenderFragment? CustomBottomPanel =>
-        ShellContent(LatticeShellSlot.BottomPanel) is { } panel
-            ? RenderComponent(panel.Component)
-            : BottomPanel;
+        ShellContent(LatticeShellSlot.BottomPanel) is { } panel ? RenderComponent(panel.Component) : BottomPanel;
 
     private RenderFragment? StatusBarSurface =>
         ShellContent(LatticeShellSlot.StatusBar) is { } status
@@ -157,7 +163,7 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
     };
 
     private IReadOnlyList<MenuGroupDescriptor> MenuGroups =>
-        Catalog.MenuGroups
+        _menuGroups ??= Catalog.MenuGroups
             .OrderBy(group => group.Order)
             .ThenBy(group => group.Id.Value, StringComparer.Ordinal)
             .ToArray();
@@ -173,9 +179,16 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
     /// <inheritdoc />
     protected override void OnInitialized()
     {
-        Documents.Changed += OnDocumentsChanged;
+        if (Documents is LatticeDocumentService service)
+        {
+            service.DocumentChanged += OnDocumentChanged;
+        }
+        else
+        {
+            Documents.Changed += OnDocumentsChanged;
+        }
         ToolWindows.Changed += OnToolWindowsChanged;
-        Localizer.Changed += OnStateChanged;
+        Localizer.Changed += OnCultureChanged;
         State.Changed += OnStateChanged;
         Shortcuts.Changed += OnShortcutsChanged;
         InitializePersistence();
@@ -186,7 +199,7 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
     {
         foreach (var document in Documents.Documents)
         {
-            _selection[ToRegion(document.Location)] = document.Id;
+            SelectDocument(ToRegion(document.Location), document.Id);
         }
 
         _lastActiveId = null;
@@ -197,9 +210,16 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
     public void Dispose()
     {
         _disposed = true;
-        Documents.Changed -= OnDocumentsChanged;
+        if (Documents is LatticeDocumentService service)
+        {
+            service.DocumentChanged -= OnDocumentChanged;
+        }
+        else
+        {
+            Documents.Changed -= OnDocumentsChanged;
+        }
         ToolWindows.Changed -= OnToolWindowsChanged;
-        Localizer.Changed -= OnStateChanged;
+        Localizer.Changed -= OnCultureChanged;
         State.Changed -= OnStateChanged;
         Shortcuts.Changed -= OnShortcutsChanged;
         if (_settings is not null)
@@ -209,19 +229,22 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
     }
 
     private IEnumerable<RibbonItemDescriptor> ItemsFor(RibbonGroupId group) =>
-        Catalog.RibbonItems
-            .Where(item => item.Group == group)
+        (_ribbonItems ??= Catalog.RibbonItems
             .OrderBy(item => item.Order)
-            .ThenBy(item => item.Id.Value, StringComparer.Ordinal);
+            .ThenBy(item => item.Id.Value, StringComparer.Ordinal)
+            .ToLookup(item => item.Group))[group];
 
     private IEnumerable<MenuItemDescriptor> ItemsFor(MenuGroupId group) =>
-        Catalog.MenuItems
-            .Where(item => item.Group == group)
+        (_menuItems ??= Catalog.MenuItems
             .OrderBy(item => item.Order)
-            .ThenBy(item => item.Id.Value, StringComparer.Ordinal);
+            .ThenBy(item => item.Id.Value, StringComparer.Ordinal)
+            .ToLookup(item => item.Group))[group];
 
     private CommandDescriptor? FindCommand(CommandId command) =>
-        Catalog.Commands.FirstOrDefault(descriptor => descriptor.Id == command);
+        (_commandDescriptors ??= Catalog.Commands.ToDictionary(descriptor => descriptor.Id)).GetValueOrDefault(command);
+
+    private DocumentDescriptor? DocumentDescriptor(DocumentTypeId type) =>
+        (_documentDescriptors ??= Catalog.Documents.ToDictionary(descriptor => descriptor.Id)).GetValueOrDefault(type);
 
     private string CommandLabel(CommandId command) =>
         FindCommand(command) is { } descriptor ? Localizer.Get(descriptor.Title) : command.Value;
@@ -236,12 +259,8 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
 
     private RenderFragment RenderDocument(IdeDocument document) => builder =>
     {
-        var instance = Documents.Documents.FirstOrDefault(candidate =>
-            string.Equals(candidate.Id, document.Key, StringComparison.Ordinal));
-        var descriptor = instance is null
-            ? null
-            : Catalog.Documents.FirstOrDefault(candidate => candidate.Id == instance.TypeId);
-        if (instance is null || descriptor is null)
+        if (FindDocument(document.Key) is not { } instance ||
+            DocumentDescriptor(instance.TypeId) is not { } descriptor)
         {
             return;
         }
@@ -262,13 +281,11 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
             Services)
     };
 
-    private IReadOnlyList<ToolWindowDescriptor> VisibleToolWindows(LatticeToolRegion region) =>
-        Catalog.ToolWindows
-            .Where(descriptor =>
-                descriptor.DefaultRegion == region && ToolWindows.IsVisible(descriptor.Id))
+    private IEnumerable<ToolWindowDescriptor> ToolDescriptors(LatticeToolRegion region) =>
+        (_toolDescriptors ??= Catalog.ToolWindows
             .OrderBy(descriptor => descriptor.Title.ToString(), StringComparer.Ordinal)
             .ThenBy(descriptor => descriptor.Id.Value, StringComparer.Ordinal)
-            .ToArray();
+            .ToLookup(descriptor => descriptor.DefaultRegion))[region];
 
     private Dictionary<string, object?> ToolWindowParameters(ToolWindowId id) => new()
     {
@@ -281,8 +298,7 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
     };
 
     private bool HasVisibleTool(LatticeToolRegion region) =>
-        Catalog.ToolWindows.Any(descriptor =>
-            descriptor.DefaultRegion == region && ToolWindows.IsVisible(descriptor.Id));
+        ToolDescriptors(region).Any(descriptor => ToolWindows.IsVisible(descriptor.Id));
 
     private bool IsPinned(LatticeToolRegion region) => _panels[region].Pinned;
 
@@ -301,10 +317,9 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
 
     private void CloseRegion(LatticeToolRegion region)
     {
-        foreach (var descriptor in Catalog.ToolWindows
-                     .Where(descriptor => descriptor.DefaultRegion == region))
+        foreach (var descriptor in Catalog.ToolWindows)
         {
-            if (ToolWindows.IsVisible(descriptor.Id))
+            if (descriptor.DefaultRegion == region && ToolWindows.IsVisible(descriptor.Id))
             {
                 ToolWindows.Hide(descriptor.Id);
             }
@@ -313,13 +328,16 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
 
     private void OnActiveDocumentChanged(IdeDocumentSelection selection)
     {
-        _selection[selection.Region] = selection.Key;
+        var selectionChanged = SelectDocument(selection.Region, selection.Key);
         if (!string.IsNullOrWhiteSpace(selection.Key))
         {
             Documents.Activate(selection.Key);
         }
 
-        SaveWorkspace();
+        if (selectionChanged)
+        {
+            SaveWorkspace();
+        }
     }
 
     private void OnDocumentCloseRequested(IdeDocument document) => Documents.Close(document.Key);
@@ -335,10 +353,53 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
         }
     }
 
-    private void OnDocumentsChanged() => _ = InvokeAsync(() =>
+    private bool SelectDocument(IdeDocumentRegion region, string? key)
     {
-        SyncSelection();
-        SaveWorkspace();
+        if (_selection[region] == key)
+        {
+            return false;
+        }
+
+        _selection[region] = key;
+        _activeDocuments = null;
+        return true;
+    }
+
+    private void OnDocumentsChanged() => OnDocumentChanged(LatticeDocumentChange.Structure);
+
+    private void OnDocumentChanged(LatticeDocumentChange change)
+    {
+        if (change != LatticeDocumentChange.Workspace)
+        {
+            _ = RenderDocumentChangesAsync(change);
+        }
+        else if (_persistence is not null)
+        {
+            _ = InvokeAsync(_saveWorkspaceAction ??= SaveWorkspace);
+        }
+    }
+
+    private Task RenderDocumentChangesAsync(LatticeDocumentChange change) => InvokeAsync(() =>
+    {
+        if ((change & LatticeDocumentChange.Tabs) != 0)
+        {
+            _ideDocuments = null;
+            _mainDocuments = null;
+        }
+        if ((change & LatticeDocumentChange.Selection) != 0)
+        {
+            SyncSelection();
+        }
+        if ((change & LatticeDocumentChange.Workspace) != 0)
+        {
+            SaveWorkspace();
+        }
+        StateHasChanged();
+    });
+
+    private void OnCultureChanged() => _ = InvokeAsync(() =>
+    {
+        _ideDocuments = null;
         StateHasChanged();
     });
 
@@ -350,20 +411,44 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
         foreach (var (region, key) in _selection)
         {
             var location = ToLocation(region);
-            if (key is not null && !documents.Any(document => document.Id == key && document.Location == location))
+            if (key is not null && FindDocument(key)?.Location != location)
             {
-                _selection[region] = documents.LastOrDefault(document => document.Location == location)?.Id;
+                string? replacement = null;
+                for (var index = documents.Count - 1; index >= 0; index--)
+                {
+                    if (documents[index].Location == location)
+                    {
+                        replacement = documents[index].Id;
+                        break;
+                    }
+                }
+                SelectDocument(region, replacement);
             }
         }
 
         var active = Documents.Active;
         if (active is not null && (active.Id != _lastActiveId || active.Location != _lastActiveLocation))
         {
-            _selection[ToRegion(active.Location)] = active.Id;
+            SelectDocument(ToRegion(active.Location), active.Id);
         }
 
         _lastActiveId = active?.Id;
         _lastActiveLocation = active?.Location;
+    }
+
+    private LatticeDocumentInstance? FindDocument(string key)
+    {
+        var documents = Documents.Documents;
+        for (var index = 0; index < documents.Count; index++)
+        {
+            var document = documents[index];
+            if (document.Id == key)
+            {
+                return document;
+            }
+        }
+
+        return null;
     }
 
     private static IdeDocumentRegion ToRegion(LatticeDockLocation location) =>
