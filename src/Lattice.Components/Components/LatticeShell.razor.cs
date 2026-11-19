@@ -62,19 +62,27 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
 
     private string? ActiveCenterKey => _selection[IdeDocumentRegion.Center];
 
-    private IReadOnlyList<FlareDocumentDockTarget> CenterDockTargets =>
+    private IReadOnlyList<(string Label, LatticeDockLocation Location)> TabDockTargets =>
     [
-        new(nameof(IdeDocumentRegion.Left), HostLabel("dockLeft")),
-        new(nameof(IdeDocumentRegion.Right), HostLabel("dockRight"))
+        (HostLabel("dockLeft"), LatticeDockLocation.Left),
+        (HostLabel("dockRight"), LatticeDockLocation.Right)
     ];
 
-    private FlareIcon? DocumentIcon(LatticeDocumentInstance document)
+    private FlareIcon? DocumentIcon(LatticeDocumentInstance document) =>
+        ResolveIcon(
+            document.IconKey ?? Catalog.Documents
+                .FirstOrDefault(descriptor => descriptor.Id == document.TypeId)?
+                .IconKey,
+            document.IconColor);
+
+    private FlareIcon? DocumentStatusIcon(LatticeDocumentInstance document) =>
+        ResolveIcon(document.StatusIconKey, document.StatusIconColor);
+
+    private FlareIcon? ResolveIcon(string? iconKey, string? iconColor)
     {
-        var icon = Icons.Resolve(document.IconKey ?? Catalog.Documents
-            .FirstOrDefault(descriptor => descriptor.Id == document.TypeId)?
-            .IconKey);
-        return icon is not null && !string.IsNullOrWhiteSpace(document.IconColor)
-            ? icon with { Color = FlareColor.Custom(document.IconColor) }
+        var icon = Icons.Resolve(iconKey);
+        return icon is not null && !string.IsNullOrWhiteSpace(iconColor)
+            ? icon with { Color = FlareColor.Custom(iconColor) }
             : icon;
     }
 
@@ -84,14 +92,6 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
         {
             OnActiveDocumentChanged(new IdeDocumentSelection(IdeDocumentRegion.Center, key));
         }
-    }
-
-    private void OnTabDockRequested(FlareDocumentDockRequest request)
-    {
-        var location = request.Target.Key == nameof(IdeDocumentRegion.Left)
-            ? LatticeDockLocation.Left
-            : LatticeDockLocation.Right;
-        MoveDocument(request.DocumentKey, location);
     }
 
     private void OnTabCloseRequested(string key) => Documents.Close(key);

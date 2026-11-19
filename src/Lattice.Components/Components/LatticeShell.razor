@@ -59,8 +59,6 @@ else
             <div class="q-main-tabs">
                 <FlareDocumentTabs StripOnly="true"
                                    Dockable="true"
-                                   DockTargets="@CenterDockTargets"
-                                   OnDockRequested="OnTabDockRequested"
                                    ControlledSelection="true"
                                    ActiveKey="@ActiveCenterKey"
                                    ActiveKeyChanged="OnTabActivated"
@@ -69,6 +67,11 @@ else
                         <FlareMenuItem OnClick="() => CloseTab(key)">@Localizer.Get(LatticeHostPlugin.Key("close"))</FlareMenuItem>
                         <FlareMenuItem OnClick="CloseAllTabs">@Localizer.Get(LatticeHostPlugin.Key("closeAll"))</FlareMenuItem>
                         <FlareMenuItem OnClick="() => CloseOtherTabs(key)">@Localizer.Get(LatticeHostPlugin.Key("closeOthers"))</FlareMenuItem>
+                        <FlareMenuSeparator />
+                        @foreach (var target in TabDockTargets)
+                        {
+                            <FlareMenuItem @key="target.Location" OnClick="() => MoveDocument(key, target.Location)">@target.Label</FlareMenuItem>
+                        }
                     </ContextMenuContent>
                     <ChildContent>
                         @foreach (var document in MainDocuments)
@@ -77,6 +80,7 @@ else
                                               Key="@document.Id"
                                               Title="@Localizer.Get(document.Title)"
                                               Icon="@DocumentIcon(document)"
+                                              StatusIcon="@DocumentStatusIcon(document)"
                                               Closeable="true" />
                         }
                     </ChildContent>

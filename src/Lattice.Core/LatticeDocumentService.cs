@@ -122,6 +122,29 @@ public sealed class LatticeDocumentService : ILatticeDocumentService
     }
 
     /// <inheritdoc />
+    public LatticeResult SetStatusIcon(string instanceId, string? iconKey, string? iconColor)
+    {
+        var index = IndexOf(instanceId);
+        if (index < 0)
+        {
+            return LatticeResult.Fail(
+                "lattice.document.unknown_instance",
+                $"The document '{instanceId}' is not open.");
+        }
+
+        var document = _documents[index];
+        if (string.Equals(document.StatusIconKey, iconKey, StringComparison.Ordinal) &&
+            string.Equals(document.StatusIconColor, iconColor, StringComparison.Ordinal))
+        {
+            return LatticeResult.Ok;
+        }
+
+        _documents[index] = document with { StatusIconKey = iconKey, StatusIconColor = iconColor };
+        Changed?.Invoke();
+        return LatticeResult.Ok;
+    }
+
+    /// <inheritdoc />
     public LatticeResult Move(string instanceId, LatticeDockLocation location)
     {
         var index = IndexOf(instanceId);

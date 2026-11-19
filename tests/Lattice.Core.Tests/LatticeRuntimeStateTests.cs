@@ -78,6 +78,15 @@ public sealed class LatticeRuntimeStateTests
             "lattice.document.unknown_instance",
             documents.SetIcon("missing", null, null).ErrorCode);
 
+        Assert.True(documents.SetStatusIcon(second.Data.Id, "connected", "var(--flare-color-success)").Success);
+        Assert.Equal("connected", documents.Active!.StatusIconKey);
+        Assert.Equal("var(--flare-color-success)", documents.Active.StatusIconColor);
+        Assert.True(documents.SetStatusIcon(second.Data.Id, null, null).Success);
+        Assert.Null(documents.Active!.StatusIconKey);
+        Assert.Equal(
+            "lattice.document.unknown_instance",
+            documents.SetStatusIcon("missing", null, null).ErrorCode);
+
         Assert.True(documents.Move(second.Data.Id, LatticeDockLocation.Left).Success);
         Assert.Equal(LatticeDockLocation.Left, documents.Active!.Location);
         Assert.Equal(LatticeDockLocation.Left, documents.Documents[0].Location);

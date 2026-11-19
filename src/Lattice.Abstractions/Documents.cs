@@ -10,6 +10,12 @@ namespace Lattice;
 /// <param name="IconColor">
 /// The icon color as a CSS color, or <see langword="null"/> for the host's default icon color.
 /// </param>
+/// <param name="StatusIconKey">
+/// The optional status icon key shown between the document icon and the title, or <see langword="null"/>.
+/// </param>
+/// <param name="StatusIconColor">
+/// The status icon color as a CSS color, or <see langword="null"/> for the host's default color.
+/// </param>
 public sealed record LatticeDocumentInstance(
     string Id,
     DocumentTypeId TypeId,
@@ -17,7 +23,9 @@ public sealed record LatticeDocumentInstance(
     object? Payload,
     LatticeDockLocation Location,
     string? IconKey = null,
-    string? IconColor = null);
+    string? IconColor = null,
+    string? StatusIconKey = null,
+    string? StatusIconColor = null);
 
 /// <summary>Owns the open documents of one host scope.</summary>
 public interface ILatticeDocumentService
@@ -60,6 +68,13 @@ public interface ILatticeDocumentService
     /// <param name="iconColor">The CSS icon color, or <see langword="null"/> for the default.</param>
     /// <returns>Whether the document exists and the icon changed.</returns>
     LatticeResult SetIcon(string instanceId, string? iconKey, string? iconColor);
+
+    /// <summary>Changes the status icon shown next to the document icon.</summary>
+    /// <param name="instanceId">The document instance id.</param>
+    /// <param name="iconKey">The host status icon key, or <see langword="null"/> to remove the status icon.</param>
+    /// <param name="iconColor">The CSS status icon color, or <see langword="null"/> for the default.</param>
+    /// <returns>Whether the document exists and the status icon changed.</returns>
+    LatticeResult SetStatusIcon(string instanceId, string? iconKey, string? iconColor);
 
     /// <summary>Replaces a document's payload and notifies the host so it can save the new state.</summary>
     LatticeResult SetPayload(string instanceId, object? payload) =>
