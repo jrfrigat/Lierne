@@ -122,6 +122,52 @@ public sealed class LatticeShellRenderTests
     }
 
     [Fact]
+    public async Task RendersTheSameDocumentHeaderTemplateInEveryDockRegion()
+    {
+        await using var provider = BuildProvider();
+        var documents = provider.GetRequiredService<ILatticeDocumentService>();
+        var type = new DocumentTypeId("app.document");
+        var document = documents.Open(type, payload: "first").Data!;
+        await using var renderer = CreateRenderer(provider);
+        RenderFragment<LatticeDocumentHeaderContext> header = context => builder =>
+        {
+            builder.OpenElement(0, "strong");
+            builder.AddContent(1, $"{context.Title} | {context.Document.Payload}");
+            builder.CloseElement();
+        };
+        var parameters = ParameterView.FromDictionary(new Dictionary<string, object?>
+        {
+            [nameof(LatticeShell.DocumentHeaderContent)] = header
+        });
+
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            if (typeof(FlareDocumentTab).GetProperty("HeaderContent") is null ||
+                typeof(FlareIdeLayout).GetProperty("DocumentHeaderContent") is null)
+            {
+                var error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
+                    await renderer.RenderComponentAsync<LatticeShell>(parameters));
+                Assert.Contains("Flare build with document tab header templates", error.Message, StringComparison.Ordinal);
+                return;
+            }
+
+            var root = await renderer.RenderComponentAsync<LatticeShell>(parameters);
+            Assert.Contains("<strong>Document | first</strong>", root.ToHtmlString(), StringComparison.Ordinal);
+            Assert.True(documents.SetPayload(document.Id, "updated").Success);
+            Assert.Contains("<strong>Document | updated</strong>", root.ToHtmlString(), StringComparison.Ordinal);
+
+            Assert.True(documents.Move(document.Id, LatticeDockLocation.Left).Success);
+            Assert.Contains("<strong>Document | updated</strong>", root.ToHtmlString(), StringComparison.Ordinal);
+            Assert.True(documents.SetPayload(document.Id, "side update").Success);
+            Assert.Contains("<strong>Document | side update</strong>", root.ToHtmlString(), StringComparison.Ordinal);
+
+            Assert.True(documents.Move(document.Id, LatticeDockLocation.Right).Success);
+            Assert.Contains("<strong>Document | side update</strong>", root.ToHtmlString(), StringComparison.Ordinal);
+            Assert.Contains("aria-label=\"Document\"", root.ToHtmlString(), StringComparison.Ordinal);
+        });
+    }
+
+    [Fact]
     public async Task ShowsAndHidesABottomToolAlongsideTheHostContent()
     {
         var tool = new ToolWindowId("app.bottom");

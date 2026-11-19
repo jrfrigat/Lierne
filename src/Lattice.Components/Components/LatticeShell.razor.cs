@@ -9,6 +9,12 @@ namespace Lattice;
 /// <summary>Composes the Flare IDE layout from the Lattice plugin catalog.</summary>
 public partial class LatticeShell : IDisposable, IAsyncDisposable
 {
+    // Flare 0.59.0 accepts unknown attributes. Check the actual parameters before using a custom header.
+    private static readonly bool SupportsTabHeader =
+        typeof(FlareDocumentTab).GetProperty("HeaderContent")?.PropertyType == typeof(RenderFragment);
+    private static readonly bool SupportsDockHeader =
+        typeof(FlareIdeLayout).GetProperty("DocumentHeaderContent")?.PropertyType == typeof(RenderFragment<IdeDocument>);
+
     private readonly Dictionary<IdeDocumentRegion, string?> _selection = new()
     {
         [IdeDocumentRegion.Center] = null,
@@ -31,6 +37,7 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
     private Dictionary<CommandId, CommandDescriptor>? _commandDescriptors;
     private Dictionary<DocumentTypeId, DocumentDescriptor>? _documentDescriptors;
     private Action? _saveWorkspaceAction;
+    private RenderFragment<IdeDocument>? _dockDocumentHeader;
 
     /// <summary>Gets or sets the title of the ribbon tab used when no toolbar is contributed.</summary>
     [Parameter]
@@ -54,6 +61,52 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
     /// <summary>Gets or sets the content shown when no document is active.</summary>
     [Parameter]
     public RenderFragment? StartContent { get; set; }
+
+    /// <summary>
+    /// Replaces the visible title of each document tab in both the center and the side regions.
+    /// The shell keeps the document icon, selection, and close controls.
+    /// </summary>
+    /// <remarks>Requires a Flare build with document tab header templates.</remarks>
+    [Parameter]
+    public RenderFragment<LatticeDocumentHeaderContext>? DocumentHeaderContent { get; set; }
+
+    private RenderFragment<IdeDocument>? DockDocumentHeaderContent =>
+        DocumentHeaderContent is null ? null : _dockDocumentHeader ??= RenderDockDocumentHeader;
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        if (DocumentHeaderContent is null)
+        {
+            return;
+        }
+
+        if (!SupportsTabHeader || !SupportsDockHeader)
+        {
+            throw new InvalidOperationException(
+                "DocumentHeaderContent requires a Flare build with document tab header templates.");
+        }
+
+        _mainDocuments = null;
+    }
+
+    private RenderFragment? MainDocumentHeader(LatticeDocumentInstance document, string title)
+    {
+        if (DocumentHeaderContent is { } template)
+        {
+            return template(new LatticeDocumentHeaderContext(document, title));
+        }
+
+        // Existing hosts can migrate from SetStatusIcon to their own header without losing their indicator.
+        return SupportsTabHeader && document.StatusIconKey is { } key && ResolveIcon(key, document.StatusIconColor) is { } icon
+            ? RenderLegacyDocumentHeader(icon, title)
+            : null;
+    }
+
+    private RenderFragment RenderDockDocumentHeader(IdeDocument document) =>
+        DocumentHeaderContent is { } template && FindDocument(document.Key) is { } instance
+            ? template(new LatticeDocumentHeaderContext(instance, document.Title))
+            : builder => builder.AddContent(0, document.Title);
 
     private IReadOnlyList<IdeDocument> IdeDocuments =>
         _ideDocuments ??= Documents.Documents
@@ -84,9 +137,6 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
         ResolveIcon(
             document.IconKey ?? DocumentDescriptor(document.TypeId)?.IconKey,
             document.IconColor);
-
-    private FlareIcon? DocumentStatusIcon(LatticeDocumentInstance document) =>
-        ResolveIcon(document.StatusIconKey, document.StatusIconColor);
 
     private FlareIcon? ResolveIcon(string? iconKey, string? iconColor)
     {
@@ -384,6 +434,10 @@ public partial class LatticeShell : IDisposable, IAsyncDisposable
         if ((change & LatticeDocumentChange.Tabs) != 0)
         {
             _ideDocuments = null;
+            _mainDocuments = null;
+        }
+        else if (DocumentHeaderContent is not null && (change & LatticeDocumentChange.Content) != 0)
+        {
             _mainDocuments = null;
         }
         if ((change & LatticeDocumentChange.Selection) != 0)

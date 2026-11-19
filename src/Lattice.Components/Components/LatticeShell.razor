@@ -52,6 +52,7 @@ else
                     BottomPinned="@IsPinned(LatticeToolRegion.Bottom)"
                     BottomPinnedChanged="OnBottomPinnedChanged"
                     StatusBar="@StatusBarContent"
+                    DocumentHeaderContent="@DockDocumentHeaderContent"
                     OnActiveDocumentChanged="OnActiveDocumentChanged"
                     OnDocumentCloseRequested="OnDocumentCloseRequested"
                     OnDocumentMove="OnDocumentMove">
@@ -76,11 +77,12 @@ else
                     <ChildContent>
                         @foreach (var document in MainDocuments)
                         {
+                            var title = Localizer.Get(document.Title);
                             <FlareDocumentTab @key="document.Id"
                                               Key="@document.Id"
-                                              Title="@Localizer.Get(document.Title)"
+                                              Title="@title"
                                               Icon="@DocumentIcon(document)"
-                                              StatusIcon="@DocumentStatusIcon(document)"
+                                              HeaderContent="@MainDocumentHeader(document, title)"
                                               Closeable="true" />
                         }
                     </ChildContent>
@@ -95,6 +97,11 @@ else
 @code {
     private IReadOnlyList<ToolbarDescriptor>? _toolbars;
     private ILookup<LatticeStatusBarAlignment, StatusBarItemDescriptor>? _statusItems;
+
+    private RenderFragment RenderLegacyDocumentHeader(FlareIcon icon, string title) => @<text>
+        <FlareIconView Value="@icon" Size="0.875rem" />
+        @title
+    </text>;
 
     private IReadOnlyList<ToolbarDescriptor> Toolbars =>
         _toolbars ??= Catalog.Toolbars
