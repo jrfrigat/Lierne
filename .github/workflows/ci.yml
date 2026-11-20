@@ -18,13 +18,13 @@ jobs:
         with:
           global-json-file: global.json
       - name: Restore
-        run: dotnet restore Lattice.slnx
+        run: dotnet restore Lierne.slnx
       - name: Build
-        run: dotnet build Lattice.slnx -c Release --no-restore
+        run: dotnet build Lierne.slnx -c Release --no-restore
       - name: Test
-        run: dotnet test Lattice.slnx -c Release --no-build --report-trx
+        run: dotnet test Lierne.slnx -c Release --no-build --report-trx
       - name: Pack
-        run: dotnet pack Lattice.slnx -c Release --no-build --output artifacts/packages
+        run: dotnet pack Lierne.slnx -c Release --no-build --output artifacts/packages
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -33,5 +33,5 @@ jobs:
           if-no-files-found: ignore
       - uses: actions/upload-artifact@v7
         with:
-          name: lattice-packages
+          name: lierne-packages
           path: artifacts/packages/*

@@ -1,0 +1,10 @@
+@inherits LierneDocumentComponent
+
+<div class="sample-note">
+    <FlareTextArea Label="@Context.Localizer.Get(NotesPlugin.Text("content"))" Rows="10"
+                   Value="@(Context.Document.Payload as string)" ValueChanged="UpdateNote" />
+</div>
+
+@code {
+    private void UpdateNote(string? value) => Context.Documents.SetPayload(Context.Document.Id, value ?? string.Empty);
+}

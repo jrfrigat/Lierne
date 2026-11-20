@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<root>
+  <resheader name="resmimetype">
+    <value>text/microsoft-resx</value>
+  </resheader>
+  <resheader name="version">
+    <value>2.0</value>
+  </resheader>
+  <resheader name="reader">
+    <value>System.Resources.ResXResourceReader, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <resheader name="writer">
+    <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </resheader>
+  <data name="host" xml:space="preserve"><value>Lierne</value></data>
+  <data name="options" xml:space="preserve"><value>Options</value></data>
+  <data name="openOptions" xml:space="preserve"><value>Options...</value></data>
+  <data name="tools" xml:space="preserve"><value>Tools</value></data>
+  <data name="noSettings" xml:space="preserve"><value>No settings are contributed.</value></data>
+  <data name="lattice.options.failed" xml:space="preserve"><value>Could not open the options document.</value></data>
+  <data name="pin" xml:space="preserve"><value>Pin</value></data>
+  <data name="unpin" xml:space="preserve"><value>Unpin</value></data>
+  <data name="close" xml:space="preserve"><value>Close</value></data>
+  <data name="closeAll" xml:space="preserve"><value>Close All</value></data>
+  <data name="closeOthers" xml:space="preserve"><value>Close Others</value></data>
+  <data name="dockLeft" xml:space="preserve"><value>Left</value></data>
+  <data name="dockRight" xml:space="preserve"><value>Right</value></data>
+  <data name="stateLoading" xml:space="preserve"><value>Restoring the workspace...</value></data>
+  <data name="stateLoadFailed" xml:space="preserve"><value>Some saved state could not be restored.</value></data>
+  <data name="stateSaveFailed" xml:space="preserve"><value>Could not save the latest changes.</value></data>
+  <data name="stateLayoutWatchFailed" xml:space="preserve"><value>Changes to panel sizes could not be tracked.</value></data>
+  <data name="general" xml:space="preserve"><value>General</value></data>
+  <data name="commands" xml:space="preserve"><value>Commands</value></data>
+  <data name="themes" xml:space="preserve"><value>Themes</value></data>
+  <data name="theme" xml:space="preserve"><value>Theme</value></data>
+  <data name="palette" xml:space="preserve"><value>Palette</value></data>
+  <data name="mode" xml:space="preserve"><value>Mode</value></data>
+  <data name="modeLight" xml:space="preserve"><value>Light</value></data>
+  <data name="modeDark" xml:space="preserve"><value>Dark</value></data>
+  <data name="modeAuto" xml:space="preserve"><value>Auto</value></data>
+  <data name="shortcutConflict" xml:space="preserve"><value>Conflicting shortcuts: {0}</value></data>
+  <data name="transfer" xml:space="preserve"><value>Import / Export</value></data>
+  <data name="transferHint" xml:space="preserve"><value>Save the settings sections contributed by the plugins to a JSON file, or apply them from a file.</value></data>
+  <data name="exportSettings" xml:space="preserve"><value>Export...</value></data>
+  <data name="importSettings" xml:space="preserve"><value>Import...</value></data>
+  <data name="transferSections" xml:space="preserve"><value>Included sections</value></data>
+  <data name="transferEmpty" xml:space="preserve"><value>No plugin settings can be transferred.</value></data>
+  <data name="transferExported" xml:space="preserve"><value>Settings exported.</value></data>
+  <data name="transferImported" xml:space="preserve"><value>Settings imported.</value></data>
+  <data name="lattice.settings.empty" xml:space="preserve"><value>The settings document is empty.</value></data>
+  <data name="lattice.settings.invalid_json" xml:space="preserve"><value>The settings document is not valid JSON.</value></data>
+  <data name="lattice.settings.invalid_format" xml:space="preserve"><value>The file is not a Lierne settings document.</value></data>
+  <data name="lattice.settings.unsupported_version" xml:space="preserve"><value>The settings document version is not supported by this build.</value></data>
+  <data name="lattice.settings.missing_sections" xml:space="preserve"><value>The settings document has no sections.</value></data>
+  <data name="lattice.settings.unknown_section" xml:space="preserve"><value>The settings document contains a section that no plugin declares.</value></data>
+  <data name="lattice.settings.duplicate_section" xml:space="preserve"><value>The settings document repeats a section.</value></data>
+  <data name="lattice.settings.duplicate_property" xml:space="preserve"><value>The settings document repeats a property.</value></data>
+  <data name="lattice.settings.snapshot_failed" xml:space="preserve"><value>Could not save a copy of the current settings. The import was cancelled.</value></data>
+  <data name="lattice.settings.rollback_failed" xml:space="preserve"><value>The import failed and some previous settings could not be restored.</value></data>
+  <data name="lattice.settings.import_failed" xml:space="preserve"><value>Could not import the settings document.</value></data>
+  <data name="lattice.settings.export_failed" xml:space="preserve"><value>Could not export the settings.</value></data>
+  <data name="lattice.settings.file_too_large" xml:space="preserve"><value>The settings file is too large (the limit is 4 MB).</value></data>
+</root>

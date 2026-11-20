@@ -23,14 +23,13 @@ Lierne — фреймворк для IDE-подобных Blazor-приложе�
 
 ## Быстрый старт
 
-Публичный пакет NuGet будет называться `Lierne`. В текущей версии исходников подключайте
-`src/Lattice.Components/Lattice.Components.csproj` через ссылку на проект. В примерах используются
-пространство имён `Lattice` и текущие методы регистрации.
+Идентификатор основного пакета NuGet — `Lierne`. При работе с исходниками добавьте ссылку
+на проект `src/Lierne/Lierne.csproj`.
 
 Запустите интерактивный пример с .NET 11 SDK.
 
 ```sh
-dotnet run --project samples/Lattice.SampleIde
+dotnet run --project samples/Lierne.SampleIde
 ```
 
 Выберите **New note**, введите текст и перезагрузите страницу. Заметка восстановится.

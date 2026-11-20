@@ -3,15 +3,14 @@
 [English](../en/getting-started.md)
 
 Lierne работает в приложении Blazor на .NET 11. Хост регистрирует Flare, выбирает тему и
-перечисляет плагины рабочей области. В текущих исходниках и примерах используется пространство
-имён `Lattice`.
+перечисляет плагины рабочей области.
 
 ## Запустите пример
 
 Выполните команду из корня репозитория с установленным .NET 11 SDK.
 
 ```sh
-dotnet run --project samples/Lattice.SampleIde
+dotnet run --project samples/Lierne.SampleIde
 ```
 
 Откройте адрес из терминала. Выберите **New note**, введите несколько строк и перезагрузите
@@ -20,10 +19,9 @@ dotnet run --project samples/Lattice.SampleIde
 
 ## Подключите своё приложение
 
-В Blazor Web App добавьте ссылку на проект
-`src/Lattice.Components/Lattice.Components.csproj` из текущих исходников. Публичный пакет NuGet
-будет называться `Lierne`. Подключите `Flare.Blazor` и совместимый пакет темы Flare. В примере
-используется `Flare.Theme.VisualStudio`.
+В Blazor Web App добавьте ссылку на проект `src/Lierne/Lierne.csproj` из исходников
+или подключите пакет `Lierne` из вашего источника NuGet. Подключите `Flare.Blazor`
+и совместимый пакет темы Flare. В примере используется `Flare.Theme.VisualStudio`.
 
 Для интерактивного серверного хоста зарегистрируйте сервисы до `builder.Build()`. В своём
 приложении замените `NotesPlugin` на собственный плагин.
@@ -31,8 +29,8 @@ dotnet run --project samples/Lattice.SampleIde
 ```csharp
 using Flare.Extensions;
 using Flare.Theme.VisualStudio;
-using Lattice;
-using Lattice.SampleIde;
+using Lierne;
+using Lierne.SampleIde;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
@@ -41,11 +39,11 @@ builder.Services.AddLocalization();
 builder.Services.AddFlare(options => options.DefaultTheme = new VisualStudioTheme());
 builder.Services.AddFlareTheme(new VisualStudioTheme());
 
-builder.Services.AddLattice(options => options
-    .AddPlugin<LatticeHostPlugin>()
+builder.Services.AddLierne(options => options
+    .AddPlugin<LierneHostPlugin>()
     .AddPlugin<NotesPlugin>());
-builder.Services.AddLatticeComponents();
-builder.Services.AddLatticeBrowserStateStorage("my-ide");
+builder.Services.AddLierneComponents();
+builder.Services.AddLierneBrowserStateStorage("my-ide");
 
 var app = builder.Build();
 app.MapStaticAssets();
@@ -61,7 +59,7 @@ app.Run();
 <script src="_content/Flare.Components/js/flare-bootstrap.js" data-default-theme="visualstudio"></script>
 <link rel="stylesheet" href="_content/Flare.Components/css/flare-components.css" />
 <link rel="stylesheet" href="_content/Flare.Components.IDE/css/flare-ide.css" />
-<link rel="stylesheet" href="_content/Lattice.Components/Lattice.Components.bundle.scp.css" />
+<link rel="stylesheet" href="_content/Lierne/Lierne.bundle.scp.css" />
 ```
 
 Разместите оболочку на интерактивной странице внутри провайдеров Flare.
@@ -69,17 +67,27 @@ app.Run();
 ```razor
 @page "/"
 @using Flare.Components
-@using Lattice
+@using Lierne
 @using Microsoft.AspNetCore.Components.Web
 @rendermode @(new InteractiveServerRenderMode(prerender: false))
 
 <FlareLocalizationProvider>
     <FlareThemeProvider>
-        <LatticeShell />
+        <LierneShell />
     </FlareThemeProvider>
 </FlareLocalizationProvider>
 ```
 
-`LatticeHostPlugin` добавляет встроенный документ параметров. Браузерное хранилище
+`LierneHostPlugin` добавляет встроенный документ параметров. Браузерное хранилище
 подключается по желанию. [Руководство по плагинам](plugins.md) описывает первый вклад,
 а [руководство по рабочей области](workspace.md) — хранение и компоновку.
+
+## Обновите хост, который использовал Lattice
+
+Подключите `src/Lierne/Lierne.csproj` или пакет `Lierne`. Если хост напрямую ссылается на ядро
+или контракты, обновите эти ссылки до `Lierne.Core` и `Lierne.Abstractions`. Замените импорты
+на `using Lierne;`, а префикс `Lattice` в именах API — на `Lierne`, как в `AddLierne`,
+`ILiernePlugin` и `LierneShell`. Укажите путь к таблице стилей из примера выше.
+
+Сохраните ключ приложения для браузерного хранилища или каталог для файлового. Lierne читает
+существующие рабочие области и экспортированные настройки с их исходными идентификаторами.

@@ -23,14 +23,13 @@ settings. Lierne validates those contributions and assembles them into a shared 
 
 ## Get started
 
-The public NuGet package will be named `Lierne`. Use a project reference to
-`src/Lattice.Components/Lattice.Components.csproj` with the current source checkout. The examples
-use the current C# namespace and registration methods.
+The main NuGet package ID is `Lierne`. When working from a source checkout, reference
+`src/Lierne/Lierne.csproj`.
 
 Try the interactive sample with the .NET 11 SDK.
 
 ```sh
-dotnet run --project samples/Lattice.SampleIde
+dotnet run --project samples/Lierne.SampleIde
 ```
 
 Choose **New note**, enter text and reload the page to see the note restored. The sample also

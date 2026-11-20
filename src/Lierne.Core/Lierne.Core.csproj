@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <RootNamespace>Lierne</RootNamespace>
+    <AssemblyName>Lierne.Core</AssemblyName>
+    <Description>Plugin catalog, contribution registries and composition validation of the Lierne IDE composition framework.</Description>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Lierne.Abstractions\Lierne.Abstractions.csproj" />
+    <InternalsVisibleTo Include="Lierne" />
+  </ItemGroup>
+</Project>

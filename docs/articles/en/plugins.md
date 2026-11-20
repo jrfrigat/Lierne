@@ -2,9 +2,9 @@
 
 [Русский](../ru/plugins.md)
 
-The host chooses its plugins during startup. Each plugin implements `ILatticePlugin`, declares a
-stable ID, lists its dependencies and registers contributions through `ILatticePluginBuilder`.
-`AddLattice` calls each plugin's `Configure` in dependency order and creates a shared catalog.
+The host chooses its plugins during startup. Each plugin implements `ILiernePlugin`, declares a
+stable ID, lists its dependencies and registers contributions through `ILiernePluginBuilder`.
+`AddLierne` calls each plugin's `Configure` in dependency order and creates a shared catalog.
 Runtime services, including commands, documents, settings and observable context, belong to the
 current application scope.
 
@@ -15,10 +15,10 @@ This plugin opens a new document through a command. Add it to the host with
 and scope services through `Context`.
 
 ```csharp
-using Lattice;
+using Lierne;
 using Microsoft.Extensions.DependencyInjection;
 
-public sealed class WelcomePlugin : ILatticePlugin
+public sealed class WelcomePlugin : ILiernePlugin
 {
     private static readonly DocumentTypeId Welcome = new("sample.welcome");
     private static readonly CommandId Open = new("sample.welcome.open");
@@ -28,7 +28,7 @@ public sealed class WelcomePlugin : ILatticePlugin
     public StringKey DisplayName => StringKey.Literal("Welcome");
     public IReadOnlyList<PluginId> DependsOn => [];
 
-    public void Configure(ILatticePluginBuilder builder)
+    public void Configure(ILiernePluginBuilder builder)
     {
         builder.AddDocument(new DocumentDescriptor(
             Welcome, StringKey.Literal("Welcome"), null, typeof(WelcomeDocument)));
@@ -36,11 +36,11 @@ public sealed class WelcomePlugin : ILatticePlugin
         builder.AddCommand(new CommandDescriptor(Open, StringKey.Literal("Open welcome")),
             static (context, _) =>
             {
-                var documents = context.Services.GetRequiredService<ILatticeDocumentService>();
+                var documents = context.Services.GetRequiredService<ILierneDocumentService>();
                 var result = documents.Open(Welcome);
                 return Task.FromResult(result.Success
-                    ? LatticeCommandResult.Ok(result.Data)
-                    : LatticeCommandResult.Fail(result.ErrorCode!, result.ErrorMessage!));
+                    ? LierneCommandResult.Ok(result.Data)
+                    : LierneCommandResult.Fail(result.ErrorCode!, result.ErrorMessage!));
             });
 
         builder.AddRibbonGroup(new RibbonGroupDescriptor(Group, DisplayName));
@@ -51,7 +51,7 @@ public sealed class WelcomePlugin : ILatticePlugin
 ```
 
 ```razor
-@inherits Lattice.LatticeDocumentComponent
+@inherits Lierne.LierneDocumentComponent
 
 <p>@Context.Localizer.Get(Context.Document.Title)</p>
 ```
@@ -67,17 +67,17 @@ public sealed class WelcomePlugin : ILatticePlugin
 | Options page and its typed settings | `AddSettingsPage` and `AddSetting` |
 | Strings or a settings import/export section | `AddStrings` or `AddSettingsTransfer` |
 
-A tool window derives from `LatticeToolWindowComponent` and can live on the left, right or bottom.
-A document derives from `LatticeDocumentComponent` and can move between the center and side
+A tool window derives from `LierneToolWindowComponent` and can live on the left, right or bottom.
+A document derives from `LierneDocumentComponent` and can move between the center and side
 regions. Both expose the scoped services through their respective `Context`.
 
 Use `StringKey.Literal` for static text or provide a resource catalog with
-`AddStrings(new LatticeStringCatalog(namespace, resourceManager))`. The neutral resource file
-supplies fallback strings. A host-provided `ILatticeIconResolver` can turn descriptor icon keys into
+`AddStrings(new LierneStringCatalog(namespace, resourceManager))`. The neutral resource file
+supplies fallback strings. A host-provided `ILierneIconResolver` can turn descriptor icon keys into
 Flare icons.
 
 Keep IDs stable across versions. The catalog reports duplicate IDs, missing dependencies,
-cycles and invalid command or group references through `LatticeCompositionException`.
+cycles and invalid command or group references through `LierneCompositionException`.
 Commands can declare an argument type and a `CanExecute` predicate. The ordinary menu and ribbon
 entries invoke commands without an argument. Register a custom component for a command that needs
 an argument.

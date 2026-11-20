@@ -18,12 +18,12 @@ Host-приложение    Quas и другие IDE: перечисляет п
 - Flare не зависит от Lierne. UI-слой Lierne собирает
   компоненты Flare.
 - Lierne предоставляет общую инфраструктуру для IDE. SQL, подключения и Monaco живут в плагинах.
-- Плагин — compile-time компонент: host перечисляет его в `AddLattice`. Динамической загрузки,
+- Плагин — compile-time компонент: host перечисляет его в `AddLierne`. Динамической загрузки,
   выгрузки и marketplace нет.
 
 ## 2. Принципы
 
-1. **Один composition root.** `AddLattice` собирает плагины, валидирует вклады и замораживает
+1. **Один composition root.** `AddLierne` собирает плагины, валидирует вклады и замораживает
    каталог. Никаких статических синглтонов и «auto-create services».
 2. **Две фазы.** Определения и сервисы регистрируются один раз на старте; UI-состояние и
    привязанные к circuit сервисы создаются на область. Это снимает ловушку Quas, где модуль
@@ -35,18 +35,18 @@ Host-приложение    Quas и другие IDE: перечисляет п
    команды — это ошибки композиции, а не тихая деградация UI.
 5. **Вклады — данные.** Плагин объявляет описатели; хост решает, как их отрисовать. Описатели не
    содержат `Func<Task>`; пункт меню или риббона несёт `CommandId` и типизированный аргумент.
-6. **Строить от реального плагина.** Тип вклада входит в Lattice только тогда, когда его
+6. **Строить от реального плагина.** Тип вклада входит в Lierne только тогда, когда его
    использует плагин «Подключение к БД» (или другой реальный плагин).
 
 ## 3. Контракт плагина
 
 ```csharp
-public interface ILatticePlugin
+public interface ILiernePlugin
 {
     PluginId Id { get; }
     StringKey DisplayName { get; }
     IReadOnlyList<PluginId> DependsOn { get; }
-    void Configure(ILatticePluginBuilder builder);
+    void Configure(ILiernePluginBuilder builder);
 }
 ```
 
@@ -54,7 +54,7 @@ public interface ILatticePlugin
 `builder.Services` и добавляет описатели вкладов. Метод не резолвит сервисы и не строит UI:
 к моменту вызова каталог ещё не собран.
 
-`ILatticePluginBuilder` — типизированный сборщик:
+`ILiernePluginBuilder` — типизированный сборщик:
 
 | Метод | Вклад |
 | --- | --- |
@@ -71,13 +71,13 @@ public interface ILatticePlugin
 
 ### Документы и tool windows
 
-Это разные вклады. Документ живёт в основной области (`LatticeDockLocation.Main/Left/Right`) и
+Это разные вклады. Документ живёт в основной области (`LierneDockLocation.Main/Left/Right`) и
 может быть persistent; tool window живёт в боковом или нижнем регионе
-(`LatticeToolRegion.Left/Right/Bottom`) и имеет собственный toolbar. Обозреватель БД — tool
+(`LierneToolRegion.Left/Right/Bottom`) и имеет собственный toolbar. Обозреватель БД — tool
 window, а не документ.
 
 `DocumentDescriptor` и `ToolWindowDescriptor` содержат `Type Component` (Blazor-компонент) и
-строковый `IconKey`. Строковый ключ выбран осознанно: `Lattice.Abstractions` не зависит от Flare,
+строковый `IconKey`. Строковый ключ выбран осознанно: `Lierne.Abstractions` не зависит от Flare,
 а UI-слой разрешает ключ в `FlareIcon`. Плагин, который хочет Flare-иконку напрямую, может
 сделать это в своём компоненте.
 
@@ -85,15 +85,15 @@ window, а не документ.
 
 `CommandDescriptor` описывает метаданные (id, заголовок, иконка, shortcut, тип аргумента), а
 `AddCommand(descriptor, handler, canExecute)` добавляет к ним обработчик и предикат
-`CanExecute` над общим состоянием. `ILatticeCommandService` валидирует аргумент по типу,
-проверяет предикат и уведомляет наблюдателей `ILatticeCommandObserver` до и после обработчика.
-Исключение обработчика превращается в `LatticeCommandResult` с кодом `lattice.command.failed`.
+`CanExecute` над общим состоянием. `ILierneCommandService` валидирует аргумент по типу,
+проверяет предикат и уведомляет наблюдателей `ILierneCommandObserver` до и после обработчика.
+Исключение обработчика превращается в `LierneCommandResult` с кодом `lattice.command.failed`.
 Сбой наблюдателя записывается в трассировку, а остальные наблюдатели и команда продолжают работу.
 Встроенные пункты меню, риббона и статус-бара принимают команды без обязательного аргумента.
 
-`ILatticeShortcutService` собирает shortcut'ы из описателей, применяет пользовательские
+`ILierneShortcutService` собирает shortcut'ы из описателей, применяет пользовательские
 переопределения (пустой жест снимает привязку), разрешает жест без учёта регистра и сообщает
-конфликты (`LatticeShortcutConflict`). Нормализация жестов остаётся за клавиатурным роутером
+конфликты (`LierneShortcutConflict`). Нормализация жестов остаётся за клавиатурным роутером
 хоста.
 
 ### Риббоны и меню
@@ -104,8 +104,8 @@ window, а не документ.
 Меню описаны отдельно: `MenuGroupDescriptor` — верхний уровень (`File`, `View`, `Tools` или
 собственный корень плагина), `MenuItemDescriptor` — пункт с командой, порядком, разделителем и
 вложенными `Children`. Хост рисует меню через `FlareMenuBar`/`FlareMenu`/`FlareSubMenu` и
-рекурсивный `LatticeMenuEntry`: локализованный заголовок, эффективный shortcut, `CanExecute` и
-выполнение команды. Встроенный `LatticeHostPlugin` объявляет группу `lattice.tools`; приложение
+рекурсивный `LierneMenuEntry`: локализованный заголовок, эффективный shortcut, `CanExecute` и
+выполнение команды. Встроенный `LierneHostPlugin` объявляет группу `lattice.tools`; приложение
 добавляет свои пункты в неё, а не создаёт вторую группу с тем же id. Фрагмент `MenuBar` хоста
 заменяет меню каталога, если приложению нужна своя полоса.
 
@@ -116,34 +116,34 @@ window, а не документ.
 отдаёт значения по схеме, проверяет вид, диапазон и допустимые варианты и сообщает об изменении
 ключа. Валидатор каталога проверяет значение по умолчанию и ссылку на страницу настройки.
 
-Встроенный документ параметров (`LatticeOptionsDocument` из `LatticeHostPlugin`) показывает
+Встроенный документ параметров (`LierneOptionsDocument` из `LierneHostPlugin`) показывает
 страницы слева и генерирует форму справа: `FlareSelect` для выбора, `FlareNumericField` для
 целых, `FlareCheckbox` с внешней подписью для Boolean, `FlareTextField` для текста. Значения
 читаются и пишутся через `ISettingsStore`, ошибка валидации показывается в странице.
 `SettingsPageDescriptor.Component` остаётся escape hatch для сложных страниц (например, редактор
 горячих клавиш). Scoped-хранилище предоставляет синхронный доступ к уже загруженным значениям.
-При наличии `ILatticeStateStorage` оболочка автоматически загружает и сохраняет переопределения.
+При наличии `ILierneStateStorage` оболочка автоматически загружает и сохраняет переопределения.
 
 ### Состояние, документы и tool windows
 
-`ILatticeContext` — наблюдаемая типизированная сумка ключей, которые определяют плагины;
-`CanExecute`, видимость пунктов и хост читают её. `ILatticeDocumentService` и
-`ILatticeToolWindowService` — scoped-сервисы: документы открываются/активируются/закрываются,
+`ILierneContext` — наблюдаемая типизированная сумка ключей, которые определяют плагины;
+`CanExecute`, видимость пунктов и хост читают её. `ILierneDocumentService` и
+`ILierneToolWindowService` — scoped-сервисы: документы открываются/активируются/закрываются,
 tool windows показываются/скрываются/переключаются. Неизвестный тип или экземпляр возвращает
 стабильный код ошибки (`lattice.document.*`, `lattice.toolwindow.*`), а не исключение.
 
 ### Локализация
 
-Плагин добавляет каталог строк через `AddStrings(new LatticeStringCatalog(namespace, resourceManager))`.
+Плагин добавляет каталог строк через `AddStrings(new LierneStringCatalog(namespace, resourceManager))`.
 Строки живут в embedded `.resx`: нейтральный файл содержит английский текст, `*.ru.resx` —
-перевод в сателлитной сборке. `ILatticeLocalizer` находит каталог по `StringKey.Namespace` и
+перевод в сателлитной сборке. `ILierneLocalizer` находит каталог по `StringKey.Namespace` и
 читает `StringKey.Name` из его `ResourceManager`; fallback на нейтральные ресурсы делает сам
 `ResourceManager`, а неизвестный ключ возвращается полным текстом `StringKey`. `Changed`
 поднимается при смене культуры. Словари в коде не используются.
 
 ## 5. Композиция и диагностика
 
-`LatticePluginCatalog.Build`:
+`LiernePluginCatalog.Build`:
 
 1. проверяет дубликаты `PluginId` (первый экземпляр побеждает, второй даёт диагностику);
 2. строит порядок обходом в глубину по `DependsOn` с обнаружением циклов;
@@ -153,7 +153,7 @@ tool windows показываются/скрываются/переключаю�
 6. проверяет пункты меню (группа, команда, лист без команды и детей) и настройки (страница);
 7. возвращает замороженный каталог и список диагностик.
 
-`AddLattice` бросает `LatticeCompositionException`, если среди диагностик есть ошибка. Текст
+`AddLierne` бросает `LierneCompositionException`, если среди диагностик есть ошибка. Текст
 исключения содержит код и сообщение каждой диагностики, а сообщение называет оба плагина.
 
 Коды диагностик:
@@ -175,69 +175,69 @@ tool windows показываются/скрываются/переключаю�
 
 ### 5.1 Сервисы времени выполнения
 
-`AddLattice` регистрирует:
+`AddLierne` регистрирует:
 
 | Сервис | Интерфейс | Время жизни |
 | --- | --- | --- |
-| Каталог плагинов | `LatticePluginCatalog` | singleton |
-| Состояние | `ILatticeContext` | scoped |
-| Команды | `ILatticeCommandService` | scoped |
-| Документы | `ILatticeDocumentService` | scoped |
-| Tool windows | `ILatticeToolWindowService` | scoped |
+| Каталог плагинов | `LiernePluginCatalog` | singleton |
+| Состояние | `ILierneContext` | scoped |
+| Команды | `ILierneCommandService` | scoped |
+| Документы | `ILierneDocumentService` | scoped |
+| Tool windows | `ILierneToolWindowService` | scoped |
 | Настройки | `ISettingsStore` | scoped |
-| Строки | `ILatticeLocalizer` | scoped |
-| Shortcut'ы | `ILatticeShortcutService` | scoped |
+| Строки | `ILierneLocalizer` | scoped |
+| Shortcut'ы | `ILierneShortcutService` | scoped |
 
-Повторный `AddLattice` не пересобирает каталог: наличие `LatticePluginCatalog` в коллекции
-останавливает регистрацию. Плагины регистрируют свои сервисы в `ILatticePluginBuilder.Services`
+Повторный `AddLierne` не пересобирает каталог: наличие `LiernePluginCatalog` в коллекции
+останавливает регистрацию. Плагины регистрируют свои сервисы в `ILiernePluginBuilder.Services`
 и сами выбирают их время жизни.
 
 ## 6. Хост на Flare
 
-`Lattice.Components` собирает `FlareIdeLayout` из каталога:
+`Lierne` собирает `FlareIdeLayout` из каталога:
 
 - `MenuBar` — меню каталога (`FlareMenuBar`/`FlareMenu`/`FlareSubMenu` и рекурсивный
-  `LatticeMenuEntry`) или фрагмент хоста, если приложению нужна своя полоса;
+  `LierneMenuEntry`) или фрагмент хоста, если приложению нужна своя полоса;
 - `Toolbars` — компоненты, добавленные через `AddToolbar`; хост рисует их в слоте `MenuBar`
   после меню и в этом случае не создаёт `FlareRibbon`. Компонент владеет своей полосой
   (например, рендерит `FlareToolbar`), поэтому приложение может повторить собственную
   командную панель. Если вкладов нет, хост оставляет прежний `Ribbon` с `FlareRibbon`
   (заголовок параметром, по умолчанию `Home`) и группами/пунктами каталога;
-- `Documents`/`ActiveDocuments`/`DocumentContent` — документы Lattice как документы Flare;
+- `Documents`/`ActiveDocuments`/`DocumentContent` — документы Lierne как документы Flare;
   полоса центральных вкладок, выбор отдельно по областям, закрытие и перемещение;
 - `LeftToolPanel`/`RightToolPanel` — видимые tool windows через `FlareToolPanelGroup` и
   `FlareToolPanel`, с заголовком и иконкой из описателя; вкладки снизу, без встроенной
   кнопки сворачивания, с собственными кнопками закрепить/закрыть. Закрепление задаёт
   `IdePanelMode.Docked`/`AutoHide`, закрытие скрывает видимые tool windows региона;
 - `StatusBar` — `FlareStatusBar` с элементами, добавленными через `AddStatusBarItem`
-  (выравнивание, порядок, иконка, команда или компонент с `LatticeStatusBarContext`);
+  (выравнивание, порядок, иконка, команда или компонент с `LierneStatusBarContext`);
   фрагмент `StatusBar`, переданный хостом, имеет приоритет;
 - `BottomPanel` включает видимые нижние tool windows и переданный хостом нижний контент.
   `StartContent` задаёт стартовый контент;
-- документ параметров — `LatticeHostPlugin` и `LatticeOptionsDocument`: дерево настроек с узлом
+- документ параметров — `LierneHostPlugin` и `LierneOptionsDocument`: дерево настроек с узлом
   «Основное» (встроенные страницы «Команды» и «Темы») и узлом каждого плагина; страница с
   `Component` рендерит свой компонент, иначе контролы генерируются из схемы `SettingDescriptor`;
   приложение обязано добавить плагин явно.
 
-Контракт компонентов плагина: `LatticeDocumentComponent`, `LatticeToolWindowComponent` и
-`LatticeToolbarComponent` с параметром `Context`
-(`LatticeDocumentContext`/`LatticeToolWindowContext`/`LatticeToolbarContext`), который отдаёт
+Контракт компонентов плагина: `LierneDocumentComponent`, `LierneToolWindowComponent` и
+`LierneToolbarComponent` с параметром `Context`
+(`LierneDocumentContext`/`LierneToolWindowContext`/`LierneToolbarContext`), который отдаёт
 экземпляр, команды, сервис-владелец, локализатор и scoped `IServiceProvider`.
 
-Иконки описателей — строковые ключи; `ILatticeIconResolver` превращает ключ в `FlareIcon`.
+Иконки описателей — строковые ключи; `ILierneIconResolver` превращает ключ в `FlareIcon`.
 По умолчанию резолвер возвращает `null`, приложение-хост регистрирует свой (например, Material
-Design 3). `AddLatticeComponents()` регистрирует резолвер. Это единственная точка, где хост
+Design 3). `AddLierneComponents()` регистрирует резолвер. Это единственная точка, где хост
 знает о Flare-иконках; сами описатели остаются свободными от Flare.
 
 ## 7. Сохранение состояния
 
-`LatticeStatePersistence` хранит настройки и рабочую область в независимых JSON-документах.
-Хост регистрирует `ILatticeStateStorage`. Для веб-хоста `AddLatticeBrowserStateStorage` использует
-localStorage, для Hybrid `LatticeFileStateStorage` атомарно заменяет файлы в каталоге приложения.
-`LatticeShell` загружает сохранённые данные перед первым интерактивным рендером содержимого.
+`LierneStatePersistence` хранит настройки и рабочую область в независимых JSON-документах.
+Хост регистрирует `ILierneStateStorage`. Для веб-хоста `AddLierneBrowserStateStorage` использует
+localStorage, для Hybrid `LierneFileStateStorage` атомарно заменяет файлы в каталоге приложения.
+`LierneShell` загружает сохранённые данные перед первым интерактивным рендером содержимого.
 
 - Настройки и сочетания сохраняются по стабильным ключам. Для секции старого формата хост может
-  зарегистрировать `LatticeStateMigration`. Версии, которые приложение не умеет читать, сохраняются
+  зарегистрировать `LierneStateMigration`. Версии, которые приложение не умеет читать, сохраняются
   без перезаписи.
 - Снимок рабочего пространства содержит видимость окон инструментов, размеры и состояния панелей,
   активное окно инструментов, выбранные документы и активный документ.
@@ -251,30 +251,30 @@ localStorage, для Hybrid `LatticeFileStateStorage` атомарно заме�
 ## 8. Структура репозитория
 
 ```
-src/Lattice.Abstractions   контракты и описатели, без Flare и Blazor
-src/Lattice.Core           каталог, валидация, команды, документы, tool windows, настройки,
+src/Lierne.Abstractions   контракты и описатели, без Flare и Blazor
+src/Lierne.Core           каталог, валидация, команды, документы, tool windows, настройки,
                            контекст, локализация, shortcut'ы
-src/Lattice.Components     Flare-хост: LatticeShell, документы, tool windows, риббон, иконки
-tests/Lattice.Core.Tests   тесты каталога и сервисов времени выполнения
-tests/Lattice.Components.Tests  рендер LatticeShell с тестовым плагином
-samples/Lattice.SampleIde  интерактивный пример хоста и плагина заметок
+src/Lierne     Flare-хост: LierneShell, документы, tool windows, риббон, иконки
+tests/Lierne.Core.Tests   тесты каталога и сервисов времени выполнения
+tests/Lierne.Components.Tests  рендер LierneShell с тестовым плагином
+samples/Lierne.SampleIde  интерактивный пример хоста и плагина заметок
 ```
 
-`Lattice.Abstractions` зависит только от DI-абстракций. `Lattice.Core` — от Abstractions.
-`Lattice.Components` зависит от Flare.Components.IDE и Lattice.Core; Core о Flare не знает.
+`Lierne.Abstractions` зависит только от DI-абстракций. `Lierne.Core` — от Abstractions.
+`Lierne` зависит от Flare.Components.IDE и Lierne.Core; Core о Flare не знает.
 
 ## 9. Принятые решения
 
 - **Без Flare в Abstractions.** Иконки — строковые ключи, компоненты — `Type`. Это держит
   контракт плагина независимым от версии Flare и позволяет плагину использовать Flare только
   там, где он рисует UI.
-- **Без Quas-типов в контракте.** `LatticeDockLocation`/`LatticeToolRegion` — собственные
-  перечисления Lattice, а не `WorkspaceTabLocation`/`WorkspacePanelRegion` Quas.
+- **Без Quas-типов в контракте.** `LierneDockLocation`/`LierneToolRegion` — собственные
+  перечисления Lierne, а не `WorkspaceTabLocation`/`WorkspacePanelRegion` Quas.
 - **Один каталог, много реестров.** Каталог замораживает вклады; реестры модулей (команды,
   документы, настройки) читают его. Так порядок и валидация остаются в одном месте.
 - **Диагностика вместо исключений в Build.** `Build` возвращает каталог с диагностиками, чтобы
-  тесты и инструменты могли показать все проблемы сразу; `AddLattice` превращает ошибки в
+  тесты и инструменты могли показать все проблемы сразу; `AddLierne` превращает ошибки в
   исключение на границе приложения.
 - **Прикладные плагины принадлежат хосту.** Lierne не содержит ни одного прикладного
   плагина. Первый плагин (управление подключениями к БД) реализуется в Quas и подключается к
-  Lattice-хосту; это проверяет, что контракт достаточно общий.
+  Lierne-хосту; это проверяет, что контракт достаточно общий.

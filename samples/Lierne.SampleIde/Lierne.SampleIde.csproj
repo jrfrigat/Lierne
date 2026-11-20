@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <WarnOnPackingNonPackableProject>false</WarnOnPackingNonPackableProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/Lierne/Lierne.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(UseLocalFlare)' != 'true'">
+    <PackageReference Include="Flare.Blazor" />
+    <PackageReference Include="Flare.Theme.VisualStudio" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(UseLocalFlare)' == 'true'">
+    <ProjectReference Include="$(FlareRoot)/src/Flare/Flare.csproj" />
+    <ProjectReference Include="$(FlareRoot)/src/Flare.Theme.VisualStudio/Flare.Theme.VisualStudio.csproj" />
+  </ItemGroup>
+</Project>

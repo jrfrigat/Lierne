@@ -1,0 +1,75 @@
+@namespace Lierne
+@using Flare.Abstractions
+@using Flare.Abstractions.Tokens
+@using Flare.Components
+@implements IDisposable
+@inject IThemeService Themes
+@inject ILierneLocalizer Localizer
+
+<FlareStack Gap="FlareSpacing.Small">
+    <FlareSelect TValue="string"
+                 Size="FieldSize.Sm"
+                 Label="@Localizer.Get(LierneHostPlugin.Key("theme"))"
+                 Value="@Themes.CurrentTheme.Id"
+                 ValueChanged="SetThemeAsync">
+        @foreach (var theme in Themes.Themes)
+        {
+            <option value="@theme.Id">@theme.DisplayName</option>
+        }
+    </FlareSelect>
+
+    <FlareSelect TValue="string"
+                 Size="FieldSize.Sm"
+                 Label="@Localizer.Get(LierneHostPlugin.Key("palette"))"
+                 Value="@Themes.CurrentPalette.Id"
+                 ValueChanged="SetPaletteAsync">
+        @foreach (var palette in Themes.Palettes)
+        {
+            <option value="@palette.Id">@palette.Name</option>
+        }
+    </FlareSelect>
+
+    <FlareSelect TValue="string"
+                 Size="FieldSize.Sm"
+                 Label="@Localizer.Get(LierneHostPlugin.Key("mode"))"
+                 Value="@ModeValue"
+                 ValueChanged="SetModeAsync">
+        <option value="light">@Localizer.Get(LierneHostPlugin.Key("modeLight"))</option>
+        <option value="dark">@Localizer.Get(LierneHostPlugin.Key("modeDark"))</option>
+        <option value="auto">@Localizer.Get(LierneHostPlugin.Key("modeAuto"))</option>
+    </FlareSelect>
+</FlareStack>
+
+@code {
+    private string ModeValue => Themes.Mode switch
+    {
+        ThemeMode.Light => "light",
+        ThemeMode.Auto => "auto",
+        _ => "dark"
+    };
+
+    /// <inheritdoc />
+    protected override void OnInitialized() => Themes.OnThemeChanged += OnThemeChangedAsync;
+
+    /// <inheritdoc />
+    public void Dispose() => Themes.OnThemeChanged -= OnThemeChangedAsync;
+
+    private Task OnThemeChangedAsync() => InvokeAsync(StateHasChanged);
+
+    private Task SetThemeAsync(string? themeId) =>
+        string.IsNullOrWhiteSpace(themeId)
+            ? Task.CompletedTask
+            : Themes.SetThemeAsync(themeId);
+
+    private Task SetPaletteAsync(string? paletteId) =>
+        string.IsNullOrWhiteSpace(paletteId)
+            ? Task.CompletedTask
+            : Themes.SetPaletteAsync(paletteId);
+
+    private Task SetModeAsync(string? value) => Themes.SetModeAsync(value switch
+    {
+        "light" => ThemeMode.Light,
+        "auto" => ThemeMode.Auto,
+        _ => ThemeMode.Dark
+    });
+}

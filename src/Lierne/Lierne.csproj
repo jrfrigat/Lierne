@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <RootNamespace>Lierne</RootNamespace>
+    <AssemblyName>Lierne</AssemblyName>
+    <Description>Flare IDE host for Lierne - shell layout, documents, tool windows, ribbon and settings surfaces.</Description>
+    <!-- The tool-window list is dynamic, so its render-fragment sequence numbers come from the
+         loop; ASP0006 is about literal markup only. -->
+    <NoWarn>$(NoWarn);ASP0006</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Lierne.Abstractions\Lierne.Abstractions.csproj" />
+    <ProjectReference Include="..\Lierne.Core\Lierne.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseLocalFlare)' != 'true'">
+    <PackageReference Include="Flare.Components.IDE" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UseLocalFlare)' == 'true'">
+    <ProjectReference Include="$(FlareRoot)\src\Flare.Components.IDE\Flare.Components.IDE.csproj" />
+  </ItemGroup>
+</Project>

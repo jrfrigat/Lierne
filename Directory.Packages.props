@@ -5,7 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Lattice's host uses the Flare 0.59 document model (Documents/ActiveDocuments/
+    <!-- Lierne's host uses the Flare 0.59 document model (Documents/ActiveDocuments/
          DocumentContent). The 0.59 packages are published; local development uses the sibling Flare
          checkout via Directory.Build.local.props. -->
     <PackageVersion Include="Flare.Blazor" Version="0.59.0" />

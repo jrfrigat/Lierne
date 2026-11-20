@@ -1,8 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net11.0</TargetFramework>
-    <RootNamespace>Lattice</RootNamespace>
-    <AssemblyName>Lattice.Abstractions</AssemblyName>
-    <Description>Contracts, identifiers and contribution descriptors of the Lattice IDE composition framework.</Description>
-  </PropertyGroup>
-</Project>

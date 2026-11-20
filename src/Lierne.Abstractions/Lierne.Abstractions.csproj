@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net11.0</TargetFramework>
+    <RootNamespace>Lierne</RootNamespace>
+    <AssemblyName>Lierne.Abstractions</AssemblyName>
+    <Description>Contracts, identifiers and contribution descriptors of the Lierne IDE composition framework.</Description>
+  </PropertyGroup>
+</Project>

@@ -1,0 +1,14 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Lierne.Abstractions/Lierne.Abstractions.csproj" />
+    <Project Path="src/Lierne.Core/Lierne.Core.csproj" />
+    <Project Path="src/Lierne/Lierne.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Lierne.Core.Tests/Lierne.Core.Tests.csproj" />
+    <Project Path="tests/Lierne.Components.Tests/Lierne.Components.Tests.csproj" />
+  </Folder>
+  <Folder Name="/samples/">
+    <Project Path="samples/Lierne.SampleIde/Lierne.SampleIde.csproj" />
+  </Folder>
+</Solution>

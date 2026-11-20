@@ -5,9 +5,9 @@
         {
           "src": "../src",
           "files": [
-            "Lattice.Abstractions/bin/Release/net11.0/Lattice.Abstractions.dll",
-            "Lattice.Core/bin/Release/net11.0/Lattice.Core.dll",
-            "Lattice.Components/bin/Release/net11.0/Lattice.Components.dll"
+            "Lierne.Abstractions/bin/Release/net11.0/Lierne.Abstractions.dll",
+            "Lierne.Core/bin/Release/net11.0/Lierne.Core.dll",
+            "Lierne/bin/Release/net11.0/Lierne.dll"
           ]
         }
       ],

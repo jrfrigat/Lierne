@@ -1,0 +1,41 @@
+@page "/"
+@rendermode @(new InteractiveServerRenderMode(prerender: false))
+@implements IDisposable
+@inject ILierneLocalizer Text
+@inject ILierneCommandService Commands
+@inject ILierneShortcutService Shortcuts
+
+<FlareLocalizationProvider>
+    <FlareThemeProvider>
+        <FlareShortcuts>
+            @foreach (var binding in Shortcuts.Bindings)
+            {
+                if (binding.EffectiveShortcut is { } gesture)
+                {
+                    <FlareShortcutEntry @key="binding.Command" Keys="@gesture" Description="@Text.Get(binding.Title)"
+                                        OnActivated="() => Commands.ExecuteAsync(binding.Command)" />
+                }
+            }
+            <main class="sample-workspace">
+                <LierneShell RibbonTitle="@Text.Get(NotesPlugin.Text("app"))">
+                    <StartContent>
+                        <div class="sample-start">
+                            <FlareText>@Text.Get(NotesPlugin.Text("welcome"))</FlareText>
+                            <FlareButton OnClick="() => Commands.ExecuteAsync(NotesPlugin.NewNote)">
+                                @Text.Get(NotesPlugin.Text("newNote"))
+                            </FlareButton>
+                        </div>
+                    </StartContent>
+                </LierneShell>
+            </main>
+        </FlareShortcuts>
+    </FlareThemeProvider>
+</FlareLocalizationProvider>
+
+@code {
+    protected override void OnInitialized() => Shortcuts.Changed += Refresh;
+
+    public void Dispose() => Shortcuts.Changed -= Refresh;
+
+    private void Refresh() => _ = InvokeAsync(StateHasChanged);
+}

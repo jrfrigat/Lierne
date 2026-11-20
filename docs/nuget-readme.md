@@ -8,14 +8,14 @@ For a Blazor host with Flare and a theme already configured, register the plugin
 the shell services. This example enables the built-in options document.
 
 ```csharp
-using Lattice;
+using Lierne;
 
-builder.Services.AddLattice(options => options.AddPlugin<LatticeHostPlugin>());
-builder.Services.AddLatticeComponents();
+builder.Services.AddLierne(options => options.AddPlugin<LierneHostPlugin>());
+builder.Services.AddLierneComponents();
 ```
 
-Add your plugins to the registration and place `<LatticeShell />` on an interactive page inside
-the Flare theme and localization providers. Register `AddLatticeBrowserStateStorage("my-ide")`
+Add your plugins to the registration and place `<LierneShell />` on an interactive page inside
+the Flare theme and localization providers. Register `AddLierneBrowserStateStorage("my-ide")`
 to restore preferences and open documents in a browser. The package includes guides under
 `docs/articles/en` and `docs/articles/ru`.
 
@@ -28,9 +28,9 @@ Lierne — фреймворк для IDE-подобных Blazor-приложе�
 Настройте Flare и тему в Blazor-хосте, затем зарегистрируйте каталог плагинов и сервисы
 оболочки, как показано выше. В примере подключён встроенный документ параметров.
 
-Добавьте свои плагины и разместите `<LatticeShell />` на интерактивной странице внутри провайдеров
+Добавьте свои плагины и разместите `<LierneShell />` на интерактивной странице внутри провайдеров
 темы и локализации Flare. Для восстановления настроек и документов в браузере зарегистрируйте
-`AddLatticeBrowserStateStorage("my-ide")`. В пакет входят руководства в `docs/articles/ru` и
+`AddLierneBrowserStateStorage("my-ide")`. В пакет входят руководства в `docs/articles/ru` и
 `docs/articles/en`.
 
 ## License

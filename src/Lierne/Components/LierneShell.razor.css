@@ -1,0 +1,16 @@
+.lierne-bottom-surfaces,
+.lierne-bottom-surfaces > div {
+    display: contents;
+}
+
+.lierne-bottom-surfaces--split {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    height: 100%;
+}
+
+.lierne-bottom-surfaces--split > div {
+    display: block;
+    min-height: 0;
+    overflow: auto;
+}
