@@ -5,12 +5,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <!-- Lierne's host uses the Flare 0.59 document model (Documents/ActiveDocuments/
-         DocumentContent). The 0.59 packages are published; local development uses the sibling Flare
-         checkout via Directory.Build.local.props. -->
-    <PackageVersion Include="Flare.Blazor" Version="0.59.0" />
-    <PackageVersion Include="Flare.Components.IDE" Version="0.59.0" />
-    <PackageVersion Include="Flare.Theme.VisualStudio" Version="0.59.0" />
+    <PackageVersion Include="Flare.Blazor" Version="0.59.1" />
+    <PackageVersion Include="Flare.Components.IDE" Version="0.59.1" />
+    <PackageVersion Include="Flare.Theme.VisualStudio" Version="0.59.1" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="11.0.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.1" />
     <PackageVersion Include="xunit.v3" Version="4.0.2" />

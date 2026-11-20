@@ -26,8 +26,8 @@ from the application alongside the title. The tab keeps its accessible name and 
 ```
 
 Custom document headers require a Flare build that supports
-`FlareDocumentTab.HeaderContent` and `FlareIdeLayout.DocumentHeaderContent`. The standard title
-works with Flare 0.59.0.
+`FlareDocumentTab.HeaderContent` and `FlareIdeLayout.DocumentHeaderContent`. With Flare 0.59.1
+from NuGet, tabs display the standard text title.
 
 ## Choose storage
 

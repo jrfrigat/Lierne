@@ -9,7 +9,7 @@ namespace Lierne;
 /// <summary>Composes the Flare IDE layout from the Lierne plugin catalog.</summary>
 public partial class LierneShell : IDisposable, IAsyncDisposable
 {
-    // Flare 0.59.0 accepts unknown attributes. Check the actual parameters before using a custom header.
+    // Flare can accept unknown attributes. Check the actual parameters before using a custom header.
     private static readonly bool SupportsTabHeader =
         typeof(FlareDocumentTab).GetProperty("HeaderContent")?.PropertyType == typeof(RenderFragment);
     private static readonly bool SupportsDockHeader =

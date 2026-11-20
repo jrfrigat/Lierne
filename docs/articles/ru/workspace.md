@@ -26,7 +26,7 @@
 ```
 
 Для шаблона заголовка нужна сборка Flare с `FlareDocumentTab.HeaderContent` и
-`FlareIdeLayout.DocumentHeaderContent`. Обычный текстовый заголовок работает с Flare 0.59.0.
+`FlareIdeLayout.DocumentHeaderContent`. С Flare 0.59.1 из NuGet вкладки показывают обычный текстовый заголовок.
 
 ## Выберите хранилище
 
