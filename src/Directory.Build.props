@@ -4,6 +4,7 @@
   <PropertyGroup>
     <IsPackable Condition="'$(UseLocalFlare)' != 'true'">true</IsPackable>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>assets/icon.png</PackageIcon>
     <RepositoryType>git</RepositoryType>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
@@ -11,8 +12,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Include="$(RepoRoot)README.md" Pack="true" PackagePath="/" />
-    <None Include="$(RepoRoot)README.ru.md" Pack="true" PackagePath="/" />
-    <None Include="$(RepoRoot)docs/architecture.md" Pack="true" PackagePath="docs/architecture.md" />
+    <None Include="$(RepoRoot)docs/nuget-readme.md" Pack="true" PackagePath="README.md" />
+    <None Include="$(RepoRoot)LICENSE" Pack="true" PackagePath="/" />
+    <None Include="$(RepoRoot)assets/icon.png" Pack="true" PackagePath="assets/" />
+    <None Include="$(RepoRoot)docs/articles/**/*.md" Pack="true" PackagePath="docs/articles/%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

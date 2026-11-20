@@ -1,0 +1,9 @@
+- name: English
+  href: articles/en/toc.yml
+  topicHref: articles/en/getting-started.md
+- name: Русский
+  href: articles/ru/toc.yml
+  topicHref: articles/ru/getting-started.md
+- name: API
+  href: api/toc.yml
+  topicHref: api/index.md

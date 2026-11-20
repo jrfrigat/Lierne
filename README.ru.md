@@ -1,97 +1,48 @@
-# Lattice
+<p align="center">
+  <img src="assets/banner.svg" alt="Lierne" width="860">
+</p>
 
-Lattice — фреймворк композиции IDE-подобных приложений на
-[Flare](https://github.com/jrfrigat/Flare). Приложение собирается из плагинов — компонентов
-системы, компилируемых в host, а не динамически загружаемых пакетов. Каждый плагин объявляет
-свои документы, tool windows, команды, пункты риббона и настройки.
+# Lierne
 
-Фреймворк выделяется из [Quas](https://github.com/jrfrigat/Quas) — database IDE, который стал его
-первым потребителем. Quas остаётся полигоном: первый реальный плагин — подключение к БД
-(обозреватель баз данных и тулбокс подключения).
+<p align="center"><a href="README.md">English</a> · <strong>Русский</strong></p>
 
-## Состояние
+[![.NET 11](https://img.shields.io/badge/.NET-11-512BD4)](https://dotnet.microsoft.com/)
+[![Лицензия MIT](https://img.shields.io/badge/license-MIT-267A62)](LICENSE)
 
-Архитектура строится поэтапно. Сейчас есть:
+Lierne — фреймворк для IDE-подобных Blazor-приложений на .NET 11 и
+[Flare](https://github.com/jrfrigat/Flare). Плагины объявляют документы, окна инструментов,
+команды и настройки. Lierne проверяет их и собирает общую рабочую область.
+Первое приложение на фреймворке — [Quas](https://github.com/jrfrigat/Quas), IDE для работы с базами данных.
 
-- `Lattice.Abstractions` — типизированные id, контракт плагина, описатели вкладов, контракты
-  времени выполнения;
-- `Lattice.Core` — каталог плагинов с сортировкой и валидацией, исполнение команд с наблюдателями
-  и shortcut'ами, документы и tool windows, настройки по схеме, наблюдаемый контекст, каталоги
-  локализованных строк;
-- `Lattice.Components` — Flare-хост: `LatticeShell`, риббон, меню, документы, tool windows и
-  резолвер иконок; компоненты плагина наследуют `LatticeDocumentComponent` или
-  `LatticeToolWindowComponent`. `LatticeHostPlugin` добавляет встроенный документ параметров
-  (генерируется из схемы настроек) и группу меню «Инструменты»;
-- `Lattice.Core.Tests` и `Lattice.Components.Tests` — композиция, runtime и рендер оболочки.
-
-Quas уже использует Lattice для своих плагинов. Lattice сохраняет настройки и восстанавливает
-рабочую область, если приложение зарегистрировало хранилище. Контракт описан в
-[документации архитектуры](docs/architecture.md).
+- **Композиция при запуске.** Регистрируйте плагины и объявляйте их зависимости в хосте.
+  Каталог сообщает о дубликатах идентификаторов, отсутствующих зависимостях, циклах и ошибочных ссылках до запуска интерфейса.
+- **Общие команды.** Вызывайте одни и те же команды из меню, ленты и с клавиатуры.
+  Добавляйте переводы и настройки в плагины, которые их используют.
+- **Восстановление рабочей области.** Подключите браузерное или файловое хранилище для
+  сохранения настроек, расположения панелей и документов с поддержкой восстановления.
 
 ## Быстрый старт
 
-```csharp
-services.AddFlare();                 // тему выбирает приложение
-services.AddLattice(options => options
-    .AddPlugin<LatticeHostPlugin>()     // документ параметров и группа «Инструменты»
-    .AddPlugin<CorePlugin>()
-    .AddPlugin<ConnectionPlugin>());
-services.AddLatticeComponents();     // резолвер иконок и сервисы хоста
-services.AddLatticeBrowserStateStorage("my-ide"); // необязательно для интерактивного веб-хоста
+Публичный пакет NuGet будет называться `Lierne`. В текущей версии исходников подключайте
+`src/Lattice.Components/Lattice.Components.csproj` через ссылку на проект. В примерах используются
+пространство имён `Lattice` и текущие методы регистрации.
 
-public sealed class ConnectionPlugin : ILatticePlugin
-{
-    public PluginId Id => new("app.connection");
-
-    public StringKey DisplayName => new("app.connection", "displayName");
-
-    public IReadOnlyList<PluginId> DependsOn => [new PluginId("app.core")];
-
-    public void Configure(ILatticePluginBuilder builder)
-    {
-        builder.AddDocument(new DocumentDescriptor(
-            new DocumentTypeId("app.connection.explorer"),
-            new StringKey("app.connection", "explorer"),
-            "database",
-            typeof(DatabaseExplorerDocument)));
-    }
-}
-```
-
-Композиция проверяется до запуска хоста: дубликаты id, отсутствующие зависимости, циклы и пункты
-риббона, ссылающиеся на неизвестные команды, падают с диагностикой, где названы оба плагина.
-
-Для настольного или Hybrid-хоста зарегистрируйте `ILatticeStateStorage` с реализацией
-`LatticeFileStateStorage` и передайте каталог данных приложения. В веб-хосте
-`AddLatticeBrowserStateStorage` сохраняет данные в текущем браузере для данного origin.
-`LatticeShell` восстанавливает состояние при переходе в интерактивный режим.
-
-## Пример IDE
+Запустите интерактивный пример с .NET 11 SDK.
 
 ```sh
 dotnet run --project samples/Lattice.SampleIde
 ```
 
-Откройте заметку, измените её и перезагрузите страницу, чтобы проверить восстановление.
-В **Инструменты > Параметры** можно задать сочетание клавиш и заголовок новых заметок.
-Пример использует браузерное хранилище и версионированный формат данных документа.
+Выберите **New note**, введите текст и перезагрузите страницу. Заметка восстановится.
+Один плагин также добавляет окно инструментов, сочетание клавиш и страницу настроек.
 
-## Сборка и тесты
+## Документация
 
-```sh
-dotnet build Lattice.slnx -c Release
-dotnet test Lattice.slnx -c Release --no-build
-```
-
-По умолчанию сборка использует Flare 0.59.0 из NuGet. Для работы с соседним checkout Flare скопируйте
-`Directory.Build.local.props.example` в
-git-ignored `Directory.Build.local.props`; `UseLocalFlare=true` заменит package references на
-project references.
-
-Для сборки локальных NuGet-пакетов выполните
-`dotnet pack Lattice.slnx -c Release -p:UseLocalFlare=false -o artifacts/packages`.
-Добавьте выходной каталог как источник пакетов и подключите `Lattice.Components` в IDE-хосте.
+- [Подключение Blazor-хоста](docs/articles/ru/getting-started.md)
+- [Композиция плагинов](docs/articles/ru/plugins.md)
+- [Настройка и сохранение рабочей области](docs/articles/ru/workspace.md)
+- [Архитектурная справка](docs/architecture.md)
 
 ## Лицензия
 
-MIT. См. `PackageLicenseExpression` в `Directory.Build.props`.
+[MIT](LICENSE)

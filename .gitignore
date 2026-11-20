@@ -23,6 +23,12 @@ TestResults/
 # Local-only build overrides; see Directory.Build.local.props.example.
 Directory.Build.local.props
 
+# Generated DocFX site and API.
+/docs/_site/
+/docs/.cache/
+/docs/api/*
+!/docs/api/index.md
+
 # AI assistant files stay local; they are not part of the product.
 CLAUDE.md
 CLAUDE.local.md

@@ -1,0 +1,9 @@
+.navbar .navbar-brand {
+  flex: 0 0 auto;
+  gap: 0.5rem;
+}
+
+.navbar-brand #logo {
+  width: 2rem;
+  height: 2rem;
+}

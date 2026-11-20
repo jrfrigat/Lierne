@@ -1,0 +1,6 @@
+- name: Быстрый старт
+  href: getting-started.md
+- name: Плагины
+  href: plugins.md
+- name: Рабочая область
+  href: workspace.md

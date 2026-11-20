@@ -1,0 +1,43 @@
+{
+  "metadata": [
+    {
+      "src": [
+        {
+          "src": "../src",
+          "files": [
+            "Lattice.Abstractions/bin/Release/net11.0/Lattice.Abstractions.dll",
+            "Lattice.Core/bin/Release/net11.0/Lattice.Core.dll",
+            "Lattice.Components/bin/Release/net11.0/Lattice.Components.dll"
+          ]
+        }
+      ],
+      "dest": "api",
+      "outputFormat": "mref"
+    }
+  ],
+  "build": {
+    "content": [
+      {
+        "files": ["index.md", "toc.yml", "articles/**.md", "articles/**/toc.yml", "api/**.yml", "api/index.md"]
+      }
+    ],
+    "resource": [
+      {
+        "src": "../assets",
+        "files": ["logo.svg", "banner.svg"],
+        "dest": "assets"
+      }
+    ],
+    "output": "_site",
+    "template": ["default", "modern", "template"],
+    "globalMetadata": {
+      "_appName": "Lierne",
+      "_appTitle": "Lierne",
+      "_appLogoPath": "assets/logo.svg",
+      "_appFaviconPath": "assets/logo.svg",
+      "_enableSearch": true,
+      "_disableContribution": true
+    },
+    "postProcessors": ["ExtractSearchIndex"]
+  }
+}
