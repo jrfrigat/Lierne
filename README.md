@@ -9,10 +9,11 @@
 [![.NET 11](https://img.shields.io/badge/.NET-11-512BD4)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-267A62)](LICENSE)
 
-Lierne is a .NET 11 framework for building IDE-style Blazor applications on
-[Flare](https://github.com/jrfrigat/Flare). Plugins contribute documents, tool windows, commands and
-settings. Lierne validates those contributions and assembles them into a shared workspace.
-Quas, a database IDE, is its first consumer.
+Lierne is a .NET 11 workspace framework for building domain IDEs on Blazor and
+[Flare](https://github.com/jrfrigat/Flare). It does not ship a code editor: documents are domain
+objects with pluggable views. Plugins contribute documents, tool windows, commands and settings.
+Lierne validates those contributions and assembles them into a shared workspace. Quas, a database
+IDE, is its first consumer.
 
 - **Compose at startup.** Register plugins in the host and declare their dependencies. The catalog
   reports conflicting identifiers, missing dependencies, cycles and invalid references before the UI starts.

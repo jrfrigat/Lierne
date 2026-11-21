@@ -1,44 +1,193 @@
 # Архитектура Lierne
 
-Устройство композиции, сервисов и интерфейса Lierne. Названия библиотек и типов в справке
-соответствуют текущему API. Начать работу можно с [руководства по подключению](articles/ru/getting-started.md).
+Lierne - workspace-каркас для доменных IDE. Он собирает рабочее пространство из плагинов,
+команд, доменных документов и панелей и не содержит редактор кода. Flare - общая визуальная
+библиотека Blazor-компонентов, которая не знает о Lierne. Quas - первая IDE на Lierne:
+документы подключений, схем, запросов и результатов с таблицами, графиками и формами.
 
-## 1. Место в стеке
+Документ описывает концепцию, границы слоёв и целевую модель, а затем текущее устройство
+репозитория. Целевые контракты помечены явно; текущий API сохраняется до миграции.
+
+## 1. Концепция: workspace-каркас
+
+Lierne отвечает не на вопрос "что такое IDE", а на вопрос "из чего состоит рабочее
+пространство". Модель состоит из четырёх существительных и одного контейнера.
+
+| Понятие | Что это | Чего Lierne о нём не знает |
+| --- | --- | --- |
+| Plugin | доменный модуль: документы, views, команды, панели, сервисы, настройки | что именно делает домен |
+| Command | универсальное намерение пользователя | какая поверхность его вызвала |
+| Document | доменный объект и набор views | что внутри: таблица, график, форма, SQL |
+| Panel | инструментальная поверхность с контентом | какие данные в ней живут |
+| Workspace | версионированное состояние: раскладка, документы, панели, view state | как устроен конкретный продукт |
+
+Формула: Lierne - это workspace-ядро, в котором плагины описывают доменные документы, команды
+и панели, а Flare рисует общую визуальную грамматику.
+
+Следствия:
+
+- Нет редактора как центра. SQL-редактор в Quas - один из views, а не ядро.
+- Нет PSI, rope и write actions. Состояние документа определяется кодеком плагина.
+- Нет фиксированной оболочки. Lierne - конструктор: можно собрать полный `LierneShell` или
+  отдельные поверхности.
+- Нет XML-грамматики дескрипторов. Всё код-first: типизированные дескрипторы и точки
+  расширения.
+- Нет classloader-машинерии. Плагины изолируются DI-scope'ами и disposal; выгрузка плагина
+  требует перезапуска.
+- Flare не знает Lierne. Это жёсткая граница, а не API/impl split внутри одной платформы.
+
+## 2. Границы Flare, Lierne и Quas
 
 ```
-Flare              UI-компоненты, IDE-оболочка (FlareIdeLayout, FlareRibbon, FlareMenuBar,
-                   FlareDocumentTabs, FlareToolPanel), темы, иконки, локализация
-  ↑
-Lierne             композиция приложения из плагинов: контракты, каталог, валидация,
-                   встроенные модули (команды, документы, риббоны, настройки, состояние)
-  ↑
-Host-приложение    Quas и другие IDE: перечисляет плагины и регистрирует прикладные сервисы
+Flare
+  Flare                  базовые визуальные компоненты, темы, иконки, inputs, menus, tabs, DataGrid
+  Flare.Docking          опциональная generic-поверхность докинга, когда она появится
+  Flare.Components.IDE   опциональный IDE-пресет и визуальная композиция
+        ^
+        | адаптер: модель, RenderFragment-контент, intents
+Lierne
+  Lierne.Abstractions    контракты и описатели, без Flare и Blazor
+  Lierne.Core            каталог, команды, документы, панели, workspace, state, readiness, events
+  Lierne                 UI-хост: LierneShell, Flare-адаптер, command surfaces, document/panel hosts
+        ^
+        | описатели плагинов, views, команд и панелей
+Quas
+  Quas.Plugins.*         доменные документы, views, команды, панели
+  Quas.Hosting           composition root приложения
 ```
 
-- Flare не зависит от Lierne. UI-слой Lierne собирает
-  компоненты Flare.
-- Lierne предоставляет общую инфраструктуру для IDE. SQL, подключения и Monaco живут в плагинах.
-- Плагин — compile-time компонент: host перечисляет его в `AddLierne`. Динамической загрузки,
-  выгрузки и marketplace нет.
+Правила зависимостей:
 
-## 2. Принципы
+| Слой | Может зависеть от | Не может зависеть от |
+| --- | --- | --- |
+| Flare | общих .NET/Blazor-зависимостей | Lierne и его типов |
+| Lierne.Abstractions | DI-абстракций | Flare и `Microsoft.AspNetCore.Components` |
+| Lierne.Core | Lierne.Abstractions | Flare и `Microsoft.AspNetCore.Components` |
+| Lierne | Lierne.Abstractions, Lierne.Core, Flare | доменных типов Quas |
+| Quas | Lierne, Flare и собственных плагинов | внутренних типов Lierne.Core |
 
-1. **Один composition root.** `AddLierne` собирает плагины, валидирует вклады и замораживает
-   каталог. Никаких статических синглтонов и «auto-create services».
-2. **Две фазы.** Определения и сервисы регистрируются один раз на старте; UI-состояние и
-   привязанные к circuit сервисы создаются на область. Это снимает ловушку Quas, где модуль
-   регистрировал портативную команду per circuit в singleton-каталог.
-3. **Стабильные типизированные id.** `PluginId`, `CommandId`, `DocumentTypeId`, `ToolWindowId`,
-   `RibbonGroupId`, `RibbonItemId`, `SettingsPageId`, `SettingsKey` — обёртки над непустой
-   строкой. CLR-имена типов не попадают в персистентность.
-4. **Валидация до запуска.** Дубликаты, отсутствующие зависимости, циклы и ссылки на неизвестные
-   команды — это ошибки композиции, а не тихая деградация UI.
-5. **Вклады — данные.** Плагин объявляет описатели; хост решает, как их отрисовать. Описатели не
-   содержат `Func<Task>`; пункт меню или риббона несёт `CommandId` и типизированный аргумент.
-6. **Строить от реального плагина.** Тип вклада входит в Lierne только тогда, когда его
-   использует плагин «Подключение к БД» (или другой реальный плагин).
+`ArchitectureBoundaryTests` проверяет, что сборки `Lierne.Abstractions` и `Lierne.Core` не
+ссылаются на Flare или `Microsoft.AspNetCore.Components`. Нарушение этого теста - дефект
+архитектуры, а не повод ослабить проверку.
 
-## 3. Контракт плагина
+### Flare
+
+Flare отвечает за повторно используемые визуальные компоненты, темы, иконки, generic docking,
+DnD, splitter, tabs и content hosting. Flare не знает о документах, панелях, командах,
+плагинах, workspace, персистентности и политике размещения. Flare может выбрать собственную
+реализацию и предложить другой механизм, если он закрывает потребности приложения; Lierne
+адаптируется через свой adapter.
+
+### Lierne
+
+Lierne отвечает за семантику: доменные документы и views, команды и их презентацию, панели и
+раскладку, плагины и точки расширения, состояние и миграции, readiness, progress, события и
+disposal. Lierne не содержит редактор кода и не зависит от конкретной визуальной библиотеки в
+своём ядре.
+
+### Quas
+
+Quas - первая IDE и первый потребитель. Его плагины определяют документы подключений, схем,
+запросов и результатов, views в виде таблиц, графиков, форм и SQL-редактора, команды и панели.
+Quas не добавляет доменные типы в Lierne.
+
+## 3. Целевая модель
+
+### 3.1 Плагины
+
+Плагин проходит три стадии: raw descriptors -> resolved catalog -> runtime plugin scopes.
+
+- Raw: плагин объявляет зависимости и вклады, код ещё не создан.
+- Resolved: каталог проверяет дубликаты, циклы, отсутствующие зависимости, версии и
+  essential closure; каждая диагностика несёт причину и плагин.
+- Runtime: плагин получает DI-scope, lazy factories и disposal.
+
+Целевые возможности:
+
+- типизированные точки расширения `IExtensionPoint<T>` для необязательных возможностей;
+- essential plugins и их транзитивное замыкание;
+- состояния disabled / installed / loaded;
+- выгрузка через restart-required, без динамических classloader'ов;
+- ленивое создание handler'ов и компонентов.
+
+### 3.2 Команды
+
+Команда - единственная единица намерения. Меню, риббон, тулбар, статус-бар, контекстное меню и
+палитра - проекции одной модели.
+
+- `CommandDescriptor`: id, заголовок, группа, иконка, shortcut, threading, RequiresReady.
+- `ICommandHandler`: выполнение.
+- `ICommandUpdateHandler`: презентация и доступность.
+- `CommandPresentation`: заголовок, описание, иконка, enabled/visible/checked, shortcut text.
+- `CommandContext`: типизированные ключи и неизменяемый снимок контекста.
+- `CommandPlacement`: поверхность, группа, порядок, anchor, переопределения.
+- `ICommandService`: единый pipeline с pre-check, reentrancy guard, структурированными ошибками
+  и observers.
+- `ICommandUpdateService`: версия, инвалидация и батчевое обновление поверхностей.
+- `IKeymapService`: кандидаты по жесту, пользовательские переопределения и chords.
+- Встроенная command palette.
+
+### 3.3 Документы и views
+
+Документ - доменный объект, а не текст и не редактор.
+
+- `DocumentTypeDescriptor`: id, заголовок, иконка, factory, ReusePolicy, Persistent, views.
+- `DocumentInstance`: id, resource key, type, title, icon, state, dirty, version.
+- `DocumentViewDescriptor`: id, заголовок, иконка, компонент, applicability, priority,
+  default/exclusive, per-view state codec.
+- `DocumentHost`: вкладка, выбранный view, preview/pin, close.
+- `IDocumentService`: open/reuse/close/activate/move/save и события.
+- `IDocumentViewService`: создание views и per-view state.
+- `IDocumentSavePipeline`: veto, conflict policy и сохранение.
+
+Документ может быть таблицей, графиком, формой, SQL-редактором или чем угодно ещё. Lierne
+предоставляет хост и жизненный цикл, а не содержимое.
+
+### 3.4 Панели и workspace
+
+- `PanelDescriptor`: id, заголовок, иконка, регион по умолчанию, порядок, factory.
+- `PanelContentDescriptor`: вкладки внутри панели.
+- `PanelPlacement`: region, slot, mode, visible, pinned, order, size, slot size.
+- `IPanelService`: show/hide/activate/add/remove/move/pin.
+- `IPanelLayoutService`: политика размещения, availability и hide-on-empty,
+  activation/displacement stacks.
+- `WorkspaceState`: версия схемы, panel placements, document hosts, layout tree, active ids,
+  recent.
+- `IWorkspaceService`: load/save/restore, best-effort restore, миграции.
+
+До появления generic docking во Flare Lierne использует текущую IDE-композицию как первый
+adapter. Семантическая модель панелей и workspace от этого не зависит.
+
+### 3.5 Foundations
+
+- DI scopes: host -> workspace -> plugin -> document.
+- State channels: UserSettings, Workspace, Cache.
+- `IReadinessService`: IsReady, WhenReadyAsync, RequiresReady с причинами.
+- `IProgressService`: background/modal, cancellation, progress nodes.
+- `IEventBus`: типизированные topics, scoped subscriptions, broadcast policy.
+- Disposable tree и `IDisposableScope`.
+- Diagnostics с plugin id и цепочкой причин.
+- Опциональный `IUndoService` на уровне документа или команды.
+
+### 3.6 Shell kit
+
+`LierneShell` - композиция, а не монолит:
+
+- `LierneWorkspace` - docks и document/panel hosts;
+- `LierneCommandBar` - menu/ribbon/toolbar;
+- `LierneStatusBar`;
+- `LierneCommandPalette`;
+- `LierneSettingsHost`;
+- `LierneNotificationHost`.
+
+Приложение может собрать полный shell или отдельные поверхности и заменить chrome.
+
+## 4. Текущее устройство
+
+Этот раздел описывает API, которое существует сегодня. Целевая модель выше вводится
+постепенно, без ломки текущих контрактов.
+
+### 4.1 Контракт плагина
 
 ```csharp
 public interface ILiernePlugin
@@ -54,7 +203,7 @@ public interface ILiernePlugin
 `builder.Services` и добавляет описатели вкладов. Метод не резолвит сервисы и не строит UI:
 к моменту вызова каталог ещё не собран.
 
-`ILiernePluginBuilder` — типизированный сборщик:
+`ILiernePluginBuilder` - типизированный сборщик:
 
 | Метод | Вклад |
 | --- | --- |
@@ -63,67 +212,75 @@ public interface ILiernePlugin
 | `AddToolWindow` | панель инструментов (Explorer, Properties, Toolbox) |
 | `AddCommand` | команда с локализованным заголовком, иконкой, shortcut и типом аргумента |
 | `AddRibbonGroup` / `AddRibbonItem` | группа и пункт риббона, пункт ссылается на команду |
+| `AddMenuGroup` / `AddMenuItem` | группы и пункты меню |
 | `AddSettingsPage` / `AddSetting` | страница настроек и одна настройка по схеме |
+| `AddToolbar` | компонент полосы команд, который рисует сам плагин |
+| `AddStatusBarItem` | элемент статус-бара с командой или компонентом |
+| `AddShellContent` | компонент, заменяющий одну поверхность оболочки |
+| `AddSettingsTransfer` | секция импорта/экспорта настроек |
+| `AddStrings` | каталог локализованных строк |
 
-Зависимости плагинов задают порядок композиции. Порядок вкладов — сначала порядок плагинов, затем
-порядок объявления внутри плагина; это поведение фиксируется тестами.
+Зависимости плагинов задают порядок композиции. Порядок вкладов - сначала порядок плагинов,
+затем порядок объявления внутри плагина; это поведение фиксируется тестами.
 
-## 4. Вклады
+### 4.2 Вклады
 
-### Документы и tool windows
+#### Документы и tool windows
 
 Это разные вклады. Документ живёт в основной области (`LierneDockLocation.Main/Left/Right`) и
 может быть persistent; tool window живёт в боковом или нижнем регионе
-(`LierneToolRegion.Left/Right/Bottom`) и имеет собственный toolbar. Обозреватель БД — tool
+(`LierneToolRegion.Left/Right/Bottom`) и имеет собственный toolbar. Обозреватель БД - tool
 window, а не документ.
 
 `DocumentDescriptor` и `ToolWindowDescriptor` содержат `Type Component` (Blazor-компонент) и
-строковый `IconKey`. Строковый ключ выбран осознанно: `Lierne.Abstractions` не зависит от Flare,
-а UI-слой разрешает ключ в `FlareIcon`. Плагин, который хочет Flare-иконку напрямую, может
-сделать это в своём компоненте.
+строковый `IconKey`. Строковый ключ выбран осознанно: `Lierne.Abstractions` не зависит от
+Flare, а UI-слой разрешает ключ в `FlareIcon`. Плагин, который хочет Flare-иконку напрямую,
+может сделать это в своём компоненте.
 
 `DocumentViewDescriptor` добавляет вкладку (view) к типу документа и адресуется только id:
 тип документа может быть объявлен другим плагином, поэтому ссылки между сборками плагинов не
 нужны. Описатель задаёт тип документа, id view, локализованный заголовок, иконку, компонент и
 порядок. Каталог проверяет, что тип объявлен хотя бы одним плагином, а id view уникален в
-пределах типа. `LiernePluginCatalog.DocumentViews` отдаёт все views, а `ViewsFor(typeId)` —
+пределах типа. `LiernePluginCatalog.DocumentViews` отдаёт все views, а `ViewsFor(typeId)` -
 views одного типа по `Order`, затем по `DocumentViewId.Value`. Оболочка не рисует views сама:
 хост решает, как расположить вкладки и какой контекст передать компоненту.
 
-### Команды
+#### Команды
 
 `CommandDescriptor` описывает метаданные (id, заголовок, иконка, shortcut, тип аргумента), а
 `AddCommand(descriptor, handler, canExecute)` добавляет к ним обработчик и предикат
 `CanExecute` над общим состоянием. `ILierneCommandService` валидирует аргумент по типу,
 проверяет предикат и уведомляет наблюдателей `ILierneCommandObserver` до и после обработчика.
 Исключение обработчика превращается в `LierneCommandResult` с кодом `lattice.command.failed`.
-Сбой наблюдателя записывается в трассировку, а остальные наблюдатели и команда продолжают работу.
-Встроенные пункты меню, риббона и статус-бара принимают команды без обязательного аргумента.
+Сбой наблюдателя записывается в трассировку, а остальные наблюдатели и команда продолжают
+работу. Встроенные пункты меню, риббона и статус-бара принимают команды без обязательного
+аргумента.
 
 `ILierneShortcutService` собирает shortcut'ы из описателей, применяет пользовательские
 переопределения (пустой жест снимает привязку), разрешает жест без учёта регистра и сообщает
 конфликты (`LierneShortcutConflict`). Нормализация жестов остаётся за клавиатурным роутером
 хоста.
 
-### Риббоны и меню
+#### Риббоны и меню
 
 Описатели групп и пунктов позволяют нескольким плагинам добавлять пункты в одну группу, а
 валидатор проверяет, что пункт ссылается на существующую команду и группу.
 
-Меню описаны отдельно: `MenuGroupDescriptor` — верхний уровень (`File`, `View`, `Tools` или
-собственный корень плагина), `MenuItemDescriptor` — пункт с командой, порядком, разделителем и
+Меню описаны отдельно: `MenuGroupDescriptor` - верхний уровень (`File`, `View`, `Tools` или
+собственный корень плагина), `MenuItemDescriptor` - пункт с командой, порядком, разделителем и
 вложенными `Children`. Хост рисует меню через `FlareMenuBar`/`FlareMenu`/`FlareSubMenu` и
 рекурсивный `LierneMenuEntry`: локализованный заголовок, эффективный shortcut, `CanExecute` и
 выполнение команды. Встроенный `LierneHostPlugin` объявляет группу `lattice.tools`; приложение
 добавляет свои пункты в неё, а не создаёт вторую группу с тем же id. Фрагмент `MenuBar` хоста
 заменяет меню каталога, если приложению нужна своя полоса.
 
-### Настройки
+#### Настройки
 
 `SettingDescriptor` задаёт схему: ключ, локализованную подпись, вид редактора, значение по
-умолчанию, допустимый диапазон, варианты выбора и страницу (`SettingsPageId? Page`). `ISettingsStore`
-отдаёт значения по схеме, проверяет вид, диапазон и допустимые варианты и сообщает об изменении
-ключа. Валидатор каталога проверяет значение по умолчанию и ссылку на страницу настройки.
+умолчанию, допустимый диапазон, варианты выбора и страницу (`SettingsPageId? Page`).
+`ISettingsStore` отдаёт значения по схеме, проверяет вид, диапазон и допустимые варианты и
+сообщает об изменении ключа. Валидатор каталога проверяет значение по умолчанию и ссылку на
+страницу настройки.
 
 Встроенный документ параметров (`LierneOptionsDocument` из `LierneHostPlugin`) показывает
 страницы слева и генерирует форму справа: `FlareSelect` для выбора, `FlareNumericField` для
@@ -133,24 +290,24 @@ views одного типа по `Order`, затем по `DocumentViewId.Value`
 горячих клавиш). Scoped-хранилище предоставляет синхронный доступ к уже загруженным значениям.
 При наличии `ILierneStateStorage` оболочка автоматически загружает и сохраняет переопределения.
 
-### Состояние, документы и tool windows
+#### Состояние, документы и tool windows
 
-`ILierneContext` — наблюдаемая типизированная сумка ключей, которые определяют плагины;
+`ILierneContext` - наблюдаемая типизированная сумка ключей, которые определяют плагины;
 `CanExecute`, видимость пунктов и хост читают её. `ILierneDocumentService` и
-`ILierneToolWindowService` — scoped-сервисы: документы открываются/активируются/закрываются,
+`ILierneToolWindowService` - scoped-сервисы: документы открываются/активируются/закрываются,
 tool windows показываются/скрываются/переключаются. Неизвестный тип или экземпляр возвращает
 стабильный код ошибки (`lattice.document.*`, `lattice.toolwindow.*`), а не исключение.
 
-### Локализация
+#### Локализация
 
-Плагин добавляет каталог строк через `AddStrings(new LierneStringCatalog(namespace, resourceManager))`.
-Строки живут в embedded `.resx`: нейтральный файл содержит английский текст, `*.ru.resx` —
-перевод в сателлитной сборке. `ILierneLocalizer` находит каталог по `StringKey.Namespace` и
-читает `StringKey.Name` из его `ResourceManager`; fallback на нейтральные ресурсы делает сам
-`ResourceManager`, а неизвестный ключ возвращается полным текстом `StringKey`. `Changed`
-поднимается при смене культуры. Словари в коде не используются.
+Плагин добавляет каталог строк через `AddStrings(new LierneStringCatalog(namespace,
+resourceManager))`. Строки живут в embedded `.resx`: нейтральный файл содержит английский текст,
+`*.ru.resx` - перевод в сателлитной сборке. `ILierneLocalizer` находит каталог по
+`StringKey.Namespace` и читает `StringKey.Name` из его `ResourceManager`; fallback на
+нейтральные ресурсы делает сам `ResourceManager`, а неизвестный ключ возвращается полным
+текстом `StringKey`. `Changed` поднимается при смене культуры. Словари в коде не используются.
 
-## 5. Композиция и диагностика
+### 4.3 Композиция и диагностика
 
 `LiernePluginCatalog.Build`:
 
@@ -185,7 +342,7 @@ tool windows показываются/скрываются/переключаю�
 | `lattice.strings.duplicate_namespace` | один namespace строк объявлен двумя плагинами |
 | `lattice.strings.missing_manifest` | у каталога строк нет нейтрального ресурса |
 
-### 5.1 Сервисы времени выполнения
+### 4.4 Сервисы времени выполнения
 
 `AddLierne` регистрирует:
 
@@ -204,44 +361,41 @@ tool windows показываются/скрываются/переключаю�
 останавливает регистрацию. Плагины регистрируют свои сервисы в `ILiernePluginBuilder.Services`
 и сами выбирают их время жизни.
 
-## 6. Хост на Flare
+### 4.5 Хост на Flare
 
 `Lierne` собирает `FlareIdeLayout` из каталога:
 
-- `MenuBar` — меню каталога (`FlareMenuBar`/`FlareMenu`/`FlareSubMenu` и рекурсивный
+- `MenuBar` - меню каталога (`FlareMenuBar`/`FlareMenu`/`FlareSubMenu` и рекурсивный
   `LierneMenuEntry`) или фрагмент хоста, если приложению нужна своя полоса;
-- `Toolbars` — компоненты, добавленные через `AddToolbar`; хост рисует их в слоте `MenuBar`
-  после меню и в этом случае не создаёт `FlareRibbon`. Компонент владеет своей полосой
-  (например, рендерит `FlareToolbar`), поэтому приложение может повторить собственную
-  командную панель. Если вкладов нет, хост оставляет прежний `Ribbon` с `FlareRibbon`
-  (заголовок параметром, по умолчанию `Home`) и группами/пунктами каталога;
-- `Documents`/`ActiveDocuments`/`DocumentContent` — документы Lierne как документы Flare;
+- `Toolbars` - компоненты, добавленные через `AddToolbar`; хост рисует их в слоте `MenuBar`
+  после меню и в этом случае не создаёт `FlareRibbon`. Если вкладов нет, хост оставляет
+  `Ribbon` с `FlareRibbon` (заголовок параметром, по умолчанию `Home`) и группами/пунктами
+  каталога;
+- `Documents`/`ActiveDocuments`/`DocumentContent` - документы Lierne как документы Flare;
   полоса центральных вкладок, выбор отдельно по областям, закрытие и перемещение;
-- `LeftToolPanel`/`RightToolPanel` — видимые tool windows через `FlareToolPanelGroup` и
+- `LeftToolPanel`/`RightToolPanel` - видимые tool windows через `FlareToolPanelGroup` и
   `FlareToolPanel`, с заголовком и иконкой из описателя; вкладки снизу, без встроенной
   кнопки сворачивания, с собственными кнопками закрепить/закрыть. Закрепление задаёт
   `IdePanelMode.Docked`/`AutoHide`, закрытие скрывает видимые tool windows региона;
-- `StatusBar` — `FlareStatusBar` с элементами, добавленными через `AddStatusBarItem`
-  (выравнивание, порядок, иконка, команда или компонент с `LierneStatusBarContext`);
+- `StatusBar` - `FlareStatusBar` с элементами, добавленными через `AddStatusBarItem`;
   фрагмент `StatusBar`, переданный хостом, имеет приоритет;
 - `BottomPanel` включает видимые нижние tool windows и переданный хостом нижний контент.
-  `StartContent` задаёт стартовый контент;
-- документ параметров — `LierneHostPlugin` и `LierneOptionsDocument`: дерево настроек с узлом
-  «Основное» (встроенные страницы «Команды» и «Темы») и узлом каждого плагина; страница с
-  `Component` рендерит свой компонент, иначе контролы генерируются из схемы `SettingDescriptor`;
-  приложение обязано добавить плагин явно.
+  `StartContent` задаёт стартовый контент.
 
 Контракт компонентов плагина: `LierneDocumentComponent`, `LierneToolWindowComponent` и
 `LierneToolbarComponent` с параметром `Context`
 (`LierneDocumentContext`/`LierneToolWindowContext`/`LierneToolbarContext`), который отдаёт
 экземпляр, команды, сервис-владелец, локализатор и scoped `IServiceProvider`.
 
-Иконки описателей — строковые ключи; `ILierneIconResolver` превращает ключ в `FlareIcon`.
+Иконки описателей - строковые ключи; `ILierneIconResolver` превращает ключ в `FlareIcon`.
 По умолчанию резолвер возвращает `null`, приложение-хост регистрирует свой (например, Material
 Design 3). `AddLierneComponents()` регистрирует резолвер. Это единственная точка, где хост
 знает о Flare-иконках; сами описатели остаются свободными от Flare.
 
-## 7. Сохранение состояния
+Текущая IDE-композиция Flare - первый adapter Lierne. Когда Flare предоставит generic docking,
+Lierne заменит adapter, не меняя семантическую модель документов, панелей и workspace.
+
+### 4.6 Сохранение состояния
 
 `LierneStatePersistence` хранит настройки и рабочую область в независимых JSON-документах.
 Хост регистрирует `ILierneStateStorage`. Для веб-хоста `AddLierneBrowserStateStorage` использует
@@ -260,33 +414,54 @@ localStorage, для Hybrid `LierneFileStateStorage` атомарно замен
 - Quas продолжает восстанавливать свои SQL-документы через собственную модель рабочего
   пространства. Lierne сохраняет настройки, сочетания и панели оболочки Quas.
 
-## 8. Структура репозитория
+Целевое состояние разделяет каналы UserSettings, Workspace и Cache. Текущие `Preferences` и
+`Workspace` - первый шаг к этой модели.
+
+## 5. Структура репозитория
 
 ```
 src/Lierne.Abstractions   контракты и описатели, без Flare и Blazor
 src/Lierne.Core           каталог, валидация, команды, документы, tool windows, настройки,
-                           контекст, локализация, shortcut'ы
-src/Lierne     Flare-хост: LierneShell, документы, tool windows, риббон, иконки
-tests/Lierne.Core.Tests   тесты каталога и сервисов времени выполнения
+                          контекст, локализация, shortcut'ы
+src/Lierne                Flare-хост: LierneShell, документы, tool windows, риббон, иконки
+tests/Lierne.Core.Tests   тесты каталога, сервисов и границ архитектуры
 tests/Lierne.Components.Tests  рендер LierneShell с тестовым плагином
 samples/Lierne.SampleIde  интерактивный пример хоста и плагина заметок
 ```
 
-`Lierne.Abstractions` зависит только от DI-абстракций. `Lierne.Core` — от Abstractions.
+`Lierne.Abstractions` зависит только от DI-абстракций. `Lierne.Core` - от Abstractions.
 `Lierne` зависит от Flare.Components.IDE и Lierne.Core; Core о Flare не знает.
 
-## 9. Принятые решения
+## 6. Принятые решения
 
-- **Без Flare в Abstractions.** Иконки — строковые ключи, компоненты — `Type`. Это держит
-  контракт плагина независимым от версии Flare и позволяет плагину использовать Flare только
-  там, где он рисует UI.
-- **Без Quas-типов в контракте.** `LierneDockLocation`/`LierneToolRegion` — собственные
-  перечисления Lierne, а не `WorkspaceTabLocation`/`WorkspacePanelRegion` Quas.
-- **Один каталог, много реестров.** Каталог замораживает вклады; реестры модулей (команды,
-  документы, настройки) читают его. Так порядок и валидация остаются в одном месте.
+- **Flare не знает Lierne.** Общие визуальные компоненты и generic docking остаются в Flare,
+  семантика - в Lierne. Flare может выбирать реализацию; Lierne адаптируется.
+- **Ядро без визуальной библиотеки.** `Lierne.Abstractions` и `Lierne.Core` не ссылаются на
+  Flare или Blazor. Это позволяет позже добавить другой визуальный adapter.
+- **Документ - доменный объект.** Lierne не предполагает текст, PSI или редактор. View может
+  быть таблицей, графиком, формой или SQL-редактором.
+- **Command-first.** Меню, риббон, тулбар, статус-бар и палитра - проекции команд, а не
+  отдельные реестры.
+- **Workspace - first-class состояние.** Раскладка, открытые документы и view state
+  версионируются и мигрируются как данные.
+- **Scopes вместо classloader'ов.** Плагины изолируются DI-scope'ами и disposal; выгрузка
+  требует перезапуска.
+- **Один каталог, много реестров.** Каталог замораживает вклады; реестры модулей читают его.
 - **Диагностика вместо исключений в Build.** `Build` возвращает каталог с диагностиками, чтобы
-  тесты и инструменты могли показать все проблемы сразу; `AddLierne` превращает ошибки в
-  исключение на границе приложения.
-- **Прикладные плагины принадлежат хосту.** Lierne не содержит ни одного прикладного
-  плагина. Первый плагин (управление подключениями к БД) реализуется в Quas и подключается к
-  Lierne-хосту; это проверяет, что контракт достаточно общий.
+  тесты и инструменты могли показать все проблемы сразу.
+- **Прикладные плагины принадлежат хосту.** Lierne не содержит ни одного прикладного плагина.
+  Первый плагин (управление подключениями к БД) реализуется в Quas.
+
+## 7. Направление развития
+
+1. Границы и контракты: этот документ и тест архитектурных зависимостей.
+2. Foundations: DI scopes, state channels, readiness, progress, events, disposal.
+3. Команды: презентация, placements, keymap, палитра.
+4. Документы: domain document model, views, hosts, dirty/save.
+5. Плагины: extension points, lazy factories, состояния и plugin scopes.
+6. Панели и workspace: семантическая модель, persistence и adapter к текущей IDE-композиции Flare.
+7. Shell kit: `LierneWorkspace`, command surfaces, status bar, palette, settings.
+8. Quas: доменные документы, views и команды на новой модели.
+
+Целевые контракты вводятся постепенно. Текущий API и Quas остаются работоспособными на каждом
+шаге; ломающие изменения допускаются только вместе с миграцией и тестами.
