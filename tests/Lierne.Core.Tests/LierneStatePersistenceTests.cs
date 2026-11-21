@@ -43,7 +43,20 @@ public sealed class LierneStatePersistenceTests
             await persistence.SaveWorkspaceAsync(new LierneWorkspaceLayout
             {
                 Right = new LiernePanelState(420, Pinned: false, Collapsed: true, ToolKey: Tool.Value),
-                Documents = new Dictionary<LierneDockLocation, string?> { [LierneDockLocation.Right] = noteId }
+                Documents = new Dictionary<LierneDockLocation, string?> { [LierneDockLocation.Right] = noteId },
+                Panels =
+                [
+                    new PanelPlacement(
+                        Tool,
+                        LierneToolRegion.Right,
+                        PanelSlot.Secondary,
+                        PanelMode.AutoHide,
+                        Visible: false,
+                        Pinned: false,
+                        Order: 2,
+                        Size: 320,
+                        SlotSize: 320)
+                ]
             }, cancellation);
         }
 
@@ -59,6 +72,18 @@ public sealed class LierneStatePersistenceTests
         Assert.False(restoredProvider.GetRequiredService<ILierneToolWindowService>().IsVisible(Tool));
         Assert.Equal(new LiernePanelState(420, false, true, Tool.Value), layout!.Right);
         Assert.Equal(noteId, layout.Documents[LierneDockLocation.Right]);
+        Assert.Equal(
+            new PanelPlacement(
+                Tool,
+                LierneToolRegion.Right,
+                PanelSlot.Secondary,
+                PanelMode.AutoHide,
+                Visible: false,
+                Pinned: false,
+                Order: 2,
+                Size: 320,
+                SlotSize: 320),
+            Assert.Single(layout.Panels!));
 
         var restoredDocuments = restoredProvider.GetRequiredService<ILierneDocumentService>();
         var reopened = Assert.Single(restoredDocuments.Documents);

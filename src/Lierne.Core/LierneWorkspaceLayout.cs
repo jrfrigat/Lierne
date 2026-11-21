@@ -14,6 +14,9 @@ public sealed record LierneWorkspaceLayout
 
     /// <summary>Gets or sets the bottom panel state.</summary>
     public LiernePanelState Bottom { get; init; } = new(150);
+
+    /// <summary>Gets or sets the semantic placements of the tool panels.</summary>
+    public IReadOnlyList<PanelPlacement>? Panels { get; init; }
 }
 
 /// <summary>The stored size, expansion, and selected tool of a shell panel.</summary>

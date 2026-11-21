@@ -1,3 +1,6 @@
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
 namespace Lierne;
 
 /// <summary>Identifies a Lierne plugin.</summary>
@@ -77,6 +80,7 @@ public readonly record struct DocumentViewId
 }
 
 /// <summary>Identifies a tool window contributed by a plugin.</summary>
+[JsonConverter(typeof(ToolWindowIdJsonConverter))]
 public readonly record struct ToolWindowId
 {
     /// <summary>Creates a tool window id.</summary>
@@ -93,6 +97,27 @@ public readonly record struct ToolWindowId
 
     /// <inheritdoc />
     public override string ToString() => Value;
+}
+
+/// <summary>Serializes a tool window id as its string value.</summary>
+public sealed class ToolWindowIdJsonConverter : JsonConverter<ToolWindowId>
+{
+    /// <inheritdoc />
+    public override ToolWindowId Read(
+        ref Utf8JsonReader reader,
+        Type typeToConvert,
+        JsonSerializerOptions options)
+    {
+        var value = reader.GetString();
+        return string.IsNullOrWhiteSpace(value) ? default : new ToolWindowId(value);
+    }
+
+    /// <inheritdoc />
+    public override void Write(
+        Utf8JsonWriter writer,
+        ToolWindowId value,
+        JsonSerializerOptions options) =>
+        writer.WriteStringValue(value.Value);
 }
 
 /// <summary>Identifies a ribbon group contributed by a plugin.</summary>

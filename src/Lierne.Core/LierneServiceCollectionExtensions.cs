@@ -49,6 +49,9 @@ public static class LierneServiceCollectionExtensions
         services.AddScoped<ICommandPlacementService, LierneCommandPlacementService>();
         services.AddScoped<ILierneDocumentService, LierneDocumentService>();
         services.AddScoped<ILierneToolWindowService, LierneToolWindowService>();
+        services.AddScoped<LiernePanelService>();
+        services.AddScoped<IPanelService>(provider =>
+            provider.GetRequiredService<LiernePanelService>());
         services.AddScoped<ISettingsStore, LierneSettingsStore>();
         services.AddScoped<ILierneLocalizer, LierneLocalizer>();
         services.AddScoped<ILierneShortcutService, LierneShortcutService>();

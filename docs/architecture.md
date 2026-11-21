@@ -318,6 +318,11 @@ dirty только для записанной версии. Состояние 
 tool windows показываются/скрываются/переключаются. Неизвестный тип или экземпляр возвращает
 стабильный код ошибки (`lattice.document.*`, `lattice.toolwindow.*`), а не исключение.
 
+`IPanelService` хранит семантические `PanelPlacement` (region, slot, mode, visible, pinned,
+order, size) и делегирует видимость текущему `ILierneToolWindowService`.
+`LierneWorkspaceLayout.Panels` сохраняет их в workspace. Flare adapter использует эти данные
+при сборке докинга; текущая IDE-композиция Flare остаётся первым bridge.
+
 #### Локализация
 
 Плагин добавляет каталог строк через `AddStrings(new LierneStringCatalog(namespace,
@@ -376,6 +381,7 @@ resourceManager))`. Строки живут в embedded `.resx`: нейтрал�
 | Размещения команд | `ICommandPlacementService` | scoped |
 | Документы | `ILierneDocumentService` | scoped |
 | Tool windows | `ILierneToolWindowService` | scoped |
+| Панели | `IPanelService` | scoped |
 | Настройки | `ISettingsStore` | scoped |
 | Строки | `ILierneLocalizer` | scoped |
 | Shortcut'ы | `ILierneShortcutService` | scoped |
