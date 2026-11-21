@@ -22,6 +22,7 @@ else
                     var document = entry?.Document;
                     var panel = entry?.Panel;
                     var icon = TabIcon(document, panel);
+                    var closeLabel = document is null ? null : $"{HostLabel("close")} {item.Title}";
                 }
                 @if (icon != null)
                 {
@@ -43,6 +44,20 @@ else
                 {
                     <span class="lierne-workspace__pin" aria-hidden="true">
                         <FlareIconView Value="FlareIcons.PushPin" Size="0.75rem" />
+                    </span>
+                }
+                @if (document is not null && item.CanClose)
+                {
+                    <span class="lierne-workspace__close"
+                          role="button"
+                          tabindex="0"
+                          aria-label="@closeLabel"
+                          title="@closeLabel"
+                          @onclick="() => CloseDocument(document)"
+                          @onclick:stopPropagation="true"
+                          @onkeydown="args => CloseDocumentOnKeyDown(args, document)"
+                          @onkeydown:stopPropagation="true">
+                        <FlareIconView Value="FlareIcons.Close" Size="0.75rem" />
                     </span>
                 }
             </TabTemplate>

@@ -4,6 +4,7 @@ using Flare.Components.IDE;
 using Flare.Icons;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
+using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.JSInterop;
 
@@ -601,6 +602,22 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
         }
 
         return false;
+    }
+
+    private void CloseDocument(LierneDocumentInstance document)
+    {
+        if (!_disposed)
+        {
+            Documents.Close(document.Id);
+        }
+    }
+
+    private void CloseDocumentOnKeyDown(KeyboardEventArgs args, LierneDocumentInstance document)
+    {
+        if (args.Key is "Enter" or " ")
+        {
+            CloseDocument(document);
+        }
     }
 
     private bool Close(DockLayoutChange change)
