@@ -10,7 +10,10 @@ public enum LierneStateSection
     Preferences,
 
     /// <summary>Documents, tools, and the shell layout.</summary>
-    Workspace
+    Workspace,
+
+    /// <summary>Regenerable data that may be discarded without losing user work.</summary>
+    Cache
 }
 
 /// <summary>Reads and atomically replaces a host's versioned Lierne state documents.</summary>

@@ -415,7 +415,25 @@ localStorage, для Hybrid `LierneFileStateStorage` атомарно замен
   пространства. Lierne сохраняет настройки, сочетания и панели оболочки Quas.
 
 Целевое состояние разделяет каналы UserSettings, Workspace и Cache. Текущие `Preferences` и
-`Workspace` - первый шаг к этой модели.
+`Workspace` - первый шаг к этой модели. `LierneStateSection.Cache` уже добавлен для
+регенерируемых данных, которые можно потерять без потери работы пользователя.
+
+### 4.7 Foundations
+
+`AddLierne` регистрирует scoped-сервисы:
+
+| Сервис | Интерфейс | Назначение |
+| --- | --- | --- |
+| Readiness | `ILierneReadinessService` | области готовности, `WhenReadyAsync`, `BeginPending` |
+| Progress | `ILierneProgressService` | handles с `Report`, `Cancel`, `DisposeAsync` |
+| Events | `ILierneEventBus` | типизированные подписки и публикация в пределах scope |
+| Disposal | `LierneDisposableBag` | освобождение ресурсов в обратном порядке |
+
+Readiness поддерживает вложенные pending-токены и причину ожидания; неизвестная область
+считается готовой. Progress публикует Started, Reported, Completed и Canceled и отменяет
+handle через `CancellationToken`. Event bus вызывает подписчиков синхронно на потоке
+издателя; ошибка одного подписчика логируется и не мешает остальным. Эти сервисы не зависят
+от Flare и Blazor.
 
 ## 5. Структура репозитория
 

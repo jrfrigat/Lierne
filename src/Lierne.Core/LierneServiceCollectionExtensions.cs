@@ -47,6 +47,9 @@ public static class LierneServiceCollectionExtensions
         services.AddScoped<ISettingsStore, LierneSettingsStore>();
         services.AddScoped<ILierneLocalizer, LierneLocalizer>();
         services.AddScoped<ILierneShortcutService, LierneShortcutService>();
+        services.AddScoped<ILierneReadinessService, LierneReadinessService>();
+        services.AddScoped<ILierneProgressService, LierneProgressService>();
+        services.AddScoped<ILierneEventBus, LierneEventBus>();
         services.AddScoped<LierneSettingsTransfer>();
         services.AddScoped<LierneStatePersistence>();
         return services;

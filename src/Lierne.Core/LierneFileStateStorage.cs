@@ -59,6 +59,7 @@ public sealed class LierneFileStateStorage : ILierneStateStorage
     {
         LierneStateSection.Preferences => "preferences.json",
         LierneStateSection.Workspace => "workspace.json",
+        LierneStateSection.Cache => "cache.json",
         _ => throw new ArgumentOutOfRangeException(nameof(section))
     });
 }
