@@ -55,8 +55,10 @@ else
                           title="@closeLabel"
                           @onclick="() => CloseDocument(document)"
                           @onclick:stopPropagation="true"
+                          @onclick:preventDefault="true"
                           @onkeydown="args => CloseDocumentOnKeyDown(args, document)"
-                          @onkeydown:stopPropagation="true">
+                          @onkeydown:stopPropagation="true"
+                          @onkeydown:preventDefault="true">
                         <FlareIconView Value="FlareIcons.Close" Size="0.75rem" />
                     </span>
                 }
