@@ -25,9 +25,8 @@ from the application alongside the title. The tab keeps its accessible name and 
 </LierneShell>
 ```
 
-Custom document headers require a Flare build that supports
-`FlareDocumentTab.HeaderContent` and `FlareIdeLayout.DocumentHeaderContent`. With Flare 0.59.1
-from NuGet, tabs display the standard text title.
+Lierne passes the same template to `FlareDocumentTab.HeaderContent` and
+`FlareIdeLayout.DocumentHeaderContent`, so the center and side regions share one header.
 
 ## Choose storage
 

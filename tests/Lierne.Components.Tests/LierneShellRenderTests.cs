@@ -142,15 +142,6 @@ public sealed class LierneShellRenderTests
 
         await renderer.Dispatcher.InvokeAsync(async () =>
         {
-            if (typeof(FlareDocumentTab).GetProperty("HeaderContent") is null ||
-                typeof(FlareIdeLayout).GetProperty("DocumentHeaderContent") is null)
-            {
-                var error = await Assert.ThrowsAsync<InvalidOperationException>(async () =>
-                    await renderer.RenderComponentAsync<LierneShell>(parameters));
-                Assert.Contains("Flare build with document tab header templates", error.Message, StringComparison.Ordinal);
-                return;
-            }
-
             var root = await renderer.RenderComponentAsync<LierneShell>(parameters);
             Assert.Contains("<strong>Document | first</strong>", root.ToHtmlString(), StringComparison.Ordinal);
             Assert.True(documents.SetPayload(document.Id, "updated").Success);

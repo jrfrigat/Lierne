@@ -9,12 +9,6 @@ namespace Lierne;
 /// <summary>Composes the Flare IDE layout from the Lierne plugin catalog.</summary>
 public partial class LierneShell : IDisposable, IAsyncDisposable
 {
-    // Flare can accept unknown attributes. Check the actual parameters before using a custom header.
-    private static readonly bool SupportsTabHeader =
-        typeof(FlareDocumentTab).GetProperty("HeaderContent")?.PropertyType == typeof(RenderFragment);
-    private static readonly bool SupportsDockHeader =
-        typeof(FlareIdeLayout).GetProperty("DocumentHeaderContent")?.PropertyType == typeof(RenderFragment<IdeDocument>);
-
     private readonly Dictionary<IdeDocumentRegion, string?> _selection = new()
     {
         [IdeDocumentRegion.Center] = null,
@@ -66,29 +60,12 @@ public partial class LierneShell : IDisposable, IAsyncDisposable
     /// Replaces the visible title of each document tab in both the center and the side regions.
     /// The shell keeps the document icon, selection, and close controls.
     /// </summary>
-    /// <remarks>Requires a Flare build with document tab header templates.</remarks>
+    /// <remarks>The document title remains the accessible name and the label in the tab overflow menu.</remarks>
     [Parameter]
     public RenderFragment<LierneDocumentHeaderContext>? DocumentHeaderContent { get; set; }
 
     private RenderFragment<IdeDocument>? DockDocumentHeaderContent =>
         DocumentHeaderContent is null ? null : _dockDocumentHeader ??= RenderDockDocumentHeader;
-
-    /// <inheritdoc />
-    protected override void OnParametersSet()
-    {
-        if (DocumentHeaderContent is null)
-        {
-            return;
-        }
-
-        if (!SupportsTabHeader || !SupportsDockHeader)
-        {
-            throw new InvalidOperationException(
-                "DocumentHeaderContent requires a Flare build with document tab header templates.");
-        }
-
-        _mainDocuments = null;
-    }
 
     private RenderFragment? MainDocumentHeader(LierneDocumentInstance document, string title)
     {
@@ -98,7 +75,7 @@ public partial class LierneShell : IDisposable, IAsyncDisposable
         }
 
         // Existing hosts can migrate from SetStatusIcon to their own header without losing their indicator.
-        return SupportsTabHeader && document.StatusIconKey is { } key && ResolveIcon(key, document.StatusIconColor) is { } icon
+        return document.StatusIconKey is { } key && ResolveIcon(key, document.StatusIconColor) is { } icon
             ? RenderLegacyDocumentHeader(icon, title)
             : null;
     }

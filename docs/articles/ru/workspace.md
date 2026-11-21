@@ -25,8 +25,8 @@
 </LierneShell>
 ```
 
-Для шаблона заголовка нужна сборка Flare с `FlareDocumentTab.HeaderContent` и
-`FlareIdeLayout.DocumentHeaderContent`. С Flare 0.59.1 из NuGet вкладки показывают обычный текстовый заголовок.
+Lierne передаёт один и тот же шаблон в `FlareDocumentTab.HeaderContent` и
+`FlareIdeLayout.DocumentHeaderContent`, поэтому центральная и боковые области используют общий заголовок.
 
 ## Выберите хранилище
 
