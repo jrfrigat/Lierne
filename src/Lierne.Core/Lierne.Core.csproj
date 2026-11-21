@@ -4,6 +4,7 @@
     <RootNamespace>Lierne</RootNamespace>
     <AssemblyName>Lierne.Core</AssemblyName>
     <Description>Plugin catalog, contribution registries and composition validation of the Lierne IDE composition framework.</Description>
+    <PackageTags>plugins;ide;workspace;composition</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>

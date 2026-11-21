@@ -4,5 +4,6 @@
     <RootNamespace>Lierne</RootNamespace>
     <AssemblyName>Lierne.Abstractions</AssemblyName>
     <Description>Contracts, identifiers and contribution descriptors of the Lierne IDE composition framework.</Description>
+    <PackageTags>plugins;ide;workspace;contracts</PackageTags>
   </PropertyGroup>
 </Project>

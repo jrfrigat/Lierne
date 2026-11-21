@@ -6,6 +6,9 @@
 
 <p align="center"><strong>English</strong> · <a href="README.ru.md">Русский</a></p>
 
+[![CI](https://github.com/jrfrigat/Lierne/actions/workflows/ci.yml/badge.svg)](https://github.com/jrfrigat/Lierne/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/Lierne.svg)](https://www.nuget.org/packages/Lierne/)
+[![NuGet downloads](https://img.shields.io/nuget/dt/Lierne.svg)](https://www.nuget.org/packages/Lierne/)
 [![.NET 11](https://img.shields.io/badge/.NET-11-512BD4)](https://dotnet.microsoft.com/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-267A62)](LICENSE)
 
@@ -22,10 +25,21 @@ IDE, is its first consumer.
 - **Restore the workspace.** Register browser or file storage to save user preferences, panel
   layout and eligible documents.
 
+## Install
+
+```sh
+dotnet add package Lierne
+dotnet add package Flare.Blazor
+dotnet add package Flare.Theme.VisualStudio
+```
+
+The `Lierne` package references the Flare IDE components. Add `Flare.Blazor` and a theme package
+such as `Flare.Theme.VisualStudio` when the host does not already use them.
+
 ## Get started
 
-The main NuGet package ID is `Lierne`. When working from a source checkout, reference
-`src/Lierne/Lierne.csproj`.
+The main NuGet package is [Lierne](https://www.nuget.org/packages/Lierne/). When working from a
+source checkout, reference `src/Lierne/Lierne.csproj`.
 
 Try the interactive sample with the .NET 11 SDK.
 

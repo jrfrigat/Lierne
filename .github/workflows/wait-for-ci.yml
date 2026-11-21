@@ -1,0 +1,75 @@
+name: Wait for CI
+
+on:
+  workflow_call:
+    inputs:
+      workflow:
+        description: CI workflow file name.
+        required: false
+        type: string
+        default: ci.yml
+      branch:
+        description: Branch to match. Empty matches any branch.
+        required: false
+        type: string
+        default: ''
+      sha:
+        description: Commit SHA whose CI run must succeed.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  wait:
+    name: Wait for the CI run of this commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Watch the exact CI run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ inputs.sha }}
+          BRANCH: ${{ inputs.branch }}
+          WORKFLOW: ${{ inputs.workflow }}
+        run: |
+          set -euo pipefail
+          registration_deadline=$((SECONDS + 300))
+          found=""
+          while [ "$SECONDS" -lt "$registration_deadline" ]; do
+            runs=$(gh run list --repo "$REPO" --workflow "$WORKFLOW" --commit "$SHA" --event push --limit 20 \
+              --json databaseId,status,conclusion,headBranch,headSha 2>/dev/null || true)
+            runs=${runs:-[]}
+            found=$(printf '%s' "$runs" | jq -r --arg sha "$SHA" --arg branch "$BRANCH" '
+              [ .[] | select(.headSha == $sha) | select($branch == "" or .headBranch == $branch) ]
+              | sort_by(.databaseId) | last // empty')
+            if [ -n "$found" ]; then
+              break
+            fi
+            sleep 10
+          done
+
+          if [ -z "$found" ]; then
+            echo "No push CI run for $SHA on $WORKFLOW was registered within 5 minutes." >&2
+            exit 1
+          fi
+
+          run_id=$(printf '%s' "$found" | jq -r '.databaseId')
+          echo "Watching CI run $run_id for $SHA."
+          while true; do
+            run=$(gh run view "$run_id" --repo "$REPO" --json status,conclusion)
+            status=$(printf '%s' "$run" | jq -r '.status')
+            conclusion=$(printf '%s' "$run" | jq -r '.conclusion // ""')
+            if [ "$status" = "completed" ]; then
+              if [ "$conclusion" != "success" ]; then
+                echo "CI run $run_id completed with '$conclusion'." >&2
+                exit 1
+              fi
+              echo "CI run $run_id succeeded."
+              exit 0
+            fi
+            sleep 20
+          done

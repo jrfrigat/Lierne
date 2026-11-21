@@ -4,6 +4,7 @@
     <RootNamespace>Lierne</RootNamespace>
     <AssemblyName>Lierne</AssemblyName>
     <Description>Flare IDE host for Lierne - shell layout, documents, tool windows, ribbon and settings surfaces.</Description>
+    <PackageTags>blazor;ide;workspace;plugins;flare</PackageTags>
     <!-- The tool-window list is dynamic, so its render-fragment sequence numbers come from the
          loop; ASP0006 is about literal markup only. -->
     <NoWarn>$(NoWarn);ASP0006</NoWarn>

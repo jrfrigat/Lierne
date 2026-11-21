@@ -6,6 +6,9 @@
 
 <p align="center"><a href="README.md">English</a> · <strong>Русский</strong></p>
 
+[![CI](https://github.com/jrfrigat/Lierne/actions/workflows/ci.yml/badge.svg)](https://github.com/jrfrigat/Lierne/actions/workflows/ci.yml)
+[![NuGet](https://img.shields.io/nuget/v/Lierne.svg)](https://www.nuget.org/packages/Lierne/)
+[![Загрузки NuGet](https://img.shields.io/nuget/dt/Lierne.svg)](https://www.nuget.org/packages/Lierne/)
 [![.NET 11](https://img.shields.io/badge/.NET-11-512BD4)](https://dotnet.microsoft.com/)
 [![Лицензия MIT](https://img.shields.io/badge/license-MIT-267A62)](LICENSE)
 
@@ -22,10 +25,21 @@ Lierne - каркас рабочих пространств для доменн�
 - **Восстановление рабочей области.** Подключите браузерное или файловое хранилище для
   сохранения настроек, расположения панелей и документов с поддержкой восстановления.
 
+## Установка
+
+```sh
+dotnet add package Lierne
+dotnet add package Flare.Blazor
+dotnet add package Flare.Theme.VisualStudio
+```
+
+Пакет `Lierne` подключает компоненты IDE Flare. Добавьте `Flare.Blazor` и пакет темы, например
+`Flare.Theme.VisualStudio`, если хост ещё их не использует.
+
 ## Быстрый старт
 
-Идентификатор основного пакета NuGet - `Lierne`. При работе с исходниками добавьте ссылку
-на проект `src/Lierne/Lierne.csproj`.
+Основной пакет NuGet - [Lierne](https://www.nuget.org/packages/Lierne/). При работе с исходниками
+добавьте ссылку на проект `src/Lierne/Lierne.csproj`.
 
 Запустите интерактивный пример с .NET 11 SDK.
 

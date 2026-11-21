@@ -5,6 +5,7 @@
     <IsPackable Condition="'$(UseLocalFlare)' != 'true'">true</IsPackable>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>assets/icon.png</PackageIcon>
+    <PackageProjectUrl>https://github.com/jrfrigat/Lierne</PackageProjectUrl>
     <RepositoryType>git</RepositoryType>
     <RepositoryUrl>https://github.com/jrfrigat/Lierne</RepositoryUrl>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>

@@ -1,0 +1,78 @@
+name: Docs
+
+# Builds the DocFX site after the CI run of the same commit succeeds and deploys it to GitHub Pages.
+# Enable Pages in the repository settings with "GitHub Actions" as the source.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+      - 'src/**'
+      - 'Directory.Build.props'
+      - 'Directory.Packages.props'
+      - '.github/workflows/docs.yml'
+      - '.github/workflows/wait-for-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  wait-for-ci:
+    name: Wait for CI
+    uses: ./.github/workflows/wait-for-ci.yml
+    with:
+      workflow: ci.yml
+      branch: ${{ github.ref_name }}
+      sha: ${{ github.sha }}
+
+  build:
+    name: Build the documentation site
+    needs: wait-for-ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore Lierne.slnx
+
+      - name: Restore documentation tools
+        run: dotnet tool restore
+
+      - name: Build
+        run: dotnet build Lierne.slnx -c Release --no-restore
+
+      - name: Build documentation
+        run: dotnet docfx docs/docfx.json --warningsAsErrors
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/_site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v5

@@ -1,0 +1,100 @@
+name: Release (NuGet)
+
+# Publishes the packable Lierne packages after the CI run of the tagged commit succeeds.
+# Push a version tag to start a release:  git tag v0.1.0 && git push origin v0.1.0
+# The tag is the package version; the repository version stays a local default.
+on:
+  push:
+    tags: ['v*']
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: read
+  id-token: write
+
+jobs:
+  wait-for-ci:
+    name: Wait for CI
+    uses: ./.github/workflows/wait-for-ci.yml
+    with:
+      workflow: ci.yml
+      branch: ''
+      sha: ${{ github.sha }}
+
+  build:
+    name: Build release packages
+    needs: wait-for-ci
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore Lierne.slnx
+
+      - name: Build
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          dotnet build Lierne.slnx -c Release --no-restore -p:Version="$version"
+
+      - name: Pack
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          dotnet pack Lierne.slnx -c Release --no-build -p:Version="$version" -o artifacts
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: nuget-packages
+          path: |
+            artifacts/*.nupkg
+            artifacts/*.snupkg
+          if-no-files-found: error
+          retention-days: 7
+
+  publish:
+    name: Publish to NuGet and GitHub
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@v8
+        with:
+          name: nuget-packages
+          path: artifacts
+
+      # Trusted Publishing: exchange the GitHub OIDC token for a short-lived NuGet API key.
+      # Requires a Trusted Publisher policy on nuget.org for this repository and workflow,
+      # and the nuget.org username in the NUGET_USER repository variable.
+      - name: NuGet login
+        id: nuget-login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ vars.NUGET_USER }}
+
+      - name: Push to NuGet.org
+        run: >-
+          dotnet nuget push "artifacts/*.nupkg"
+          --api-key "${{ steps.nuget-login.outputs.NUGET_API_KEY }}"
+          --source https://api.nuget.org/v3/index.json
+          --skip-duplicate
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "${{ github.ref_name }}"
+          artifacts/*.nupkg artifacts/*.snupkg
+          --generate-notes
+          --title "${{ github.ref_name }}"

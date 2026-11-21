@@ -5,6 +5,17 @@
 Lierne runs in a .NET 11 Blazor application. The host registers Flare, chooses a theme, and
 lists the plugins that make up the workspace.
 
+## Install
+
+```sh
+dotnet add package Lierne
+dotnet add package Flare.Blazor
+dotnet add package Flare.Theme.VisualStudio
+```
+
+The `Lierne` package references the Flare IDE components. Add `Flare.Blazor` and a theme package
+when the host does not already use them.
+
 ## Try the sample
 
 Run this command from the repository root with the .NET 11 SDK.
@@ -19,9 +30,9 @@ the shortcut for **New note** or the default note title.
 
 ## Connect your application
 
-For a Blazor Web App, reference `src/Lierne/Lierne.csproj` from this checkout or use
-the `Lierne` package from your NuGet feed. Reference `Flare.Blazor` and a compatible
-Flare theme package. The sample uses `Flare.Theme.VisualStudio`.
+For a Blazor Web App, reference `src/Lierne/Lierne.csproj` from this checkout or install
+the `Lierne` package. Reference `Flare.Blazor` and a compatible Flare theme package. The sample
+uses `Flare.Theme.VisualStudio`.
 
 For an interactive server host, register the services before `builder.Build()`. Replace
 `NotesPlugin` with your own plugin when you move beyond the sample.
