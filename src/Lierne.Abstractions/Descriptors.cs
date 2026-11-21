@@ -63,6 +63,26 @@ public sealed record DocumentDescriptor(
     public LierneDocumentStateCodec? StateCodec { get; init; }
 }
 
+/// <summary>
+/// Describes one view that a plugin contributes to a document type declared by any plugin. The host
+/// shows the views as tabs of the document and only needs the ids to associate them.
+/// </summary>
+/// <param name="DocumentType">The document type whose instances show the view.</param>
+/// <param name="Id">
+/// The stable view id, unique among the views of the same document type.
+/// </param>
+/// <param name="Title">The localized view title.</param>
+/// <param name="IconKey">The host icon key, or <see langword="null"/> for the default icon.</param>
+/// <param name="Component">The component type that renders the view.</param>
+/// <param name="Order">The order of the view among the views of its document type.</param>
+public sealed record DocumentViewDescriptor(
+    DocumentTypeId DocumentType,
+    DocumentViewId Id,
+    StringKey Title,
+    string? IconKey,
+    Type Component,
+    int Order = 0);
+
 /// <summary>Describes a tool window contributed by a plugin.</summary>
 /// <param name="Id">The stable tool window id.</param>
 /// <param name="Title">The panel title.</param>

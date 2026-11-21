@@ -10,9 +10,13 @@ namespace Lierne;
 /// </summary>
 public sealed class LiernePluginCatalog
 {
+    private readonly IReadOnlyDictionary<DocumentTypeId, IReadOnlyList<DocumentViewDescriptor>>
+        _viewsByType;
+
     private LiernePluginCatalog(
         IReadOnlyList<LiernePluginInfo> plugins,
         IReadOnlyList<DocumentDescriptor> documents,
+        IReadOnlyList<DocumentViewDescriptor> documentViews,
         IReadOnlyList<ToolWindowDescriptor> toolWindows,
         IReadOnlyList<CommandDescriptor> commands,
         IReadOnlyList<LierneCommandRegistration> commandRegistrations,
@@ -31,6 +35,15 @@ public sealed class LiernePluginCatalog
     {
         Plugins = plugins;
         Documents = documents;
+        DocumentViews = documentViews;
+        _viewsByType = documentViews
+            .GroupBy(view => view.DocumentType)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyList<DocumentViewDescriptor>)group
+                    .OrderBy(view => view.Order)
+                    .ThenBy(view => view.Id.Value, StringComparer.Ordinal)
+                    .ToArray());
         ToolWindows = toolWindows;
         Commands = commands;
         CommandRegistrations = commandRegistrations;
@@ -53,6 +66,9 @@ public sealed class LiernePluginCatalog
 
     /// <summary>Gets the document types in plugin order.</summary>
     public IReadOnlyList<DocumentDescriptor> Documents { get; }
+
+    /// <summary>Gets the document views in plugin order.</summary>
+    public IReadOnlyList<DocumentViewDescriptor> DocumentViews { get; }
 
     /// <summary>Gets the tool windows in plugin order.</summary>
     public IReadOnlyList<ToolWindowDescriptor> ToolWindows { get; }
@@ -103,6 +119,18 @@ public sealed class LiernePluginCatalog
     public bool HasErrors =>
         Diagnostics.Any(diagnostic => diagnostic.Severity == LierneDiagnosticSeverity.Error);
 
+    /// <summary>Gets the document views contributed to one document type.</summary>
+    /// <param name="typeId">The document type id.</param>
+    /// <returns>
+    /// The views of the type ordered by <see cref="DocumentViewDescriptor.Order"/> and then by
+    /// <see cref="DocumentViewId.Value"/> using ordinal comparison, or an empty list when no plugin
+    /// contributes a view to the type.
+    /// </returns>
+    public IReadOnlyList<DocumentViewDescriptor> ViewsFor(DocumentTypeId typeId) =>
+        _viewsByType.TryGetValue(typeId, out var views)
+            ? views
+            : Array.Empty<DocumentViewDescriptor>();
+
     /// <summary>Composes the plugins and validates the contributions they declare.</summary>
     /// <param name="plugins">The plugins in declaration order.</param>
     /// <param name="services">
@@ -131,6 +159,7 @@ public sealed class LiernePluginCatalog
                 .Select((plugin, order) => new LiernePluginInfo(plugin.Id, plugin.DisplayName, order))
                 .ToArray(),
             builder.OwnedDocuments.Select(contribution => contribution.Descriptor).ToArray(),
+            builder.OwnedDocumentViews.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedToolWindows.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedCommands
                 .Select(contribution => contribution.Descriptor.Descriptor)
@@ -234,6 +263,7 @@ public sealed class LiernePluginCatalog
                     $"The state codec for '{contribution.Descriptor.Id}' of plugin '{contribution.Plugin}' needs a positive version, a writer and a reader."));
             }
         }
+        ValidateDocumentViews(builder, diagnostics);
         ValidateDuplicateIds(
             builder.OwnedToolWindows,
             contribution => contribution.Id.Value,
@@ -320,6 +350,37 @@ public sealed class LiernePluginCatalog
                     "lattice.ribbon.unknown_group",
                     $"Ribbon item '{item.Id}' of plugin '{contribution.Plugin}' belongs to unknown group '{item.Group}'."));
             }
+        }
+    }
+
+    private static void ValidateDocumentViews(
+        LiernePluginBuilder builder,
+        List<LierneDiagnostic> diagnostics)
+    {
+        var documents = new HashSet<string>(
+            builder.OwnedDocuments.Select(contribution => contribution.Descriptor.Id.Value),
+            StringComparer.Ordinal);
+        var owners = new Dictionary<(string DocumentType, string View), PluginId>();
+        foreach (var contribution in builder.OwnedDocumentViews)
+        {
+            var view = contribution.Descriptor;
+            if (!documents.Contains(view.DocumentType.Value))
+            {
+                diagnostics.Add(LierneDiagnostic.Error(
+                    "lattice.documentview.unknown_type",
+                    $"Document view '{view.Id}' of plugin '{contribution.Plugin}' belongs to unknown document type '{view.DocumentType}'."));
+            }
+
+            var key = (view.DocumentType.Value, view.Id.Value);
+            if (owners.TryGetValue(key, out var owner))
+            {
+                diagnostics.Add(LierneDiagnostic.Error(
+                    "lattice.contribution.duplicate",
+                    $"Document view '{view.Id}' of document type '{view.DocumentType}' is contributed by both '{owner}' and '{contribution.Plugin}'."));
+                continue;
+            }
+
+            owners[key] = contribution.Plugin;
         }
     }
 

@@ -61,6 +61,7 @@ public sealed class WelcomePlugin : ILiernePlugin
 | Задача | Регистрация |
 | --- | --- |
 | Открываемый документ или окно инструментов | `AddDocument` или `AddToolWindow` |
+| Дополнительная вкладка в тип документа другого плагина | `AddDocumentView` с `DocumentViewDescriptor` |
 | Команда и сочетание клавиш | `AddCommand` с `CommandDescriptor` |
 | Пункт ленты или меню, который вызывает команду | `AddRibbonItem` или `AddMenuItem` |
 | Своя панель команд, элемент строки состояния или содержимое оболочки | `AddToolbar`, `AddStatusBarItem` или `AddShellContent` |
@@ -70,6 +71,10 @@ public sealed class WelcomePlugin : ILiernePlugin
 Окно инструментов наследуется от `LierneToolWindowComponent` и может располагаться слева,
 справа или внизу. Документ наследуется от `LierneDocumentComponent`, его можно перемещать между
 центром и боковыми областями. Оба компонента получают сервисы текущей области через свой `Context`.
+
+Вкладка документа добавляется к типу, объявленному любым плагином, и ссылается на него только
+через `DocumentTypeId`, поэтому плагинам не нужны ссылки друг на друга. Хост читает вкладки из
+`LiernePluginCatalog.ViewsFor` и рисует их сам.
 
 Используйте `StringKey.Literal` для постоянного текста или подключите каталог ресурсов через
 `AddStrings(new LierneStringCatalog(namespace, resourceManager))`. Нейтральный файл ресурсов

@@ -38,6 +38,9 @@ public interface ILiernePluginBuilder
     /// <summary>Gets the documents declared so far.</summary>
     IReadOnlyList<DocumentDescriptor> Documents { get; }
 
+    /// <summary>Gets the document views declared so far.</summary>
+    IReadOnlyList<DocumentViewDescriptor> DocumentViews { get; }
+
     /// <summary>Gets the tool windows declared so far.</summary>
     IReadOnlyList<ToolWindowDescriptor> ToolWindows { get; }
 
@@ -80,6 +83,14 @@ public interface ILiernePluginBuilder
     /// <summary>Declares a document type.</summary>
     /// <param name="descriptor">The document descriptor.</param>
     void AddDocument(DocumentDescriptor descriptor);
+
+    /// <summary>Declares a view of a document type.</summary>
+    /// <param name="descriptor">The document view descriptor.</param>
+    /// <remarks>
+    /// The document type may be declared by another plugin; the catalog validates that some plugin
+    /// declares it and that the view id is unique among the views of that type.
+    /// </remarks>
+    void AddDocumentView(DocumentViewDescriptor descriptor);
 
     /// <summary>Declares a tool window.</summary>
     /// <param name="descriptor">The tool window descriptor.</param>

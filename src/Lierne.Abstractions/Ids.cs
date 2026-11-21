@@ -57,6 +57,25 @@ public readonly record struct DocumentTypeId
     public override string ToString() => Value;
 }
 
+/// <summary>Identifies one view of a document type contributed by a plugin.</summary>
+public readonly record struct DocumentViewId
+{
+    /// <summary>Creates a document view id.</summary>
+    /// <param name="value">The stable identifier, for example <c>quas.table.designer</c>.</param>
+    /// <exception cref="ArgumentException">The value is null, empty or whitespace.</exception>
+    public DocumentViewId(string value)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(value);
+        Value = value;
+    }
+
+    /// <summary>Gets the identifier text.</summary>
+    public string Value { get; }
+
+    /// <inheritdoc />
+    public override string ToString() => Value;
+}
+
 /// <summary>Identifies a tool window contributed by a plugin.</summary>
 public readonly record struct ToolWindowId
 {

@@ -61,6 +61,7 @@ public sealed class WelcomePlugin : ILiernePlugin
 | To add | Register |
 | --- | --- |
 | Openable document or docked tool window | `AddDocument` or `AddToolWindow` |
+| Extra tab on another plugin's document type | `AddDocumentView` with a `DocumentViewDescriptor` |
 | Command and keyboard shortcut | `AddCommand` with a `CommandDescriptor` |
 | Ribbon or menu entry that invokes a command | `AddRibbonItem` or `AddMenuItem` |
 | Custom toolbar, status bar item or shell content | `AddToolbar`, `AddStatusBarItem` or `AddShellContent` |
@@ -70,6 +71,10 @@ public sealed class WelcomePlugin : ILiernePlugin
 A tool window derives from `LierneToolWindowComponent` and can live on the left, right or bottom.
 A document derives from `LierneDocumentComponent` and can move between the center and side
 regions. Both expose the scoped services through their respective `Context`.
+
+A document view adds a tab to a document type declared by any plugin and refers to it only by its
+`DocumentTypeId`, so plugins do not need to reference each other. The host reads the views from
+`LiernePluginCatalog.ViewsFor` and renders them itself.
 
 Use `StringKey.Literal` for static text or provide a resource catalog with
 `AddStrings(new LierneStringCatalog(namespace, resourceManager))`. The neutral resource file

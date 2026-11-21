@@ -12,6 +12,7 @@ internal readonly record struct OwnedContribution<T>(PluginId Plugin, T Descript
 internal sealed class LiernePluginBuilder : ILiernePluginBuilder
 {
     private readonly List<OwnedContribution<DocumentDescriptor>> _documents = [];
+    private readonly List<OwnedContribution<DocumentViewDescriptor>> _documentViews = [];
     private readonly List<OwnedContribution<ToolWindowDescriptor>> _toolWindows = [];
     private readonly List<OwnedContribution<LierneCommandRegistration>> _commands = [];
     private readonly List<OwnedContribution<RibbonGroupDescriptor>> _ribbonGroups = [];
@@ -43,6 +44,10 @@ internal sealed class LiernePluginBuilder : ILiernePluginBuilder
     /// <inheritdoc />
     public IReadOnlyList<DocumentDescriptor> Documents =>
         _documents.Select(contribution => contribution.Descriptor).ToArray();
+
+    /// <inheritdoc />
+    public IReadOnlyList<DocumentViewDescriptor> DocumentViews =>
+        _documentViews.Select(contribution => contribution.Descriptor).ToArray();
 
     /// <inheritdoc />
     public IReadOnlyList<ToolWindowDescriptor> ToolWindows =>
@@ -105,6 +110,10 @@ internal sealed class LiernePluginBuilder : ILiernePluginBuilder
     /// <summary>Gets the documents with their declaring plugin.</summary>
     public IReadOnlyList<OwnedContribution<DocumentDescriptor>> OwnedDocuments => _documents;
 
+    /// <summary>Gets the document views with their declaring plugin.</summary>
+    public IReadOnlyList<OwnedContribution<DocumentViewDescriptor>> OwnedDocumentViews =>
+        _documentViews;
+
     /// <summary>Gets the tool windows with their declaring plugin.</summary>
     public IReadOnlyList<OwnedContribution<ToolWindowDescriptor>> OwnedToolWindows => _toolWindows;
 
@@ -155,6 +164,14 @@ internal sealed class LiernePluginBuilder : ILiernePluginBuilder
     /// <inheritdoc />
     public void AddDocument(DocumentDescriptor descriptor) =>
         Add(_documents, descriptor);
+
+    /// <inheritdoc />
+    public void AddDocumentView(DocumentViewDescriptor descriptor)
+    {
+        ArgumentNullException.ThrowIfNull(descriptor);
+        ArgumentNullException.ThrowIfNull(descriptor.Component);
+        Add(_documentViews, descriptor);
+    }
 
     /// <inheritdoc />
     public void AddToolWindow(ToolWindowDescriptor descriptor) =>
