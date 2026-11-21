@@ -154,7 +154,7 @@ internal static class LierneDockLayoutAdapter
         if (right is not null)
         {
             layout = new DockSplit("split:right", DockAxis.Horizontal, layout, right,
-                Fraction(rightWidth / (mainWidth + rightWidth)));
+                Fraction(mainWidth / (mainWidth + rightWidth)));
         }
 
         if (left is not null)
@@ -167,7 +167,7 @@ internal static class LierneDockLayoutAdapter
         {
             var bottomHeight = Size(regionSizes, LierneToolRegion.Bottom);
             layout = new DockSplit("split:bottom", DockAxis.Vertical, layout, bottom,
-                Fraction(bottomHeight / (bottomHeight + 600)));
+                Fraction(600 / (600 + bottomHeight)));
         }
 
         return new LierneDockModel(
