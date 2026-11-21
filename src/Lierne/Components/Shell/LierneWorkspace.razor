@@ -9,7 +9,7 @@
 }
 else
 {
-    <div id="@_workspaceId" class="lierne-workspace">
+    <div id="@_workspaceId" class="@WorkspaceClass()">
         <FlareDockWorkspace Layout="_layout"
                             Items="_items"
                             OnChangeRequested="ApplyChangeAsync"
@@ -65,5 +65,9 @@ else
                 }
             </TabTemplate>
         </FlareDockWorkspace>
+        @if (DockingGuide == LierneDockingGuide.Custom && CustomDockingGuide is not null)
+        {
+            <div class="lierne-workspace__custom-guide">@CustomDockingGuide</div>
+        }
     </div>
 }

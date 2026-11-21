@@ -84,6 +84,14 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     [Parameter]
     public DockDropZones DropZones { get; set; } = DockDropZones.All;
 
+    /// <summary>Gets or sets the docking guide shown while a tab is dragged.</summary>
+    [Parameter]
+    public LierneDockingGuide DockingGuide { get; set; } = LierneDockingGuide.Base;
+
+    /// <summary>Gets or sets the host guide rendered when <see cref="DockingGuide"/> is Custom.</summary>
+    [Parameter]
+    public RenderFragment? CustomDockingGuide { get; set; }
+
     private RenderFragment? StartSurface =>
         LierneShellContentResolver.Resolve(Catalog, LierneShellSlot.StartPage) is { } start
             ? RenderComponent(start.Component)
@@ -440,6 +448,13 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
 
         return true;
     }
+
+    private string WorkspaceClass() => DockingGuide switch
+    {
+        LierneDockingGuide.None => "lierne-workspace lierne-workspace--docking-guide-none",
+        LierneDockingGuide.Custom => "lierne-workspace lierne-workspace--docking-guide-custom",
+        _ => "lierne-workspace lierne-workspace--docking-guide-base"
+    };
 
     private string GroupLabel(DockGroup group)
     {

@@ -435,6 +435,34 @@ public sealed class LierneShellRenderTests
     }
 
     [Fact]
+    public async Task HidesTheDockingGuideWhenDisabled()
+    {
+        await using var provider = BuildProvider();
+        var html = await RenderWorkspaceAsync(provider, new Dictionary<string, object?>
+        {
+            [nameof(LierneWorkspace.DockingGuide)] = LierneDockingGuide.None
+        });
+
+        Assert.Contains("lierne-workspace--docking-guide-none", html, StringComparison.Ordinal);
+        Assert.Contains("data-flare-dock-zone=\"into\"", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RendersACustomDockingGuide()
+    {
+        await using var provider = BuildProvider();
+        RenderFragment guide = builder => builder.AddContent(0, "custom-guide");
+        var html = await RenderWorkspaceAsync(provider, new Dictionary<string, object?>
+        {
+            [nameof(LierneWorkspace.DockingGuide)] = LierneDockingGuide.Custom,
+            [nameof(LierneWorkspace.CustomDockingGuide)] = guide
+        });
+
+        Assert.Contains("lierne-workspace--docking-guide-custom", html, StringComparison.Ordinal);
+        Assert.Contains("custom-guide", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RendersTheSelectedDocumentViewAndSwitchesIt()
     {
         await using var provider = BuildProvider(new ViewPlugin());
@@ -571,6 +599,17 @@ public sealed class LierneShellRenderTests
         await using var renderer = CreateRenderer(provider);
         return WebUtility.HtmlDecode(await renderer.Dispatcher.InvokeAsync(async () =>
             (await renderer.RenderComponentAsync<LierneShell>(ShellParameters)).ToHtmlString()));
+    }
+
+    private static async Task<string> RenderWorkspaceAsync(
+        IServiceProvider provider,
+        Dictionary<string, object?> parameters)
+    {
+        provider.GetRequiredService<ILierneLocalizer>().SetCulture("en");
+        await using var renderer = CreateRenderer(provider);
+        var view = ParameterView.FromDictionary(parameters);
+        return await renderer.Dispatcher.InvokeAsync(async () =>
+            (await renderer.RenderComponentAsync<LierneWorkspace>(view)).ToHtmlString());
     }
 
     private static HtmlRenderer CreateRenderer(IServiceProvider provider)
