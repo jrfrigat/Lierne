@@ -25,6 +25,13 @@ public sealed class LierneStatePersistence(
     private readonly Lock _workspaceQueue = new();
     private readonly Dictionary<DocumentTypeId, DocumentDescriptor> _persistentTypes =
         catalog.Documents.Where(type => type.Persistent).ToDictionary(type => type.Id);
+    private readonly IReadOnlyDictionary<DocumentTypeId, IReadOnlyDictionary<DocumentViewId, DocumentViewDescriptor>>
+        _viewsByType = catalog.DocumentViews
+            .GroupBy(view => view.DocumentType)
+            .ToDictionary(
+                group => group.Key,
+                group => (IReadOnlyDictionary<DocumentViewId, DocumentViewDescriptor>)group
+                    .ToDictionary(view => view.Id));
     private WorkspaceSave? _pendingWorkspace;
     private Task? _workspaceWrites;
     private bool _preferencesLoaded;
@@ -138,15 +145,17 @@ public sealed class LierneStatePersistence(
     }
 
     /// <summary>Enqueues open persistent documents, tools, and the host layout after a successful load.</summary>
-    public Task SaveWorkspaceAsync(LierneWorkspaceLayout layout, CancellationToken cancellationToken = default)
+    public async Task SaveWorkspaceAsync(LierneWorkspaceLayout layout, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(layout);
         if (!_workspaceLoaded)
         {
-            return Task.CompletedTask;
+            return;
         }
 
-        return WriteAsync(LierneStateSection.Workspace, CaptureWorkspace(layout), cancellationToken);
+        var snapshot = CaptureWorkspace(layout);
+        await WriteAsync(LierneStateSection.Workspace, snapshot, cancellationToken);
+        MarkSaved(snapshot);
     }
 
     internal void QueueWorkspaceSave(Func<LierneWorkspaceLayout> getLayout, Action<Exception> reportError)
@@ -190,8 +199,10 @@ public sealed class LierneStatePersistence(
             Exception? failure = null;
             try
             {
-                var text = JsonSerializer.Serialize(CaptureWorkspace(request.GetLayout()), Json);
+                var snapshot = CaptureWorkspace(request.GetLayout());
+                var text = JsonSerializer.Serialize(snapshot, Json);
                 await storage!.WriteAsync(LierneStateSection.Workspace, text);
+                MarkSaved(snapshot);
             }
             catch (Exception exception)
             {
@@ -225,6 +236,14 @@ public sealed class LierneStatePersistence(
         _writes.Release();
     }
 
+    private void MarkSaved(WorkspaceState state)
+    {
+        foreach (var document in state.Documents ?? Array.Empty<DocumentState>())
+        {
+            documents.MarkSaved(document.Id, document.Version);
+        }
+    }
+
     private WorkspaceState CaptureWorkspace(LierneWorkspaceLayout layout)
     {
         _layout = layout;
@@ -240,10 +259,26 @@ public sealed class LierneStatePersistence(
                 continue;
             }
 
+            var viewStates = new List<DocumentViewState>();
+            if (document.ViewStates is { Count: > 0 } states &&
+                _viewsByType.TryGetValue(document.TypeId, out var views))
+            {
+                foreach (var (viewId, state) in states)
+                {
+                    if (views.TryGetValue(viewId, out var view) && view.StateCodec is { } codec)
+                    {
+                        viewStates.Add(new DocumentViewState(
+                            viewId.Value, codec.Version, codec.Write(state)));
+                    }
+                }
+            }
+
             savedDocuments.Add(new DocumentState(
                 document.Id, document.TypeId.Value, document.Title.Namespace, document.Title.Name,
                 document.Location, document.IconKey, document.IconColor, type.StateCodec?.Version ?? 0,
-                type.StateCodec?.Write(document.Payload)));
+                type.StateCodec?.Write(document.Payload), document.Key?.Value, document.Version,
+                document.SelectedView?.Value, document.Preview, document.Pinned,
+                viewStates.Count == 0 ? null : viewStates));
             ids.Add(document.Id);
         }
 
@@ -300,9 +335,59 @@ public sealed class LierneStatePersistence(
                 }
             }
 
+            DocumentKey? key = string.IsNullOrWhiteSpace(entry.Key)
+                ? null
+                : new DocumentKey(entry.Key!);
+            DocumentViewId? selectedView = null;
+            Dictionary<DocumentViewId, object?>? viewStates = null;
+            if (_viewsByType.TryGetValue(type.Id, out var views))
+            {
+                if (!string.IsNullOrWhiteSpace(entry.SelectedView) &&
+                    views.ContainsKey(new DocumentViewId(entry.SelectedView!)))
+                {
+                    selectedView = new DocumentViewId(entry.SelectedView!);
+                }
+
+                if (entry.ViewStates is { Count: > 0 } savedViews)
+                {
+                    foreach (var savedView in savedViews)
+                    {
+                        if (savedView is null || string.IsNullOrWhiteSpace(savedView.View) ||
+                            !views.TryGetValue(new DocumentViewId(savedView.View), out var view) ||
+                            view.StateCodec is not { } codec ||
+                            savedView.Version < 1)
+                        {
+                            continue;
+                        }
+
+                        try
+                        {
+                            var state = codec.Read(
+                                savedView.Version,
+                                savedView.State ?? JsonSerializer.SerializeToElement<object?>(null));
+                            viewStates ??= new Dictionary<DocumentViewId, object?>();
+                            viewStates[view.Id] = state;
+                        }
+                        catch (Exception exception)
+                        {
+                            Trace.TraceWarning(
+                                "Could not restore Lierne view {0} of document {1}: {2}",
+                                savedView.View,
+                                entry.Id,
+                                exception.GetType().Name);
+                        }
+                    }
+                }
+            }
+
             restored.Add(new LierneDocumentInstance(
                 entry.Id, type.Id, new StringKey(entry.TitleNamespace, entry.TitleName),
-                payload, entry.Location, entry.IconKey, entry.IconColor));
+                payload, entry.Location, entry.IconKey, entry.IconColor,
+                Key: key,
+                SelectedView: selectedView,
+                Preview: entry.Preview,
+                Pinned: entry.Pinned,
+                ViewStates: viewStates));
         }
 
         return restored;
@@ -385,7 +470,12 @@ public sealed class LierneStatePersistence(
 
     private sealed record DocumentState(
         string Id, string Type, string TitleNamespace, string TitleName, LierneDockLocation Location,
-        string? IconKey, string? IconColor, int PayloadVersion, JsonElement? Payload);
+        string? IconKey, string? IconColor, int PayloadVersion, JsonElement? Payload,
+        string? Key = null, long Version = 0, string? SelectedView = null,
+        bool Preview = false, bool Pinned = false,
+        IReadOnlyList<DocumentViewState?>? ViewStates = null);
+
+    private sealed record DocumentViewState(string View, int Version, JsonElement? State);
 
     private readonly record struct WorkspaceSave(Func<LierneWorkspaceLayout> GetLayout, Action<Exception> ReportError);
 }

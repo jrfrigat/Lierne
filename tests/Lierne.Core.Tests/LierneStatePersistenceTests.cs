@@ -10,6 +10,7 @@ public sealed class LierneStatePersistenceTests
     private static readonly ToolWindowId Tool = new("state.tool");
     private static readonly DocumentTypeId Note = new("state.note");
     private static readonly DocumentTypeId Temporary = new("state.temporary");
+    private static readonly DocumentViewId NoteView = new("state.noteView");
 
     [Fact]
     public async Task RestoresPreferencesToolsDocumentsAndTheirLayoutAcrossScopes()
@@ -69,6 +70,53 @@ public sealed class LierneStatePersistenceTests
         Assert.Equal("note", reopened.IconKey);
         Assert.Equal("#224466", reopened.IconColor);
         Assert.NotEqual(noteId, restoredDocuments.Open(Note).Data!.Id);
+    }
+
+    [Fact]
+    public async Task RestoresDocumentKeysViewsAndViewState()
+    {
+        var cancellation = TestContext.Current.CancellationToken;
+        var storage = new MemoryStorage();
+        var key = new DocumentKey("state:note");
+        using (var app = BuildProvider(storage, 1))
+        using (var scope = app.CreateScope())
+        {
+            var provider = scope.ServiceProvider;
+            var persistence = provider.GetRequiredService<LierneStatePersistence>();
+            await persistence.RestoreWorkspaceAsync(cancellation);
+
+            var documents = provider.GetRequiredService<ILierneDocumentService>();
+            var note = documents.Open(
+                Note,
+                TestDescriptors.Key("note"),
+                "payload",
+                key: key).Data!;
+            Assert.True(documents.SetSelectedView(note.Id, NoteView).Success);
+            Assert.True(documents.SetPreview(note.Id, true).Success);
+            Assert.True(documents.SetPinned(note.Id, true).Success);
+            Assert.True(documents.SetViewState(note.Id, NoteView, "view-state").Success);
+            Assert.True(documents.SetPayload(note.Id, "changed").Success);
+            Assert.True(documents.Documents.Single(document => document.Id == note.Id).Dirty);
+
+            await persistence.SaveWorkspaceAsync(new LierneWorkspaceLayout(), cancellation);
+
+            Assert.False(documents.Documents.Single(document => document.Id == note.Id).Dirty);
+        }
+
+        using var restoredApp = BuildProvider(storage, 1);
+        using var restoredScope = restoredApp.CreateScope();
+        var restoredPersistence = restoredScope.ServiceProvider.GetRequiredService<LierneStatePersistence>();
+        await restoredPersistence.RestoreWorkspaceAsync(cancellation);
+        var restored = Assert.Single(
+            restoredScope.ServiceProvider.GetRequiredService<ILierneDocumentService>().Documents);
+
+        Assert.Equal(key, restored.Key!.Value);
+        Assert.Equal(NoteView, restored.SelectedView);
+        Assert.True(restored.Preview);
+        Assert.True(restored.Pinned);
+        Assert.Equal("view-state", restored.ViewStates![NoteView]);
+        Assert.Equal("changed", restored.Payload);
+        Assert.False(restored.Dirty);
     }
 
     [Fact]
@@ -155,7 +203,19 @@ public sealed class LierneStatePersistenceTests
             plugin.AddToolWindow(new ToolWindowDescriptor(Tool, TestDescriptors.Key("tool"), null, typeof(object)));
             plugin.AddDocument(new DocumentDescriptor(Temporary, TestDescriptors.Key("temporary"), null, typeof(object),
                 Persistent: false));
-            plugin.AddDocument(new DocumentDescriptor(Note, TestDescriptors.Key("note"), null, typeof(object))
+            plugin.AddDocumentView(new DocumentViewDescriptor(
+                Note, NoteView, TestDescriptors.Key("noteView"), null, typeof(object))
+            {
+                StateCodec = new LierneDocumentViewStateCodec(1,
+                    state => JsonSerializer.SerializeToElement(state),
+                    (version, state) => version == 1 ? state.GetString() : null)
+            });
+            plugin.AddDocument(new DocumentDescriptor(
+                Note,
+                TestDescriptors.Key("note"),
+                null,
+                typeof(object),
+                DefaultView: NoteView)
             {
                 StateCodec = new LierneDocumentStateCodec(payloadVersion,
                     payload => JsonSerializer.SerializeToElement(payload),

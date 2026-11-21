@@ -1,5 +1,23 @@
 namespace Lierne;
 
+/// <summary>Identifies a resource-backed document so the host can reuse it.</summary>
+/// <param name="Value">The stable resource key, for example a file path or a connection id.</param>
+public readonly record struct DocumentKey(string Value)
+{
+    /// <inheritdoc />
+    public override string ToString() => Value;
+}
+
+/// <summary>Chooses whether a new document request opens another instance or activates an existing one.</summary>
+public enum DocumentReusePolicy
+{
+    /// <summary>Always open a new document instance.</summary>
+    AlwaysNew,
+
+    /// <summary>Activate the open document with the same key, or open a new one when none exists.</summary>
+    ReuseByKey
+}
+
 /// <summary>Describes one open document.</summary>
 /// <param name="Id">The stable instance id.</param>
 /// <param name="TypeId">The document type.</param>
@@ -16,6 +34,13 @@ namespace Lierne;
 /// <param name="StatusIconColor">
 /// The status icon color as a CSS color, or <see langword="null"/> for the host's default color.
 /// </param>
+/// <param name="Key">The resource key used for reuse, when the document has one.</param>
+/// <param name="Dirty">Whether the document has unsaved content changes.</param>
+/// <param name="Version">The content version, increased on every content change.</param>
+/// <param name="SelectedView">The view shown for the document, or <see langword="null"/>.</param>
+/// <param name="Preview">Whether the document host is a preview tab.</param>
+/// <param name="Pinned">Whether the document host is pinned.</param>
+/// <param name="ViewStates">Per-view state values keyed by view id.</param>
 public sealed record LierneDocumentInstance(
     string Id,
     DocumentTypeId TypeId,
@@ -25,7 +50,14 @@ public sealed record LierneDocumentInstance(
     string? IconKey = null,
     string? IconColor = null,
     string? StatusIconKey = null,
-    string? StatusIconColor = null);
+    string? StatusIconColor = null,
+    DocumentKey? Key = null,
+    bool Dirty = false,
+    long Version = 0,
+    DocumentViewId? SelectedView = null,
+    bool Preview = false,
+    bool Pinned = false,
+    IReadOnlyDictionary<DocumentViewId, object?>? ViewStates = null);
 
 /// <summary>Owns the open documents of one host scope.</summary>
 public interface ILierneDocumentService
@@ -44,12 +76,22 @@ public interface ILierneDocumentService
     /// <param name="title">A title key overriding the descriptor title, or <see langword="null"/>.</param>
     /// <param name="payload">The document payload, when any.</param>
     /// <param name="location">The document region, or <see langword="null"/> for the descriptor default.</param>
-    /// <returns>The opened document, or an unknown-type error.</returns>
+    /// <param name="key">The resource key used for reuse, when the document has one.</param>
+    /// <param name="reusePolicy">The reuse policy, or <see langword="null"/> for the descriptor policy.</param>
+    /// <param name="view">The view to select, or <see langword="null"/> for the descriptor default.</param>
+    /// <param name="preview">Whether the document opens as a preview tab.</param>
+    /// <returns>
+    /// The opened or reused document, or an unknown-type error.
+    /// </returns>
     LierneResult<LierneDocumentInstance> Open(
         DocumentTypeId typeId,
         StringKey? title = null,
         object? payload = null,
-        LierneDockLocation? location = null);
+        LierneDockLocation? location = null,
+        DocumentKey? key = null,
+        DocumentReusePolicy? reusePolicy = null,
+        DocumentViewId? view = null,
+        bool preview = false);
 
     /// <summary>Activates a document.</summary>
     /// <param name="instanceId">The document instance id.</param>
@@ -79,6 +121,37 @@ public interface ILierneDocumentService
     /// <summary>Replaces a document's payload and notifies the host so it can save the new state.</summary>
     LierneResult SetPayload(string instanceId, object? payload) =>
         LierneResult.Fail("lattice.document.payload_not_supported", "The document service cannot replace payloads.");
+
+    /// <summary>Marks the content version as saved and clears the dirty flag when it still matches.</summary>
+    /// <param name="instanceId">The document instance id.</param>
+    /// <param name="version">The content version that was written.</param>
+    /// <returns>Whether the document exists.</returns>
+    LierneResult MarkSaved(string instanceId, long version) => LierneResult.Ok;
+
+    /// <summary>Selects the visible view of a document.</summary>
+    /// <param name="instanceId">The document instance id.</param>
+    /// <param name="view">The view id, or <see langword="null"/> to clear the selection.</param>
+    /// <returns>Whether the document exists and the view belongs to its type.</returns>
+    LierneResult SetSelectedView(string instanceId, DocumentViewId? view) => LierneResult.Ok;
+
+    /// <summary>Marks the document host as a preview tab.</summary>
+    /// <param name="instanceId">The document instance id.</param>
+    /// <param name="preview">Whether the document is a preview.</param>
+    /// <returns>Whether the document exists.</returns>
+    LierneResult SetPreview(string instanceId, bool preview) => LierneResult.Ok;
+
+    /// <summary>Pins or unpins the document host.</summary>
+    /// <param name="instanceId">The document instance id.</param>
+    /// <param name="pinned">Whether the document is pinned.</param>
+    /// <returns>Whether the document exists.</returns>
+    LierneResult SetPinned(string instanceId, bool pinned) => LierneResult.Ok;
+
+    /// <summary>Stores one view state value for the document.</summary>
+    /// <param name="instanceId">The document instance id.</param>
+    /// <param name="view">The view id.</param>
+    /// <param name="state">The view-owned state value, or <see langword="null"/> to remove it.</param>
+    /// <returns>Whether the document exists and the view belongs to its type.</returns>
+    LierneResult SetViewState(string instanceId, DocumentViewId view, object? state) => LierneResult.Ok;
 
     /// <summary>Moves a document to another region.</summary>
     /// <param name="instanceId">The document instance id.</param>

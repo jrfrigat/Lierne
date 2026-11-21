@@ -35,6 +35,15 @@ public sealed record LierneDocumentStateCodec(
     Func<object?, JsonElement> Write,
     Func<int, JsonElement, object?> Read);
 
+/// <summary>Lets a plugin serialize and migrate the state of one document view.</summary>
+/// <param name="Version">The positive schema version written by the current view.</param>
+/// <param name="Write">Produces the JSON for one view state.</param>
+/// <param name="Read">Restores a view state using the version stored with it.</param>
+public sealed record LierneDocumentViewStateCodec(
+    int Version,
+    Func<object?, JsonElement> Write,
+    Func<int, JsonElement, object?> Read);
+
 /// <summary>Converts a stored state section from a host's legacy schema to the next version.</summary>
 /// <param name="Section">The section this migration owns.</param>
 /// <param name="FromVersion">The version to upgrade.</param>

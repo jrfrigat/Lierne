@@ -49,13 +49,17 @@ public enum LierneSettingKind
 /// <param name="Component">The component type that renders the document.</param>
 /// <param name="Persistent">Whether instances of this type are stored in the workspace snapshot.</param>
 /// <param name="DefaultLocation">Where a new instance opens by default.</param>
+/// <param name="ReusePolicy">Whether a keyed open reuses an existing instance.</param>
+/// <param name="DefaultView">The view selected for a new instance, or the first contributed view.</param>
 public sealed record DocumentDescriptor(
     DocumentTypeId Id,
     StringKey Title,
     string? IconKey,
     Type Component,
     bool Persistent = true,
-    LierneDockLocation DefaultLocation = LierneDockLocation.Main)
+    LierneDockLocation DefaultLocation = LierneDockLocation.Main,
+    DocumentReusePolicy ReusePolicy = DocumentReusePolicy.AlwaysNew,
+    DocumentViewId? DefaultView = null)
 {
     /// <summary>
     /// Gets or sets the payload codec. With no codec, only documents with a null payload can be restored.
@@ -81,7 +85,13 @@ public sealed record DocumentViewDescriptor(
     StringKey Title,
     string? IconKey,
     Type Component,
-    int Order = 0);
+    int Order = 0)
+{
+    /// <summary>
+    /// Gets or sets the view state codec. Without a codec the view state is kept in memory only.
+    /// </summary>
+    public LierneDocumentViewStateCodec? StateCodec { get; init; }
+}
 
 /// <summary>Describes a tool window contributed by a plugin.</summary>
 /// <param name="Id">The stable tool window id.</param>
