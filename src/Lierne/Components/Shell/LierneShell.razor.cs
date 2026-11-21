@@ -1,3 +1,4 @@
+using Flare.Components.IDE;
 using Microsoft.AspNetCore.Components;
 
 namespace Lierne;
@@ -34,6 +35,10 @@ public partial class LierneShell : IDisposable
     /// <summary>Gets or sets which surfaces the shell composes.</summary>
     [Parameter]
     public LierneShellOptions Options { get; set; } = new();
+
+    /// <summary>Gets or sets the body regions the workspace dock offers as drop targets.</summary>
+    [Parameter]
+    public DockDropZones DropZones { get; set; } = DockDropZones.All;
 
     /// <summary>Gets or sets a host command bar that replaces <see cref="LierneCommandBar"/>.</summary>
     [Parameter]

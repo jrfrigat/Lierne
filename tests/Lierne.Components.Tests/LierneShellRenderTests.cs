@@ -416,6 +416,25 @@ public sealed class LierneShellRenderTests
     }
 
     [Fact]
+    public async Task LimitsDockDropZonesWhenConfigured()
+    {
+        await using var provider = BuildProvider();
+        provider.GetRequiredService<ILierneLocalizer>().SetCulture("en");
+        await using var renderer = CreateRenderer(provider);
+        var parameters = ParameterView.FromDictionary(new Dictionary<string, object?>
+        {
+            [nameof(LierneWorkspace.DropZones)] = DockDropZones.Into
+        });
+
+        var html = await renderer.Dispatcher.InvokeAsync(async () =>
+            (await renderer.RenderComponentAsync<LierneWorkspace>(parameters)).ToHtmlString());
+
+        Assert.Contains("data-flare-dock-zone=\"into\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-flare-dock-zone=\"start\"", html, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-flare-dock-zone=\"top\"", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task RendersTheSelectedDocumentViewAndSwitchesIt()
     {
         await using var provider = BuildProvider(new ViewPlugin());

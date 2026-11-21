@@ -80,6 +80,10 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     [Parameter]
     public bool ShowBottomPanel { get; set; } = true;
 
+    /// <summary>Gets or sets the body regions the dock offers as drop targets.</summary>
+    [Parameter]
+    public DockDropZones DropZones { get; set; } = DockDropZones.All;
+
     private RenderFragment? StartSurface =>
         LierneShellContentResolver.Resolve(Catalog, LierneShellSlot.StartPage) is { } start
             ? RenderComponent(start.Component)

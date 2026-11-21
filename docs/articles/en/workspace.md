@@ -25,6 +25,15 @@ or use `LierneCommandBar`, `LierneWorkspace`, `LierneStatusBar`, `LierneCommandP
 </LierneShell>
 ```
 
+## Limit dock drop zones
+
+Set `DropZones` on `LierneShell` or `LierneWorkspace` to the `DockDropZones` flags the host offers.
+For example, keeping only the center and horizontal edges removes the vertical split targets.
+
+```razor
+<LierneShell DropZones="@(DockDropZones.Into | DockDropZones.Start | DockDropZones.End)" />
+```
+
 ## Customize document tabs
 
 Supply a single `DocumentHeaderContent` template for the center, left, and right regions.

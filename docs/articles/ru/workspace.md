@@ -26,6 +26,16 @@
 </LierneShell>
 ```
 
+## Ограничьте зоны переноса
+
+Задайте `DropZones` у `LierneShell` или `LierneWorkspace` - это флаги `DockDropZones`, которые
+хост разрешает для докинга. Например, центр и горизонтальные края оставляют перенос и
+горизонтальные split, но убирают вертикальные цели.
+
+```razor
+<LierneShell DropZones="@(DockDropZones.Into | DockDropZones.Start | DockDropZones.End)" />
+```
+
 ## Настройте вкладки документов
 
 Задайте один шаблон `DocumentHeaderContent` для центра, левой и правой областей. Шаблон
