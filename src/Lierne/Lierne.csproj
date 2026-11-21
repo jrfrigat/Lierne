@@ -18,6 +18,10 @@
     <ProjectReference Include="..\Lierne.Core\Lierne.Core.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Lierne.Components.Tests" />
+  </ItemGroup>
+
   <ItemGroup Condition="'$(UseLocalFlare)' != 'true'">
     <PackageReference Include="Flare.Components.IDE" />
   </ItemGroup>

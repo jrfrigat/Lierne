@@ -1,0 +1,39 @@
+@namespace Lierne
+@using Flare.Components
+@using Flare.Components.IDE
+@inherits LierneCommandComponent
+
+@if (Presentation.Visible)
+{
+    <FlareTooltip Content="@Tooltip" Placement="Flare.Components.Placement.Bottom">
+        <FlareButton Variant="ButtonVariant.Text"
+                     Size="Size"
+                     Class="@Class"
+                     Disabled="@(!Presentation.Enabled)"
+                     Selected="@Presentation.Checked"
+                     AriaLabel="@Tooltip"
+                     OnClick="ExecuteAsync">
+            <LeadingIcon>
+                @if (Icon is { } icon)
+                {
+                    <FlareIconView Value="icon" Size="1rem" />
+                }
+            </LeadingIcon>
+            <ChildContent>@if (ShowLabel) { @Title }</ChildContent>
+        </FlareButton>
+    </FlareTooltip>
+}
+
+@code {
+    /// <summary>Gets or sets whether the button shows its title.</summary>
+    [Parameter]
+    public bool ShowLabel { get; set; }
+
+    /// <summary>Gets or sets the button size.</summary>
+    [Parameter]
+    public ButtonSize Size { get; set; } = ButtonSize.Sm;
+
+    /// <summary>Gets or sets additional CSS classes for the button.</summary>
+    [Parameter]
+    public string? Class { get; set; }
+}

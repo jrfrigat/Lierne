@@ -1,0 +1,67 @@
+@namespace Lierne
+
+<div class="lierne-shell">
+    @if (Options.ShowNotifications)
+    {
+        @if (NotificationsContent is not null)
+        {
+            @NotificationsContent
+        }
+        else
+        {
+            <LierneNotificationHost />
+        }
+    }
+
+    @if (Options.ShowCommandBar)
+    {
+        @if (CommandBarContent is not null)
+        {
+            @CommandBarContent
+        }
+        else
+        {
+            <LierneCommandBar RibbonTitle="@RibbonTitle"
+                              MenuBar="@MenuBar"
+                              ShowMenuBar="@Options.ShowMenuBar"
+                              ShowRibbon="@Options.ShowRibbon"
+                              ShowToolbars="@Options.ShowToolbars"
+                              ShowPaletteButton="@Options.ShowPaletteButton" />
+        }
+    }
+
+    @if (Options.ShowWorkspace)
+    {
+        <div class="lierne-shell__body">
+            @if (WorkspaceContent is not null)
+            {
+                @WorkspaceContent
+            }
+            else
+            {
+                <LierneWorkspace StartContent="@StartContent"
+                                 BottomPanel="@BottomPanel"
+                                 DocumentHeaderContent="@DocumentHeaderContent"
+                                 ShowStartPage="@Options.ShowStartPage"
+                                 ShowBottomPanel="@Options.ShowBottomPanel" />
+            }
+        </div>
+    }
+
+    @if (Options.ShowStatusBar)
+    {
+        <LierneStatusBar Content="@StatusBar" />
+    }
+
+    @if (Options.ShowCommandPalette)
+    {
+        @if (CommandPaletteContent is not null)
+        {
+            @CommandPaletteContent
+        }
+        else
+        {
+            <LierneCommandPalette />
+        }
+    }
+</div>

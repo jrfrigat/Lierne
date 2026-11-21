@@ -1,0 +1,51 @@
+@namespace Lierne
+@using Flare.Components
+@using Flare.Components.IDE
+@using Flare.Icons
+
+@if (!_workspaceReady)
+{
+    <div role="status" class="lierne-workspace__loading">@HostLabel("stateLoading")</div>
+}
+else
+{
+    <div id="@_workspaceId" class="lierne-workspace">
+        <FlareDockWorkspace Layout="_layout"
+                            Items="_items"
+                            OnChangeRequested="ApplyChangeAsync"
+                            CanRequest="CanRequest"
+                            GroupLabel="GroupLabel">
+            <ContentTemplate Context="item">@RenderItem(item)</ContentTemplate>
+            <TabTemplate Context="item">
+                @{
+                    var entry = Entry(item.Key);
+                    var document = entry?.Document;
+                    var panel = entry?.Panel;
+                    var icon = TabIcon(document, panel);
+                }
+                @if (icon != null)
+                {
+                    <FlareIconView Value="icon" Size="0.875rem" />
+                }
+                @if (document is not null && DocumentHeaderContent is { } template)
+                {
+                    @template(new LierneDocumentHeaderContext(document, item.Title))
+                }
+                else
+                {
+                    <span class="lierne-workspace__tab-title">@item.Title</span>
+                }
+                @if (document?.Preview == true)
+                {
+                    <span class="lierne-workspace__preview" aria-hidden="true"></span>
+                }
+                @if (document?.Pinned == true)
+                {
+                    <span class="lierne-workspace__pin" aria-hidden="true">
+                        <FlareIconView Value="FlareIcons.PushPin" Size="0.75rem" />
+                    </span>
+                }
+            </TabTemplate>
+        </FlareDockWorkspace>
+    </div>
+}

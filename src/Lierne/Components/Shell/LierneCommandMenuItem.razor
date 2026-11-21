@@ -1,0 +1,12 @@
+@namespace Lierne
+@using Flare.Components
+@inherits LierneCommandComponent
+
+@if (Presentation.Visible)
+{
+    <FlareMenuItem Icon="Icon"
+                   Shortcut="@ShortcutText"
+                   Disabled="@(!Presentation.Enabled)"
+                   Checked="@(Presentation.Checked ? true : null)"
+                   OnClick="ExecuteAsync">@Title</FlareMenuItem>
+}

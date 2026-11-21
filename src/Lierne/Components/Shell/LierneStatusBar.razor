@@ -1,0 +1,20 @@
+@namespace Lierne
+@using Flare.Components
+@using Flare.Components.IDE
+
+@if (Content is not null)
+{
+    @Content
+}
+else if (LierneShellContentResolver.Resolve(Catalog, LierneShellSlot.StatusBar) is { } contributed)
+{
+    <DynamicComponent Type="@contributed.Component" />
+}
+else if (Items.Count > 0)
+{
+    <FlareStatusBar>
+        <LeftContent>@RenderArea(LierneStatusBarAlignment.Left)</LeftContent>
+        <CenterContent>@RenderArea(LierneStatusBarAlignment.Center)</CenterContent>
+        <RightContent>@RenderArea(LierneStatusBarAlignment.Right)</RightContent>
+    </FlareStatusBar>
+}

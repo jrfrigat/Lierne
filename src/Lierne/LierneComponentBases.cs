@@ -10,6 +10,14 @@ public abstract class LierneDocumentComponent : ComponentBase
     public LierneDocumentContext Context { get; set; } = null!;
 }
 
+/// <summary>Base class for a plugin document view component rendered by the Lierne shell.</summary>
+public abstract class LierneDocumentViewComponent : ComponentBase
+{
+    /// <summary>Gets or sets the view context supplied by the shell.</summary>
+    [Parameter]
+    public LierneDocumentViewContext Context { get; set; } = null!;
+}
+
 /// <summary>Base class for a plugin tool-window component rendered by the Lierne shell.</summary>
 public abstract class LierneToolWindowComponent : ComponentBase
 {

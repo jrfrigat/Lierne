@@ -1,0 +1,111 @@
+@namespace Lierne
+@using Flare.Components
+@inject ILierneDocumentService Documents
+@inject ILierneCommandService Commands
+@inject ILierneLocalizer Localizer
+@inject LiernePluginCatalog Catalog
+@inject IServiceProvider Services
+@inject ILierneIconResolver Icons
+
+@if (Instance is { } document)
+{
+    var views = Catalog.ViewsFor(document.TypeId);
+    if (views.Count > 0)
+    {
+        <FlareTabs ActiveIndex="SelectedIndex" ActiveIndexChanged="SelectView" Lazy="true">
+            @foreach (var view in views)
+            {
+                <FlareTab @key="view.Id.Value"
+                          Label="@Localizer.Get(view.Title)"
+                          Tooltip="@Localizer.Get(view.Title)">
+                    <LeadingIcon>
+                        @if (Icons.Resolve(view.IconKey) is { } icon)
+                        {
+                            <FlareIconView Value="icon" Size="1rem" />
+                        }
+                    </LeadingIcon>
+                    <ChildContent>
+                        <DynamicComponent Type="@view.Component"
+                                          Parameters="@ViewParameters(document, view)" />
+                    </ChildContent>
+                </FlareTab>
+            }
+        </FlareTabs>
+    }
+    else if (Descriptor(document.TypeId) is { } descriptor)
+    {
+        <DynamicComponent Type="@descriptor.Component"
+                          Parameters="@DocumentParameters(document)" />
+    }
+}
+
+@code {
+    /// <summary>Gets or sets the document instance shown by the host.</summary>
+    [Parameter, EditorRequired]
+    public string DocumentId { get; set; } = string.Empty;
+
+    private LierneDocumentInstance? Instance =>
+        Documents.Documents.FirstOrDefault(document =>
+            string.Equals(document.Id, DocumentId, StringComparison.Ordinal));
+
+    private IReadOnlyList<DocumentViewDescriptor> Views =>
+        Instance is { } document ? Catalog.ViewsFor(document.TypeId) : [];
+
+    private int SelectedIndex
+    {
+        get
+        {
+            var views = Views;
+            if (Instance?.SelectedView is not { } selected)
+            {
+                return 0;
+            }
+
+            for (var index = 0; index < views.Count; index++)
+            {
+                if (views[index].Id == selected)
+                {
+                    return index;
+                }
+            }
+
+            return 0;
+        }
+    }
+
+    private DocumentDescriptor? Descriptor(DocumentTypeId type) =>
+        Catalog.Documents.FirstOrDefault(descriptor => descriptor.Id == type);
+
+    private void SelectView(int index)
+    {
+        if (Instance is not { } document || index < 0 || index >= Views.Count)
+        {
+            return;
+        }
+
+        Documents.SetSelectedView(document.Id, Views[index].Id);
+    }
+
+    private Dictionary<string, object?> DocumentParameters(LierneDocumentInstance document) => new()
+    {
+        [nameof(LierneDocumentComponent.Context)] = new LierneDocumentContext(
+            document,
+            Commands,
+            Documents,
+            Localizer,
+            Services)
+    };
+
+    private Dictionary<string, object?> ViewParameters(
+        LierneDocumentInstance document,
+        DocumentViewDescriptor view) => new()
+    {
+        [nameof(LierneDocumentViewComponent.Context)] = new LierneDocumentViewContext(
+            document,
+            view,
+            Commands,
+            Documents,
+            Localizer,
+            Services)
+    };
+}

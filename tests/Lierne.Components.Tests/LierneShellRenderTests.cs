@@ -116,8 +116,9 @@ public sealed class LierneShellRenderTests
 
             Assert.True(documents.Move(side.Id, LierneDockLocation.Main).Success);
             var moved = root.ToHtmlString();
-            Assert.Matches("""data-region="Center"><span class="test-document">[^<]*side-body</span>""", moved);
-            Assert.Contains($"data-flare-doc-key=\"{side.Id}\"", moved, StringComparison.Ordinal);
+            Assert.Contains("side-body", moved, StringComparison.Ordinal);
+            Assert.Contains("center-body", moved, StringComparison.Ordinal);
+            Assert.Equal(side.Id, documents.Active!.Id);
         });
     }
 
@@ -304,19 +305,50 @@ public sealed class LierneShellRenderTests
         await renderer.Dispatcher.InvokeAsync(async () =>
         {
             await renderer.StartAsync();
-            var select = renderer.GetLayout().OnActiveDocumentChanged;
-            var selection = new IdeDocumentSelection(IdeDocumentRegion.Center, first.Id);
+            var workspace = renderer.GetWorkspace();
+            var key = LierneDockLayoutAdapter.DocumentKey(first.Id);
+            Assert.True(
+                workspace.Items.Any(item => item.Key == key),
+                $"Workspace items: {string.Join(", ", workspace.Items.Select(item => item.Key))}");
+            var group = FindGroup(workspace.Layout, key);
+            var proposed = ReplaceGroup(workspace.Layout, group with { ActiveKey = key });
+            var change = new DockLayoutChange(
+                DockAction.Activate, key, group.Key, workspace.Layout, proposed);
 
-            await select.InvokeAsync(selection);
+            await workspace.ApplyChangeAsync(change);
             await persistence.FlushAsync(cancellationToken);
             Assert.Equal(first.Id, documents.Active!.Id);
             Assert.Equal(1, storage.WorkspaceWrites);
 
-            await select.InvokeAsync(selection);
+            var repeat = new DockLayoutChange(
+                DockAction.Activate, key, group.Key, proposed, proposed);
+            await workspace.ApplyChangeAsync(repeat);
             await persistence.FlushAsync(cancellationToken);
             Assert.Equal(1, storage.WorkspaceWrites);
         });
     }
+
+    private static DockGroup FindGroup(DockNode node, string key) =>
+        FindGroupOrNull(node, key) ??
+        throw new InvalidOperationException($"The dock layout has no group containing '{key}'.");
+
+    private static DockGroup? FindGroupOrNull(DockNode node, string key) => node switch
+    {
+        DockGroup group when group.Items.Contains(key) => group,
+        DockSplit split => FindGroupOrNull(split.First, key) ?? FindGroupOrNull(split.Second, key),
+        _ => null
+    };
+
+    private static DockNode ReplaceGroup(DockNode node, DockGroup replacement) => node switch
+    {
+        DockGroup group when group.Key == replacement.Key => replacement,
+        DockSplit split => split with
+        {
+            First = ReplaceGroup(split.First, replacement),
+            Second = ReplaceGroup(split.Second, replacement)
+        },
+        _ => node
+    };
 
     [Theory]
     [InlineData(true, typeof(string), "lattice.component.invalid_type")]
@@ -339,6 +371,149 @@ public sealed class LierneShellRenderTests
         });
 
         Assert.Contains(exception.Diagnostics, diagnostic => diagnostic.Code == code);
+    }
+
+    [Fact]
+    public void ResolvesDocumentRegionsThroughNestedSplits()
+    {
+        var main = new DockGroup("group:main", ["doc:a"], "doc:a");
+        var left = new DockGroup("group:left.docs", ["doc:b"], "doc:b");
+        var root = new DockSplit("split:left", DockAxis.Horizontal, left, main, 0.3);
+        var split = new DockSplit(
+            "generated",
+            DockAxis.Horizontal,
+            new DockGroup("generated-group", ["doc:c"], "doc:c"),
+            main,
+            0.5);
+
+        Assert.Equal(LierneDockLocation.Left, LierneDockLayoutAdapter.DocumentRegionOf(root, left.Key));
+        Assert.Equal(LierneDockLocation.Main, LierneDockLayoutAdapter.DocumentRegionOf(root, main.Key));
+        Assert.Equal(LierneDockLocation.Main, LierneDockLayoutAdapter.DocumentRegionOf(split, "generated-group"));
+    }
+
+    [Fact]
+    public async Task HostCommandsOpenThePaletteAndPinTheActiveDocument()
+    {
+        await using var provider = BuildProvider();
+        var documents = provider.GetRequiredService<ILierneDocumentService>();
+        var commands = provider.GetRequiredService<ILierneCommandService>();
+        var palette = provider.GetRequiredService<LiernePaletteService>();
+        var document = documents.Open(new DocumentTypeId("app.document"), preview: true).Data!;
+
+        var opened = await commands.ExecuteAsync(
+            LierneHostPlugin.OpenPaletteCommand,
+            cancellationToken: TestContext.Current.CancellationToken);
+        Assert.True(opened.Success);
+        Assert.True(palette.IsOpen);
+
+        var pinned = await commands.ExecuteAsync(
+            LierneHostPlugin.PinDocumentCommand,
+            cancellationToken: TestContext.Current.CancellationToken);
+        Assert.True(pinned.Success);
+        var updated = Assert.Single(documents.Documents, item => item.Id == document.Id);
+        Assert.True(updated.Pinned);
+        Assert.False(updated.Preview);
+    }
+
+    [Fact]
+    public async Task RendersTheSelectedDocumentViewAndSwitchesIt()
+    {
+        await using var provider = BuildProvider(new ViewPlugin());
+        var documents = provider.GetRequiredService<ILierneDocumentService>();
+        var document = documents.Open(ViewPlugin.Type).Data!;
+
+        var summary = await RenderAsync(provider);
+
+        Assert.Contains("Summary", summary, StringComparison.Ordinal);
+        Assert.Contains("Details", summary, StringComparison.Ordinal);
+        Assert.Contains("summary-body", summary, StringComparison.Ordinal);
+        Assert.DoesNotContain("details-body", summary, StringComparison.Ordinal);
+
+        Assert.True(documents.SetSelectedView(document.Id, ViewPlugin.Details).Success);
+        var details = await RenderAsync(provider);
+
+        Assert.Contains("details-body", details, StringComparison.Ordinal);
+        Assert.DoesNotContain("summary-body", details, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task MarksPreviewAndPinnedDocumentTabs()
+    {
+        await using var provider = BuildProvider();
+        var documents = provider.GetRequiredService<ILierneDocumentService>();
+        var document = documents.Open(new DocumentTypeId("app.document"), preview: true).Data!;
+
+        var preview = await RenderAsync(provider);
+
+        Assert.Contains("lierne-workspace__preview", preview, StringComparison.Ordinal);
+        Assert.DoesNotContain("lierne-workspace__pin", preview, StringComparison.Ordinal);
+
+        Assert.True(documents.SetPreview(document.Id, false).Success);
+        Assert.True(documents.SetPinned(document.Id, true).Success);
+        var pinned = await RenderAsync(provider);
+
+        Assert.DoesNotContain("lierne-workspace__preview", pinned, StringComparison.Ordinal);
+        Assert.Contains("lierne-workspace__pin", pinned, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RendersCommandPlacementsWithTheirPresentation()
+    {
+        var plugin = new PlacementPlugin();
+        await using var provider = BuildProvider(plugin);
+
+        var html = WebUtility.HtmlDecode(await RenderAsync(provider));
+
+        Assert.Contains("Placed Group", html, StringComparison.Ordinal);
+        Assert.Contains("Placed Override", html, StringComparison.Ordinal);
+        Assert.Contains("Placed Disabled", html, StringComparison.Ordinal);
+        Assert.Contains("Status Run", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RunsACommandFromThePalette()
+    {
+        var plugin = new PlacementPlugin();
+        await using var provider = BuildProvider(plugin);
+        provider.GetRequiredService<ILierneLocalizer>().SetCulture("en");
+        var palette = provider.GetRequiredService<LiernePaletteService>();
+        var presentations = provider.GetRequiredService<ICommandPresentationService>();
+        palette.Open();
+        await using var renderer = new InteractiveRenderer(provider);
+
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            await renderer.StartAsync();
+            var descriptor = Assert.Single(presentations.Search("Placed Run"));
+            await renderer.GetPalette().ExecuteAsync(descriptor);
+
+            Assert.Equal(1, plugin.Executions);
+            Assert.False(palette.IsOpen);
+        });
+    }
+
+    [Fact]
+    public async Task AppliesSavedPanelPlacementsToThePanelService()
+    {
+        var tool = new ToolWindowId("app.explorer");
+        await using var provider = BuildProvider();
+        await using var renderer = new InteractiveRenderer(provider);
+
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            await renderer.StartAsync();
+            renderer.GetWorkspace().ApplyLayout(new LierneWorkspaceLayout
+            {
+                Panels =
+                [
+                    new PanelPlacement(tool, LierneToolRegion.Right, Order: 3)
+                ]
+            });
+        });
+
+        var panels = provider.GetRequiredService<IPanelService>();
+        Assert.Equal(LierneToolRegion.Right, panels.Get(tool)!.Region);
+        Assert.Equal(3, panels.Get(tool)!.Order);
     }
 
     private static void RegisterCommand(ILiernePluginBuilder builder, CommandId command) =>
@@ -467,6 +642,53 @@ public sealed class LierneShellRenderTests
         }
     }
 
+    private sealed class ViewPlugin : ILiernePlugin
+    {
+        public static readonly DocumentTypeId Type = new("app.viewDocument");
+        public static readonly DocumentViewId Summary = new("app.summary");
+        public static readonly DocumentViewId Details = new("app.details");
+
+        public PluginId Id => new("app.views");
+
+        public StringKey DisplayName => StringKey.Literal("Views");
+
+        public IReadOnlyList<PluginId> DependsOn => [];
+
+        public void Configure(ILiernePluginBuilder builder)
+        {
+            builder.AddDocument(new DocumentDescriptor(
+                Type,
+                StringKey.Literal("View document"),
+                null,
+                typeof(TestDocumentComponent)));
+            builder.AddDocumentView(new DocumentViewDescriptor(
+                Type,
+                Summary,
+                StringKey.Literal("Summary"),
+                null,
+                typeof(SummaryViewComponent)));
+            builder.AddDocumentView(new DocumentViewDescriptor(
+                Type,
+                Details,
+                StringKey.Literal("Details"),
+                null,
+                typeof(DetailsViewComponent),
+                Order: 10));
+        }
+    }
+
+    public sealed class SummaryViewComponent : LierneDocumentViewComponent
+    {
+        protected override void BuildRenderTree(RenderTreeBuilder builder) =>
+            builder.AddContent(0, "summary-body");
+    }
+
+    public sealed class DetailsViewComponent : LierneDocumentViewComponent
+    {
+        protected override void BuildRenderTree(RenderTreeBuilder builder) =>
+            builder.AddContent(0, "details-body");
+    }
+
     public sealed class TestToolWindowComponent : LierneToolWindowComponent
     {
         protected override void BuildRenderTree(RenderTreeBuilder builder)
@@ -515,6 +737,54 @@ public sealed class LierneShellRenderTests
                 typeof(TestStartComponent)));
     }
 
+    private sealed class PlacementPlugin : ILiernePlugin
+    {
+        private static readonly CommandId Run = new("app.placement.run");
+        private static readonly CommandId Disabled = new("app.placement.disabled");
+        private static readonly RibbonGroupId Group = new("app.placement.group");
+
+        public int Executions { get; private set; }
+
+        public PluginId Id => new("app.placement");
+
+        public StringKey DisplayName => StringKey.Literal("Placement");
+
+        public IReadOnlyList<PluginId> DependsOn => [];
+
+        public void Configure(ILiernePluginBuilder builder)
+        {
+            builder.AddCommand(
+                new CommandDescriptor(Run, StringKey.Literal("Placed Run")),
+                (_, _) =>
+                {
+                    Executions++;
+                    return Task.FromResult(LierneCommandResult.Ok());
+                });
+            builder.AddCommand(
+                new CommandDescriptor(Disabled, StringKey.Literal("Placed Disabled")),
+                (_, _) => Task.FromResult(LierneCommandResult.Ok()),
+                _ => false);
+            builder.AddRibbonGroup(new RibbonGroupDescriptor(Group, StringKey.Literal("Placed Group")));
+            builder.AddCommandPlacement(new CommandPlacementDescriptor(
+                Run,
+                CommandSurface.Ribbon,
+                Group.Value,
+                10,
+                TitleOverride: StringKey.Literal("Placed Override")));
+            builder.AddCommandPlacement(new CommandPlacementDescriptor(
+                Disabled,
+                CommandSurface.Ribbon,
+                Group.Value,
+                20));
+            builder.AddCommandPlacement(new CommandPlacementDescriptor(
+                Run,
+                CommandSurface.StatusBar,
+                "right",
+                0,
+                TitleOverride: StringKey.Literal("Status Run")));
+        }
+    }
+
     private sealed class ToolbarPlugin : ILiernePlugin
     {
         public PluginId Id => new("app.toolbar");
@@ -544,19 +814,23 @@ public sealed class LierneShellRenderTests
             return RenderRootComponentAsync(_shellId, ShellParameters);
         }
 
-        public FlareIdeLayout GetLayout()
+        public LierneWorkspace GetWorkspace() => Find<LierneWorkspace>("workspace");
+
+        public LierneCommandPalette GetPalette() => Find<LierneCommandPalette>("command palette");
+
+        private T Find<T>(string name) where T : class, IComponent
         {
             var frames = GetCurrentRenderTreeFrames(_shellId);
             for (var index = 0; index < frames.Count; index++)
             {
                 var frame = frames.Array[index];
-                if (frame.FrameType == RenderTreeFrameType.Component && frame.Component is FlareIdeLayout layout)
+                if (frame.FrameType == RenderTreeFrameType.Component && frame.Component is T component)
                 {
-                    return layout;
+                    return component;
                 }
             }
 
-            throw new InvalidOperationException("The shell did not render an IDE layout.");
+            throw new InvalidOperationException($"The shell did not render a {name}.");
         }
 
         protected override Task UpdateDisplayAsync(in RenderBatch renderBatch)

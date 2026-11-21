@@ -2,9 +2,28 @@
 
 [Русский](../ru/workspace.md)
 
-`LierneShell` builds the IDE layout from the plugin catalog. Use the start page or the standard
-shell slots when the application needs its own content. A plugin can contribute a toolbar,
-a status bar item, or a component for a supported slot.
+`LierneShell` composes the IDE from the plugin catalog: a command bar, a dockable workspace,
+a status bar, a command palette and a notification host. Use the start page or the standard shell
+slots when the application needs its own content. A plugin can contribute a toolbar, a status bar
+item, or a component for a supported slot.
+
+The workspace maps documents and tool windows to `FlareDockWorkspace`. Users can move tabs, split
+groups, reorder and resize them; Lierne accepts the change and updates the document and panel
+services. The referenced Flare package must provide `FlareDockWorkspace`.
+
+## Compose the shell
+
+`LierneShellOptions` turns individual surfaces on or off. The `CommandBarContent`,
+`WorkspaceContent`, `CommandPaletteContent` and `NotificationsContent` parameters replace a surface
+with application markup. A host can therefore keep the Lierne workspace but supply its own chrome,
+or use `LierneCommandBar`, `LierneWorkspace`, `LierneStatusBar`, `LierneCommandPalette` and
+`LierneNotificationHost` separately.
+
+```razor
+<LierneShell Options="@(new LierneShellOptions { ShowRibbon = false })">
+    <StatusBar>Custom status</StatusBar>
+</LierneShell>
+```
 
 ## Customize document tabs
 
@@ -25,13 +44,14 @@ from the application alongside the title. The tab keeps its accessible name and 
 </LierneShell>
 ```
 
-Lierne passes the same template to `FlareDocumentTab.HeaderContent` and
-`FlareIdeLayout.DocumentHeaderContent`, so the center and side regions share one header.
+Lierne uses the same template in the workspace tab header for the center, left and right docks.
+The tab keeps its accessible name and close control.
 
 ## Choose storage
 
 Register storage to restore preferences, keyboard shortcuts, panel layout and open documents.
-`LierneShell` restores saved state when it becomes interactive.
+`LierneWorkspace` restores saved state when it becomes interactive and applies saved panel
+placements.
 
 For a browser host, use a stable key for the app. Data stays in local storage for the current
 browser and origin.

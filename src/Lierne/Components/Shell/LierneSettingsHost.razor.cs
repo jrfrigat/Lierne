@@ -1,9 +1,7 @@
-using Microsoft.AspNetCore.Components;
-
 namespace Lierne;
 
-/// <summary>The built-in settings document: a plugin tree on the left, the selected page on the right.</summary>
-public partial class LierneOptionsDocument
+/// <summary>The reusable settings surface: a plugin tree on the left, the selected page on the right.</summary>
+public partial class LierneSettingsHost
 {
     private IReadOnlyList<SettingsGroupNode> _groups = [];
     private readonly HashSet<string> _collapsedGroups = new(StringComparer.Ordinal);

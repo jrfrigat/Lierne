@@ -16,6 +16,8 @@ public static class LierneComponentsServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         services.AddLierneValidation(ValidateComponents);
         services.TryAddSingleton<ILierneIconResolver, NullLierneIconResolver>();
+        services.TryAddScoped<LierneNotificationService>();
+        services.TryAddScoped<LiernePaletteService>();
         return services;
     }
 
@@ -23,6 +25,8 @@ public static class LierneComponentsServiceCollectionExtensions
     {
         var contributions = catalog.Documents
             .Select(item => (item.Id.Value, item.Component, typeof(LierneDocumentContext)))
+            .Concat(catalog.DocumentViews
+                .Select(item => (item.Id.Value, item.Component, typeof(LierneDocumentViewContext))))
             .Concat(catalog.ToolWindows.Select(item => (item.Id.Value, item.Component, typeof(LierneToolWindowContext))))
             .Concat(catalog.Toolbars.Select(item => (item.Id.Value, item.Component, typeof(LierneToolbarContext))))
             .Concat(catalog.StatusBarItems.Where(item => item.Component is not null)

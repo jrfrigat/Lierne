@@ -1,0 +1,44 @@
+@namespace Lierne
+@using Flare.Components
+@implements IDisposable
+@inject LierneNotificationService Notifications
+@inject ILierneLocalizer Localizer
+
+@if (Notifications.Items is { Count: > 0 } items)
+{
+    <div class="lierne-notifications" role="region" aria-label="@Label">
+        @foreach (var item in items)
+        {
+            <FlareAlert @key="item.Id"
+                        Severity="@Severity(item.Severity)"
+                        Dismissible="@item.Dismissible"
+                        OnDismiss="@(() => Notifications.Dismiss(item.Id))">
+                @Text(item)
+            </FlareAlert>
+        }
+    </div>
+}
+
+@code {
+    private string Label => Localizer.Get(LierneHostPlugin.Key("notifications"));
+
+    protected override void OnInitialized() => Notifications.Changed += OnChanged;
+
+    public void Dispose() => Notifications.Changed -= OnChanged;
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+
+    private static AlertSeverity Severity(LierneNotificationSeverity severity) => severity switch
+    {
+        LierneNotificationSeverity.Warning => AlertSeverity.Warning,
+        LierneNotificationSeverity.Error => AlertSeverity.Error,
+        _ => AlertSeverity.Info
+    };
+
+    private string Text(LierneNotification notification) =>
+        notification.ErrorCode is { } code
+            ? Localizer.GetError(code, notification.ErrorMessage)
+            : notification.Message is { } message
+                ? Localizer.Get(message)
+                : string.Empty;
+}

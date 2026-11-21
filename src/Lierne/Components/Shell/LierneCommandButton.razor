@@ -1,0 +1,24 @@
+@namespace Lierne
+@using Flare.Components
+@using Flare.Components.IDE
+@inherits LierneCommandComponent
+
+@if (Presentation.Visible)
+{
+    <FlareRibbonButton Icon="Icon"
+                       Label="@(ShowLabel ? Title : null)"
+                       Tooltip="@Tooltip"
+                       IsLarge="Large"
+                       Disabled="@(!Presentation.Enabled)"
+                       OnClick="ExecuteAsync" />
+}
+
+@code {
+    /// <summary>Gets or sets whether the button uses the large ribbon form.</summary>
+    [Parameter]
+    public bool Large { get; set; }
+
+    /// <summary>Gets or sets whether the button shows its title.</summary>
+    [Parameter]
+    public bool ShowLabel { get; set; } = true;
+}

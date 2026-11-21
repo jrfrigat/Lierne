@@ -1,0 +1,99 @@
+@namespace Lierne
+@using Flare.Components
+@using Flare.Components.IDE
+@using Flare.Icons
+
+@if (MenuBar is not null || (ShowMenuBar && MenuGroups.Count > 0) || ShowPaletteButton)
+{
+    <div class="lierne-commandbar__menurow">
+        @if (MenuBar is not null)
+        {
+            @MenuBar
+        }
+        else if (ShowMenuBar && MenuGroups.Count > 0)
+        {
+            <FlareMenuBar>
+                @foreach (var group in MenuGroups)
+                {
+                    <FlareMenu @key="group.Group.Id.Value"
+                               Anchor="MenuAnchor.BottomLeft"
+                               AriaLabel="@Localizer.Get(group.Group.Title)">
+                        <Activator>
+                            <FlareButton Variant="ButtonVariant.Text"
+                                         Size="ButtonSize.Sm"
+                                         @attributes="context.Attributes">@Localizer.Get(group.Group.Title)</FlareButton>
+                        </Activator>
+                        <ChildContent>
+                            @foreach (var command in group.Commands)
+                            {
+                                <LierneCommandMenuItem @key="command.Command.Value"
+                                                       Command="command.Command"
+                                                       Placement="command"
+                                                       ExecuteCommand="ExecuteCommandAsync" />
+                            }
+                            @foreach (var item in group.LegacyItems)
+                            {
+                                <LierneMenuEntry @key="item.Id.Value"
+                                                 Item="item"
+                                                 ExecuteCommand="ExecuteCommandAsync" />
+                            }
+                        </ChildContent>
+                    </FlareMenu>
+                }
+            </FlareMenuBar>
+        }
+        @if (ShowPaletteButton)
+        {
+            <FlareTooltip Content="@PaletteLabel" Placement="Placement.Bottom">
+                <FlareButton Variant="ButtonVariant.Text"
+                             Size="ButtonSize.Sm"
+                             AriaLabel="@PaletteLabel"
+                             OnClick="OpenPalette">
+                    <FlareIconView Value="FlareIcons.Search" Size="1rem" />
+                </FlareButton>
+            </FlareTooltip>
+        }
+    </div>
+}
+
+@if (ShowToolbars)
+{
+    @foreach (var toolbar in Toolbars)
+    {
+        <DynamicComponent @key="toolbar.Id.Value"
+                          Type="@toolbar.Component"
+                          Parameters="@(new Dictionary<string, object?>
+                          {
+                              [nameof(LierneToolbarComponent.Context)] = ToolbarContext
+                          })" />
+    }
+    @if (ToolbarGroups.Count > 0)
+    {
+        <FlareToolbar Groups="ToolbarGroups" Dense="true" />
+    }
+}
+
+@if (ShowRibbon && Toolbars.Count == 0 && ToolbarGroups.Count == 0 && RibbonGroups.Count > 0)
+{
+    <FlareRibbon>
+        <FlareRibbonTab Title="@RibbonTitle">
+            @foreach (var group in RibbonGroups)
+            {
+                <FlareRibbonGroup @key="group.Group.Id.Value" Label="@Localizer.Get(group.Group.Title)">
+                    @foreach (var item in group.Items)
+                    {
+                        <LierneCommandButton @key="item.Command.Value"
+                                             Command="item.Command"
+                                             Placement="item"
+                                             Large="true"
+                                             ExecuteCommand="ExecuteCommandAsync" />
+                    }
+                </FlareRibbonGroup>
+            }
+        </FlareRibbonTab>
+    </FlareRibbon>
+}
+
+@code {
+    private string PaletteLabel => Localizer.Get(LierneHostPlugin.Key("commandPalette"));
+}

@@ -155,8 +155,10 @@ Quas не добавляет доменные типы в Lierne.
   recent.
 - `IWorkspaceService`: load/save/restore, best-effort restore, миграции.
 
-До появления generic docking во Flare Lierne использует текущую IDE-композицию как первый
-adapter. Семантическая модель панелей и workspace от этого не зависит.
+Семантическая модель панелей и workspace не зависит от визуального adapter. `LierneWorkspace`
+строит из неё модель generic docking Flare и обрабатывает предложенные переходы; произвольные
+split-узлы живут в принятой dock-модели сессии, а регион, слот, порядок и видимость панели
+остаются данными Lierne.
 
 ### 3.5 Foundations
 
@@ -248,8 +250,9 @@ Flare, а UI-слой разрешает ключ в `FlareIcon`. Плагин, 
 нужны. Описатель задаёт тип документа, id view, локализованный заголовок, иконку, компонент и
 порядок. Каталог проверяет, что тип объявлен хотя бы одним плагином, а id view уникален в
 пределах типа. `LiernePluginCatalog.DocumentViews` отдаёт все views, а `ViewsFor(typeId)` -
-views одного типа по `Order`, затем по `DocumentViewId.Value`. Оболочка не рисует views сама:
-хост решает, как расположить вкладки и какой контекст передать компоненту.
+views одного типа по `Order`, затем по `DocumentViewId.Value`. `LierneDocumentHost` показывает
+views вкладками `FlareTabs` и передаёт компоненту `LierneDocumentViewContext`; приложение может
+заменить host целиком через `LierneShell.WorkspaceContent`.
 
 `DocumentDescriptor.ReusePolicy` и `DocumentKey` позволяют переиспользовать открытый документ по
 стабильному ключу. `LierneDocumentInstance` хранит `Dirty`, `Version`, выбранный view, preview и
@@ -277,9 +280,10 @@ dirty только для записанной версии. Состояние 
 `ICommandPresentationService` (реализуется `LierneCommandService`) отдаёт
 `CommandPresentation` для поверхности и запускает `ICommandUpdateHandler`; `Search` ищет
 команды по id, заголовку, описанию и keywords. `ICommandPlacementService` отдаёт
-`CommandPlacementDescriptor` по поверхности. Меню и риббон пока продолжают использовать
-описатели `MenuItemDescriptor`/`RibbonItemDescriptor`; переход поверхностей на placements
-выполняется в задаче shell kit.
+`CommandPlacementDescriptor` по поверхности. `LierneCommandBar`, `LierneStatusBar` и
+`LierneCommandPalette` читают placements и презентации; описатели
+`MenuItemDescriptor`/`RibbonItemDescriptor` остаются совместимым путём для старых плагинов.
+Если для группы есть placements, оболочка не дублирует уже размещённую команду из legacy-пункта.
 
 #### Риббоны и меню
 
@@ -302,10 +306,11 @@ dirty только для записанной версии. Состояние 
 сообщает об изменении ключа. Валидатор каталога проверяет значение по умолчанию и ссылку на
 страницу настройки.
 
-Встроенный документ параметров (`LierneOptionsDocument` из `LierneHostPlugin`) показывает
-страницы слева и генерирует форму справа: `FlareSelect` для выбора, `FlareNumericField` для
-целых, `FlareCheckbox` с внешней подписью для Boolean, `FlareTextField` для текста. Значения
-читаются и пишутся через `ISettingsStore`, ошибка валидации показывается в странице.
+Поверхность настроек `LierneSettingsHost` показывает страницы слева и генерирует форму справа:
+`FlareSelect` для выбора, `FlareNumericField` для целых, `FlareCheckbox` с внешней подписью для
+Boolean, `FlareTextField` для текста. Встроенный документ параметров (`LierneOptionsDocument` из
+`LierneHostPlugin`) оборачивает её в документ. Значения читаются и пишутся через
+`ISettingsStore`, ошибка валидации показывается в странице.
 `SettingsPageDescriptor.Component` остаётся escape hatch для сложных страниц (например, редактор
 горячих клавиш). Scoped-хранилище предоставляет синхронный доступ к уже загруженным значениям.
 При наличии `ILierneStateStorage` оболочка автоматически загружает и сохраняет переопределения.
@@ -320,8 +325,10 @@ tool windows показываются/скрываются/переключаю�
 
 `IPanelService` хранит семантические `PanelPlacement` (region, slot, mode, visible, pinned,
 order, size) и делегирует видимость текущему `ILierneToolWindowService`.
-`LierneWorkspaceLayout.Panels` сохраняет их в workspace. Flare adapter использует эти данные
-при сборке докинга; текущая IDE-композиция Flare остаётся первым bridge.
+`LierneWorkspaceLayout.Panels` сохраняет их в workspace. `LierneWorkspace` строит из этих
+данных группы и слоты `FlareDockWorkspace`, а принятые изменения раскладки переводит обратно
+в `IPanelService`; режимы `AutoHide`, `Floating` и `Windowed` остаются в модели и ждут
+отдельного визуального сценария.
 
 #### Локализация
 
@@ -390,46 +397,62 @@ resourceManager))`. Строки живут в embedded `.resx`: нейтрал�
 останавливает регистрацию. Плагины регистрируют свои сервисы в `ILiernePluginBuilder.Services`
 и сами выбирают их время жизни.
 
-### 4.5 Хост на Flare
+### 4.5 Shell kit на Flare
 
-`Lierne` собирает `FlareIdeLayout` из каталога:
+`LierneShell` - композиция поверхностей, а не монолит. Он собирает `LierneCommandBar`,
+`LierneWorkspace`, `LierneStatusBar`, `LierneCommandPalette` и `LierneNotificationHost`;
+`LierneShellOptions` отключает любую поверхность, а параметры `CommandBarContent`,
+`WorkspaceContent`, `CommandPaletteContent` и `NotificationsContent` заменяют её целиком.
+`LierneSettingsHost` - самостоятельная поверхность настроек, которую встроенный документ
+`LierneOptionsDocument` только оборачивает.
 
-- `MenuBar` - меню каталога (`FlareMenuBar`/`FlareMenu`/`FlareSubMenu` и рекурсивный
-  `LierneMenuEntry`) или фрагмент хоста, если приложению нужна своя полоса;
-- `Toolbars` - компоненты, добавленные через `AddToolbar`; хост рисует их в слоте `MenuBar`
-  после меню и в этом случае не создаёт `FlareRibbon`. Если вкладов нет, хост оставляет
-  `Ribbon` с `FlareRibbon` (заголовок параметром, по умолчанию `Home`) и группами/пунктами
-  каталога;
-- `Documents`/`ActiveDocuments`/`DocumentContent` - документы Lierne как документы Flare;
-  полоса центральных вкладок, выбор отдельно по областям, закрытие и перемещение;
-- `LeftToolPanel`/`RightToolPanel` - видимые tool windows через `FlareToolPanelGroup` и
-  `FlareToolPanel`, с заголовком и иконкой из описателя; вкладки снизу, без встроенной
-  кнопки сворачивания, с собственными кнопками закрепить/закрыть. Закрепление задаёт
-  `IdePanelMode.Docked`/`AutoHide`, закрытие скрывает видимые tool windows региона;
-- `StatusBar` - `FlareStatusBar` с элементами, добавленными через `AddStatusBarItem`;
-  фрагмент `StatusBar`, переданный хостом, имеет приоритет;
-- `BottomPanel` включает видимые нижние tool windows и переданный хостом нижний контент.
-  `StartContent` задаёт стартовый контент.
+`LierneWorkspace` - adapter семантической модели к generic docking Flare (`FlareDockWorkspace`):
 
-Контракт компонентов плагина: `LierneDocumentComponent`, `LierneToolWindowComponent` и
-`LierneToolbarComponent` с параметром `Context`
-(`LierneDocumentContext`/`LierneToolWindowContext`/`LierneToolbarContext`), который отдаёт
-экземпляр, команды, сервис-владелец, локализатор и scoped `IServiceProvider`.
+- документы основной области, левого и правого доков становятся группами вкладок;
+- видимые tool windows группируются по `PanelPlacement.Region`, `PanelSlot` и `Order`;
+- хост-контент нижней панели и стартовая поверхность - отдельные dock-элементы, которые
+  нельзя закрыть или переместить; `CanRequest` запрещает такие переходы;
+- drag, split, reorder, resize и закрытие приходят как `DockLayoutChange`; workspace
+  переводит их в `ILierneDocumentService`, `IPanelService` и `ILierneToolWindowService`,
+  сохраняет принятую топологию сессии и записывает workspace;
+- `LierneDocumentHost` показывает выбранный view документа через `FlareTabs` или сам документ,
+  если views не объявлены; шаблон вкладки workspace учитывает `DocumentHeaderContent` хоста,
+  а preview и pin отмечаются маркерами состояния.
+
+`LierneCommandBar` проецирует `CommandPlacementDescriptor` на меню, риббон и тулбар.
+`LierneCommandMenuItem`, `LierneCommandButton` и `LierneCommandToolbarButton` читают
+`CommandPresentation` (заголовок, описание, иконку, enabled, checked, shortcut) и обновляют
+её через `ICommandUpdateHandler`. Вклады `AddMenuGroup`/`AddMenuItem`,
+`AddRibbonGroup`/`AddRibbonItem` и `AddStatusBarItem` остаются совместимым путём: оболочка
+показывает их, если для группы нет placements, и не дублирует команду, у которой placement уже есть.
+`LierneStatusBar` работает по той же схеме; `LierneCommandPalette` ищет команды через
+`ICommandPresentationService.Search`, показывает shortcut и описание и выполняет выбранную команду.
+
+Контракт компонентов плагина: `LierneDocumentComponent`, `LierneDocumentViewComponent`,
+`LierneToolWindowComponent`, `LierneToolbarComponent` и `LierneStatusBarComponent` с параметром
+`Context` (`LierneDocumentContext`, `LierneDocumentViewContext`, `LierneToolWindowContext`,
+`LierneToolbarContext`, `LierneStatusBarContext`), который отдаёт экземпляр, команды,
+сервис-владелец, локализатор и scoped `IServiceProvider`. View-контекст также даёт per-view
+state и выбор другого view.
 
 Иконки описателей - строковые ключи; `ILierneIconResolver` превращает ключ в `FlareIcon`.
 По умолчанию резолвер возвращает `null`, приложение-хост регистрирует свой (например, Material
-Design 3). `AddLierneComponents()` регистрирует резолвер. Это единственная точка, где хост
-знает о Flare-иконках; сами описатели остаются свободными от Flare.
+Design 3). `AddLierneComponents()` регистрирует резолвер, сервис уведомлений и сервис палитры.
+Это единственная точка, где хост знает о Flare-иконках; сами описатели остаются свободными
+от Flare.
 
-Текущая IDE-композиция Flare - первый adapter Lierne. Когда Flare предоставит generic docking,
-Lierne заменит adapter, не меняя семантическую модель документов, панелей и workspace.
+Generic docking входит в сборку `Flare.Components.IDE` начиная с версии, где появился
+`FlareDockWorkspace`. Пакет, привязанный в `Directory.Packages.props`, должен её содержать;
+до выпуска такой версии локальная сборка использует sibling checkout Flare через
+`UseLocalFlare`.
 
 ### 4.6 Сохранение состояния
 
 `LierneStatePersistence` хранит настройки и рабочую область в независимых JSON-документах.
 Хост регистрирует `ILierneStateStorage`. Для веб-хоста `AddLierneBrowserStateStorage` использует
 localStorage, для Hybrid `LierneFileStateStorage` атомарно заменяет файлы в каталоге приложения.
-`LierneShell` загружает сохранённые данные перед первым интерактивным рендером содержимого.
+`LierneWorkspace` загружает сохранённые данные перед первым интерактивным рендером содержимого
+и применяет сохранённые `PanelPlacement` к `IPanelService`.
 
 - Настройки и сочетания сохраняются по стабильным ключам. Для секции старого формата хост может
   зарегистрировать `LierneStateMigration`. Версии, которые приложение не умеет читать, сохраняются
@@ -486,6 +509,10 @@ samples/Lierne.SampleIde  интерактивный пример хоста и 
 
 - **Flare не знает Lierne.** Общие визуальные компоненты и generic docking остаются в Flare,
   семантика - в Lierne. Flare может выбирать реализацию; Lierne адаптируется.
+- **Docking - визуальный механизм, не модель.** `FlareDockWorkspace` владеет геометрией,
+  drag и переходами; Lierne владеет регионами, слотами, видимостью, правами на закрытие,
+  документами и сохранением. Принятые split-узлы живут в сессии и пересобираются из
+  семантической модели при следующем структурном изменении.
 - **Ядро без визуальной библиотеки.** `Lierne.Abstractions` и `Lierne.Core` не ссылаются на
   Flare или Blazor. Это позволяет позже добавить другой визуальный adapter.
 - **Документ - доменный объект.** Lierne не предполагает текст, PSI или редактор. View может
@@ -509,9 +536,11 @@ samples/Lierne.SampleIde  интерактивный пример хоста и 
 3. Команды: презентация, placements, keymap, палитра.
 4. Документы: domain document model, views, hosts, dirty/save.
 5. Плагины: extension points, lazy factories, состояния и plugin scopes.
-6. Панели и workspace: семантическая модель, persistence и adapter к текущей IDE-композиции Flare.
-7. Shell kit: `LierneWorkspace`, command surfaces, status bar, palette, settings.
-8. Quas: доменные документы, views и команды на новой модели.
+6. Панели и workspace: семантическая модель и persistence - реализовано; adapter к generic
+   docking Flare - в `LierneWorkspace`.
+7. Shell kit: `LierneWorkspace`, command surfaces, status bar, palette, settings и notifications -
+   реализовано как отдельные поверхности с полной композицией в `LierneShell`.
+8. Quas: доменные документы, views и команды на новой модели - следующий шаг.
 
 Целевые контракты вводятся постепенно. Текущий API и Quas остаются работоспособными на каждом
 шаге; ломающие изменения допускаются только вместе с миграцией и тестами.

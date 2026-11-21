@@ -11,43 +11,35 @@ export function downloadText(fileName, text, mimeType) {
     window.setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
 }
 
-const layoutWatches = new Map();
+const workspaceWatches = new Map();
 
-export function watchLayoutSizes(id, callback) {
-    unwatchLayoutSizes(id);
+export function watchWorkspaceSize(id, callback) {
+    unwatchWorkspaceSize(id);
     const root = document.getElementById(id);
     if (!root) return;
 
-    const selector = ".flare-ide-layout__resizer[data-region]";
-    let timer;
+    let frame;
     const report = () => {
-        const readSize = region => {
-            const value = root.querySelector(`${selector}[data-region="${region}"]`)?.getAttribute("aria-valuenow");
-            const size = Number(value);
-            return Number.isInteger(size) && size > 0 ? size : null;
-        };
+        const rect = root.getBoundingClientRect();
         try {
-            callback.invokeMethodAsync("OnPanelSizesChanged", readSize("Left"), readSize("Right"), readSize("Bottom"))
-                .catch(() => {});
+            callback.invokeMethodAsync("OnViewportChanged", rect.width, rect.height).catch(() => {});
         } catch {
             // A server circuit can disconnect before the interop call returns a promise.
         }
     };
-    const observer = new MutationObserver(changes => {
-        if (changes.some(change => change.target.closest("[data-flare-ide-dock-scope]") === root &&
-            change.target.matches(selector))) {
-            clearTimeout(timer);
-            timer = setTimeout(report, 150);
-        }
+    const observer = new ResizeObserver(() => {
+        cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(report);
     });
-    observer.observe(root, { subtree: true, attributes: true, attributeFilter: ["aria-valuenow"] });
-    layoutWatches.set(id, () => {
-        clearTimeout(timer);
+    observer.observe(root);
+    report();
+    workspaceWatches.set(id, () => {
+        cancelAnimationFrame(frame);
         observer.disconnect();
     });
 }
 
-export function unwatchLayoutSizes(id) {
-    layoutWatches.get(id)?.();
-    layoutWatches.delete(id);
+export function unwatchWorkspaceSize(id) {
+    workspaceWatches.get(id)?.();
+    workspaceWatches.delete(id);
 }
