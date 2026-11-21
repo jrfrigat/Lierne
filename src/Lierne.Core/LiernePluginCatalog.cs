@@ -12,6 +12,7 @@ public sealed class LiernePluginCatalog
 {
     private readonly IReadOnlyDictionary<DocumentTypeId, IReadOnlyList<DocumentViewDescriptor>>
         _viewsByType;
+    private readonly IReadOnlyDictionary<ExtensionPointId, object> _extensionPoints;
 
     private LiernePluginCatalog(
         IReadOnlyList<LiernePluginInfo> plugins,
@@ -22,6 +23,7 @@ public sealed class LiernePluginCatalog
         IReadOnlyList<LierneCommandRegistration> commandRegistrations,
         IReadOnlyList<CommandPlacementDescriptor> commandPlacements,
         IReadOnlyDictionary<CommandId, ICommandUpdateHandler> commandUpdateHandlers,
+        IReadOnlyDictionary<ExtensionPointId, object> extensionPoints,
         IReadOnlyList<RibbonGroupDescriptor> ribbonGroups,
         IReadOnlyList<RibbonItemDescriptor> ribbonItems,
         IReadOnlyList<SettingsPageDescriptor> settingsPages,
@@ -51,6 +53,7 @@ public sealed class LiernePluginCatalog
         CommandRegistrations = commandRegistrations;
         CommandPlacements = commandPlacements;
         CommandUpdateHandlers = commandUpdateHandlers;
+        _extensionPoints = extensionPoints;
         RibbonGroups = ribbonGroups;
         RibbonItems = ribbonItems;
         SettingsPages = settingsPages;
@@ -88,6 +91,25 @@ public sealed class LiernePluginCatalog
 
     /// <summary>Gets the command update handlers by command.</summary>
     public IReadOnlyDictionary<CommandId, ICommandUpdateHandler> CommandUpdateHandlers { get; }
+
+    /// <summary>Gets the declared extension point ids.</summary>
+    public IReadOnlyCollection<ExtensionPointId> ExtensionPoints => _extensionPoints.Keys.ToArray();
+
+    /// <summary>Gets a declared extension point.</summary>
+    /// <typeparam name="T">The extension contract.</typeparam>
+    /// <param name="id">The extension point id.</param>
+    /// <returns>The typed extension point.</returns>
+    /// <exception cref="InvalidOperationException">The point is missing or has another contract.</exception>
+    public IExtensionPoint<T> ExtensionPoint<T>(ExtensionPointId id)
+    {
+        if (_extensionPoints.TryGetValue(id, out var point) && point is IExtensionPoint<T> typed)
+        {
+            return typed;
+        }
+
+        throw new InvalidOperationException(
+            $"Extension point '{id}' is not declared as '{typeof(T)}'.");
+    }
 
     /// <summary>Gets the ribbon groups in plugin order.</summary>
     public IReadOnlyList<RibbonGroupDescriptor> RibbonGroups { get; }
@@ -166,7 +188,13 @@ public sealed class LiernePluginCatalog
 
         return new LiernePluginCatalog(
             ordered
-                .Select((plugin, order) => new LiernePluginInfo(plugin.Id, plugin.DisplayName, order))
+                .Select((plugin, order) => new LiernePluginInfo(
+                    plugin.Id,
+                    plugin.DisplayName,
+                    order,
+                    plugin.Version,
+                    plugin.Essential,
+                    plugin.OptionalDependsOn))
                 .ToArray(),
             builder.OwnedDocuments.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedDocumentViews.Select(contribution => contribution.Descriptor).ToArray(),
@@ -177,6 +205,9 @@ public sealed class LiernePluginCatalog
             builder.OwnedCommands.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedCommandPlacements.Select(contribution => contribution.Descriptor).ToArray(),
             builder.CommandUpdateHandlers,
+            builder.OwnedExtensionPoints.ToDictionary(
+                pair => pair.Key,
+                pair => pair.Value.Point),
             builder.OwnedRibbonGroups.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedRibbonItems.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedSettingsPages.Select(contribution => contribution.Descriptor).ToArray(),
@@ -238,6 +269,14 @@ public sealed class LiernePluginCatalog
                     diagnostics.Add(LierneDiagnostic.Error(
                         "lattice.plugin.missing_dependency",
                         $"Plugin '{plugin.Id}' depends on '{dependencyId}', which is not registered."));
+                }
+            }
+
+            foreach (var dependencyId in plugin.OptionalDependsOn)
+            {
+                if (byId.TryGetValue(dependencyId, out var dependency))
+                {
+                    Visit(dependency);
                 }
             }
 
@@ -338,6 +377,7 @@ public sealed class LiernePluginCatalog
             .Select(command => command.Id)
             .ToHashSet();
         ValidateCommandSurfaces(builder, commands, diagnostics);
+        ValidateExtensionPoints(builder, diagnostics);
         ValidateStatusBarItems(builder, commands, commandsWithArguments, diagnostics);
         ValidateMenus(builder, commands, commandsWithArguments, diagnostics);
         var groups = new HashSet<string>(
@@ -552,6 +592,19 @@ public sealed class LiernePluginCatalog
                     "lattice.menu.invalid_item",
                     $"Menu item '{item.Id}' of plugin '{entry.Plugin}' has no command and no children."));
             }
+        }
+    }
+
+    private static void ValidateExtensionPoints(
+        LiernePluginBuilder builder,
+        List<LierneDiagnostic> diagnostics)
+    {
+        foreach (var duplicate in builder.ExtensionPointDuplicates)
+        {
+            diagnostics.Add(LierneDiagnostic.Error(
+                "lattice.extensionpoint.duplicate",
+                $"Extension point '{duplicate.Id}' is declared by plugins '{duplicate.Existing}' and '{duplicate.Duplicate}'.",
+                duplicate.Duplicate));
         }
     }
 

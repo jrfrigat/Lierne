@@ -20,6 +20,15 @@ public interface ILiernePlugin
     /// </summary>
     IReadOnlyList<PluginId> DependsOn { get; }
 
+    /// <summary>Gets the plugins that are ordered before this one when they are present.</summary>
+    IReadOnlyList<PluginId> OptionalDependsOn => [];
+
+    /// <summary>Gets the plugin version, or <c>0.0</c> when the plugin does not declare one.</summary>
+    Version Version => new(0, 0);
+
+    /// <summary>Gets whether the application cannot start without the plugin.</summary>
+    bool Essential => false;
+
     /// <summary>Declares the services and contributions of the plugin.</summary>
     /// <param name="builder">The builder that collects the plugin contributions.</param>
     /// <remarks>
@@ -52,6 +61,9 @@ public interface ILiernePluginBuilder
 
     /// <summary>Gets the command update handlers declared so far.</summary>
     IReadOnlyDictionary<CommandId, ICommandUpdateHandler> CommandUpdateHandlers { get; }
+
+    /// <summary>Gets the ids of the extension points declared so far.</summary>
+    IReadOnlyList<ExtensionPointId> ExtensionPoints { get; }
 
     /// <summary>Gets the ribbon groups declared so far.</summary>
     IReadOnlyList<RibbonGroupDescriptor> RibbonGroups { get; }
@@ -119,6 +131,19 @@ public interface ILiernePluginBuilder
     /// <param name="command">The command id.</param>
     /// <param name="updateHandler">The update handler.</param>
     void AddCommandUpdateHandler(CommandId command, ICommandUpdateHandler updateHandler);
+
+    /// <summary>Declares a typed extension point.</summary>
+    /// <typeparam name="T">The extension contract.</typeparam>
+    /// <param name="id">The stable extension point id.</param>
+    /// <returns>The declared extension point; a duplicate declaration keeps the first instance.</returns>
+    IExtensionPoint<T> AddExtensionPoint<T>(ExtensionPointId id);
+
+    /// <summary>Gets a declared extension point.</summary>
+    /// <typeparam name="T">The extension contract.</typeparam>
+    /// <param name="id">The stable extension point id.</param>
+    /// <returns>The extension point.</returns>
+    /// <exception cref="InvalidOperationException">The point is missing or has another contract.</exception>
+    IExtensionPoint<T> GetExtensionPoint<T>(ExtensionPointId id);
 
     /// <summary>Declares a ribbon group.</summary>
     /// <param name="descriptor">The group descriptor.</param>

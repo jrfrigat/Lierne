@@ -13,6 +13,17 @@ internal readonly record struct OwnedContribution<T>(PluginId Plugin, T Descript
 /// <param name="Handler">The update handler.</param>
 internal sealed record CommandUpdateDescriptor(CommandId Command, ICommandUpdateHandler Handler);
 
+/// <summary>One extension point together with the plugin that declared it.</summary>
+/// <param name="Plugin">The declaring plugin.</param>
+/// <param name="Point">The typed extension point instance.</param>
+internal sealed record OwnedExtensionPoint(PluginId Plugin, object Point);
+
+/// <summary>A duplicate extension point declaration found while composing plugins.</summary>
+/// <param name="Existing">The plugin that declared the point first.</param>
+/// <param name="Duplicate">The plugin that declared it again.</param>
+/// <param name="Id">The extension point id.</param>
+internal sealed record ExtensionPointDuplicate(PluginId Existing, PluginId Duplicate, ExtensionPointId Id);
+
 /// <summary>Collects contributions while the catalog configures the plugins.</summary>
 internal sealed class LiernePluginBuilder : ILiernePluginBuilder
 {
@@ -22,6 +33,8 @@ internal sealed class LiernePluginBuilder : ILiernePluginBuilder
     private readonly List<OwnedContribution<LierneCommandRegistration>> _commands = [];
     private readonly List<OwnedContribution<CommandPlacementDescriptor>> _commandPlacements = [];
     private readonly List<OwnedContribution<CommandUpdateDescriptor>> _commandUpdateHandlers = [];
+    private readonly Dictionary<ExtensionPointId, OwnedExtensionPoint> _extensionPoints = [];
+    private readonly List<ExtensionPointDuplicate> _extensionPointDuplicates = [];
     private readonly List<OwnedContribution<RibbonGroupDescriptor>> _ribbonGroups = [];
     private readonly List<OwnedContribution<RibbonItemDescriptor>> _ribbonItems = [];
     private readonly List<OwnedContribution<SettingsPageDescriptor>> _settingsPages = [];
@@ -81,6 +94,17 @@ internal sealed class LiernePluginBuilder : ILiernePluginBuilder
             .ToDictionary(
                 group => group.Key,
                 group => group.First().Descriptor.Handler);
+
+    /// <inheritdoc />
+    public IReadOnlyList<ExtensionPointId> ExtensionPoints => _extensionPoints.Keys.ToArray();
+
+    /// <summary>Gets the extension points with their declaring plugin.</summary>
+    public IReadOnlyDictionary<ExtensionPointId, OwnedExtensionPoint> OwnedExtensionPoints =>
+        _extensionPoints;
+
+    /// <summary>Gets the duplicate extension point declarations.</summary>
+    public IReadOnlyList<ExtensionPointDuplicate> ExtensionPointDuplicates =>
+        _extensionPointDuplicates;
 
     /// <inheritdoc />
     public IReadOnlyList<RibbonGroupDescriptor> RibbonGroups =>
@@ -232,6 +256,45 @@ internal sealed class LiernePluginBuilder : ILiernePluginBuilder
         _commandUpdateHandlers.Add(new OwnedContribution<CommandUpdateDescriptor>(
             CurrentPlugin,
             new CommandUpdateDescriptor(command, updateHandler)));
+    }
+
+    /// <inheritdoc />
+    public IExtensionPoint<T> AddExtensionPoint<T>(ExtensionPointId id)
+    {
+        if (string.IsNullOrWhiteSpace(id.Value))
+        {
+            throw new ArgumentException("An extension point id needs a non-empty value.", nameof(id));
+        }
+
+        if (_extensionPoints.TryGetValue(id, out var existing))
+        {
+            if (existing.Point is IExtensionPoint<T> typed)
+            {
+                _extensionPointDuplicates.Add(new ExtensionPointDuplicate(
+                    existing.Plugin, CurrentPlugin, id));
+                return typed;
+            }
+
+            throw new InvalidOperationException(
+                $"Extension point '{id}' is already declared with another contract.");
+        }
+
+        var point = new LierneExtensionPoint<T>(id);
+        _extensionPoints.Add(id, new OwnedExtensionPoint(CurrentPlugin, point));
+        return point;
+    }
+
+    /// <inheritdoc />
+    public IExtensionPoint<T> GetExtensionPoint<T>(ExtensionPointId id)
+    {
+        if (_extensionPoints.TryGetValue(id, out var existing) &&
+            existing.Point is IExtensionPoint<T> typed)
+        {
+            return typed;
+        }
+
+        throw new InvalidOperationException(
+            $"Extension point '{id}' is not declared as '{typeof(T)}'.");
     }
 
     /// <inheritdoc />
