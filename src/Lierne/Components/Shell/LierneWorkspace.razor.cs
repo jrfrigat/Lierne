@@ -424,7 +424,13 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
         {
             return FindDocument(documentId) is not null &&
                 !(action is DockAction.Move or DockAction.Split &&
-                    LierneDockLayoutAdapter.TargetsBottom(target));
+                    LierneDockLayoutAdapter.DocumentRegionOf(_layout, target) is null);
+        }
+
+        if (LierneDockLayoutAdapter.TryPanel(key, out _))
+        {
+            return !(action is DockAction.Move or DockAction.Split &&
+                LierneDockLayoutAdapter.ToolRegionOf(_layout, target) is null);
         }
 
         return true;

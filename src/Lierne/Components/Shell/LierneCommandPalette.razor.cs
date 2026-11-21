@@ -84,7 +84,8 @@ public partial class LierneCommandPalette : IDisposable
     private void RefreshResults()
     {
         _results = Presentations.Search(_query)
-            .Where(command => Presentations.GetPresentation(command.Id).Visible)
+            .Where(command => command.ArgumentType is null &&
+                Presentations.GetPresentation(command.Id).Visible)
             .ToArray();
         if (_selected >= _results.Count)
         {

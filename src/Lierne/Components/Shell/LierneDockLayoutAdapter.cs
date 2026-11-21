@@ -215,10 +215,6 @@ internal static class LierneDockLayoutAdapter
     internal static LierneToolRegion? ToolRegionOf(DockNode root, string targetKey) =>
         FindToolRegion(root, targetKey, null);
 
-    internal static bool TargetsBottom(string targetKey) =>
-        targetKey.StartsWith("group:bottom", StringComparison.Ordinal) ||
-        targetKey.StartsWith("split:region.bottom", StringComparison.Ordinal);
-
     private static LierneDockLocation? FindDocumentRegion(
         DockNode node,
         string targetKey,
