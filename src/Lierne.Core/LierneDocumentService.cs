@@ -7,6 +7,7 @@ public sealed class LierneDocumentService : ILierneDocumentService
 {
     private readonly Dictionary<DocumentTypeId, DocumentDescriptor> _types;
     private readonly Dictionary<DocumentTypeId, IReadOnlyList<DocumentViewDescriptor>> _viewsByType;
+    private readonly Dictionary<DocumentTypeId, LierneDocumentViewLayout> _layoutsByType;
     private readonly List<LierneDocumentInstance> _documents = [];
     private long _nextId;
     private string? _activeId;
@@ -25,6 +26,9 @@ public sealed class LierneDocumentService : ILierneDocumentService
                     .OrderBy(view => view.Order)
                     .ThenBy(view => view.Id.Value, StringComparer.Ordinal)
                     .ToArray());
+        _layoutsByType = _types.Values.ToDictionary(
+            type => type.Id,
+            type => LierneDocumentViewLayoutResolver.Resolve(type.ViewLayout, ViewsFor(type.Id)));
     }
 
     /// <inheritdoc />
@@ -88,12 +92,17 @@ public sealed class LierneDocumentService : ILierneDocumentService
                     change |= LierneDocumentChange.Content;
                 }
 
-                if (view is { } selectedView &&
-                    updated.SelectedView != selectedView &&
-                    IsKnownView(typeId, selectedView))
+                if (view is { } selectedView && IsKnownView(typeId, selectedView))
                 {
-                    updated = updated with { SelectedView = selectedView };
-                    change |= LierneDocumentChange.Tabs;
+                    var selectedDocument = WithSelectedView(updated, selectedView);
+                    if (selectedDocument.SelectedView != updated.SelectedView ||
+                        !SameGroupSelections(
+                            selectedDocument.GroupSelectedViews,
+                            updated.GroupSelectedViews))
+                    {
+                        updated = selectedDocument;
+                        change |= LierneDocumentChange.Tabs;
+                    }
                 }
 
                 if (preview && !updated.Preview)
@@ -116,6 +125,15 @@ public sealed class LierneDocumentService : ILierneDocumentService
         }
 
         var selected = view ?? descriptor.DefaultView ?? ViewsFor(typeId).FirstOrDefault()?.Id;
+        IReadOnlyDictionary<int, DocumentViewId>? groupSelectedViews = null;
+        if (selected is { } selectedId && LayoutFor(typeId).GroupFor(selectedId) is { } selectedGroup)
+        {
+            groupSelectedViews = new Dictionary<int, DocumentViewId>
+            {
+                [selectedGroup.Index] = selectedId
+            };
+        }
+
         var document = new LierneDocumentInstance(
             $"document-{(++_nextId).ToString(CultureInfo.InvariantCulture)}",
             typeId,
@@ -124,7 +142,8 @@ public sealed class LierneDocumentService : ILierneDocumentService
             location ?? descriptor.DefaultLocation,
             Key: key,
             SelectedView: selected,
-            Preview: preview);
+            Preview: preview,
+            GroupSelectedViews: groupSelectedViews);
         _documents.Add(document);
         _activeId = document.Id;
         NotifyChanged(LierneDocumentChange.Structure);
@@ -321,13 +340,121 @@ public sealed class LierneDocumentService : ILierneDocumentService
                 $"The view '{selected}' is not registered for document type '{document.TypeId}'.");
         }
 
-        if (document.SelectedView == view)
+        var updated = WithSelectedView(document, view);
+        if (updated.SelectedView == document.SelectedView &&
+            SameGroupSelections(updated.GroupSelectedViews, document.GroupSelectedViews))
         {
             return LierneResult.Ok;
         }
 
-        _documents[index] = document with { SelectedView = view };
+        _documents[index] = updated;
         NotifyChanged(LierneDocumentChange.Tabs | LierneDocumentChange.Workspace);
+        return LierneResult.Ok;
+    }
+
+    /// <inheritdoc />
+    public LierneResult SetGroupSelectedView(string instanceId, int groupIndex, DocumentViewId view)
+    {
+        var index = IndexOf(instanceId);
+        if (index < 0)
+        {
+            return LierneResult.Fail(
+                "lattice.document.unknown_instance",
+                $"The document '{instanceId}' is not open.");
+        }
+
+        var document = _documents[index];
+        if (!IsKnownView(document.TypeId, view))
+        {
+            return LierneResult.Fail(
+                "lattice.document.unknown_view",
+                $"The view '{view}' is not registered for document type '{document.TypeId}'.");
+        }
+
+        var layout = LayoutFor(document.TypeId);
+        if (groupIndex < 0 || groupIndex >= layout.Groups.Count)
+        {
+            return LierneResult.Fail(
+                "lattice.document.unknown_group",
+                $"The document type '{document.TypeId}' has no view group '{groupIndex}'.");
+        }
+
+        var group = layout.Groups[groupIndex];
+        if (!group.Contains(view))
+        {
+            return LierneResult.Fail(
+                "lattice.document.unknown_view",
+                $"The view '{view}' is not shown in group '{groupIndex}' of document type '{document.TypeId}'.");
+        }
+
+        var current = document.GroupSelectedViews is { } selections &&
+                      selections.TryGetValue(groupIndex, out var selected)
+            ? selected
+            : (DocumentViewId?)null;
+        if (document.SelectedView == view && current == view)
+        {
+            return LierneResult.Ok;
+        }
+
+        var updatedSelections = document.GroupSelectedViews is { Count: > 0 } existing
+            ? new Dictionary<int, DocumentViewId>(existing)
+            : new Dictionary<int, DocumentViewId>();
+        updatedSelections[groupIndex] = view;
+        _documents[index] = document with
+        {
+            SelectedView = view,
+            GroupSelectedViews = updatedSelections
+        };
+        NotifyChanged(LierneDocumentChange.Tabs | LierneDocumentChange.Workspace);
+        return LierneResult.Ok;
+    }
+
+    /// <inheritdoc />
+    public LierneResult SetSplitFraction(string instanceId, int splitIndex, double fraction)
+    {
+        var index = IndexOf(instanceId);
+        if (index < 0)
+        {
+            return LierneResult.Fail(
+                "lattice.document.unknown_instance",
+                $"The document '{instanceId}' is not open.");
+        }
+
+        if (!double.IsFinite(fraction))
+        {
+            return LierneResult.Fail(
+                "lattice.document.invalid_split_fraction",
+                "A split fraction needs a finite number.");
+        }
+
+        var document = _documents[index];
+        var layout = LayoutFor(document.TypeId);
+        if (splitIndex < 0 || splitIndex >= layout.Splits.Count)
+        {
+            return LierneResult.Fail(
+                "lattice.document.unknown_split",
+                $"The document type '{document.TypeId}' has no view split '{splitIndex}'.");
+        }
+
+        var clamped = Math.Round(
+            Math.Clamp(
+                fraction,
+                DocumentViewSplitLayout.MinimumFraction,
+                DocumentViewSplitLayout.MaximumFraction),
+            4);
+        if (document.SplitFractions is { } fractions &&
+            fractions.TryGetValue(splitIndex, out var current) &&
+            Math.Abs(current - clamped) < 0.00005)
+        {
+            return LierneResult.Ok;
+        }
+
+        var updatedFractions = document.SplitFractions is { Count: > 0 } existing
+            ? new Dictionary<int, double>(existing)
+            : new Dictionary<int, double>();
+        updatedFractions[splitIndex] = clamped;
+        _documents[index] = document with { SplitFractions = updatedFractions };
+        NotifyChanged(LierneDocumentChange.Workspace);
         return LierneResult.Ok;
     }
 
@@ -452,6 +579,60 @@ public sealed class LierneDocumentService : ILierneDocumentService
 
     private bool IsKnownView(DocumentTypeId typeId, DocumentViewId view) =>
         ViewsFor(typeId).Any(descriptor => descriptor.Id == view);
+
+    private LierneDocumentViewLayout LayoutFor(DocumentTypeId typeId) =>
+        _layoutsByType.TryGetValue(typeId, out var layout)
+            ? layout
+            : LierneDocumentViewLayoutResolver.Resolve(null, ViewsFor(typeId));
+
+    private LierneDocumentInstance WithSelectedView(
+        LierneDocumentInstance document,
+        DocumentViewId? view)
+    {
+        var selections = document.GroupSelectedViews is { Count: > 0 } existing
+            ? new Dictionary<int, DocumentViewId>(existing)
+            : new Dictionary<int, DocumentViewId>();
+        if (view is { } selected && LayoutFor(document.TypeId).GroupFor(selected) is { } group)
+        {
+            selections[group.Index] = selected;
+        }
+
+        return document with
+        {
+            SelectedView = view,
+            GroupSelectedViews = selections.Count == 0 ? null : selections
+        };
+    }
+
+    private static bool SameGroupSelections(
+        IReadOnlyDictionary<int, DocumentViewId>? left,
+        IReadOnlyDictionary<int, DocumentViewId>? right)
+    {
+        if (ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        if (left is null)
+        {
+            return right is null;
+        }
+
+        if (right is null || left.Count != right.Count)
+        {
+            return false;
+        }
+
+        foreach (var (group, view) in left)
+        {
+            if (!right.TryGetValue(group, out var other) || other != view)
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
 
     private LierneDocumentInstance? Find(string instanceId)
     {

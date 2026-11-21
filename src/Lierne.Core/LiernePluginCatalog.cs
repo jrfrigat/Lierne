@@ -315,6 +315,7 @@ public sealed class LiernePluginCatalog
             }
         }
         ValidateDocumentViews(builder, diagnostics);
+        ValidateDocumentViewLayouts(builder, diagnostics);
         ValidateDuplicateIds(
             builder.OwnedToolWindows,
             contribution => contribution.Id.Value,
@@ -434,6 +435,127 @@ public sealed class LiernePluginCatalog
             }
 
             owners[key] = contribution.Plugin;
+        }
+    }
+
+    private static void ValidateDocumentViewLayouts(
+        LiernePluginBuilder builder,
+        List<LierneDiagnostic> diagnostics)
+    {
+        var viewsByType = new Dictionary<DocumentTypeId, HashSet<DocumentViewId>>();
+        foreach (var contribution in builder.OwnedDocumentViews)
+        {
+            var view = contribution.Descriptor;
+            if (!viewsByType.TryGetValue(view.DocumentType, out var views))
+            {
+                views = [];
+                viewsByType.Add(view.DocumentType, views);
+            }
+
+            views.Add(view.Id);
+        }
+
+        foreach (var contribution in builder.OwnedDocuments)
+        {
+            var document = contribution.Descriptor;
+            if (document.ViewLayout is not { } layout)
+            {
+                continue;
+            }
+
+            var known = viewsByType.TryGetValue(document.Id, out var views)
+                ? views
+                : [];
+            var referenced = new HashSet<DocumentViewId>();
+            var groups = 0;
+            ValidateDocumentViewLayoutNode(
+                contribution.Plugin,
+                document.Id,
+                layout,
+                known,
+                referenced,
+                ref groups,
+                diagnostics);
+            if (groups == 0)
+            {
+                diagnostics.Add(LierneDiagnostic.Error(
+                    "lattice.documentviewlayout.invalid_split",
+                    $"The view layout of document type '{document.Id}' of plugin '{contribution.Plugin}' declares no tabs group.",
+                    contribution.Plugin));
+            }
+        }
+    }
+
+    private static void ValidateDocumentViewLayoutNode(
+        PluginId plugin,
+        DocumentTypeId document,
+        DocumentViewLayout node,
+        HashSet<DocumentViewId> known,
+        HashSet<DocumentViewId> referenced,
+        ref int groups,
+        List<LierneDiagnostic> diagnostics)
+    {
+        switch (node)
+        {
+            case DocumentViewTabsLayout tabs:
+                groups++;
+                if (tabs.Views is not { } views)
+                {
+                    return;
+                }
+
+                foreach (var view in views)
+                {
+                    if (!known.Contains(view))
+                    {
+                        diagnostics.Add(LierneDiagnostic.Error(
+                            "lattice.documentviewlayout.unknown_view",
+                            $"The view layout of document type '{document}' of plugin '{plugin}' references view '{view}', which the type does not declare.",
+                            plugin));
+                    }
+                    else if (!referenced.Add(view))
+                    {
+                        diagnostics.Add(LierneDiagnostic.Error(
+                            "lattice.documentviewlayout.duplicate_view",
+                            $"The view layout of document type '{document}' of plugin '{plugin}' references view '{view}' more than once.",
+                            plugin));
+                    }
+                }
+
+                break;
+
+            case DocumentViewSplitLayout split:
+                if (split.First is null || split.Second is null || !Enum.IsDefined(split.Axis) ||
+                    !double.IsFinite(split.FirstFraction) ||
+                    split.FirstFraction < DocumentViewSplitLayout.MinimumFraction ||
+                    split.FirstFraction > DocumentViewSplitLayout.MaximumFraction)
+                {
+                    diagnostics.Add(LierneDiagnostic.Error(
+                        "lattice.documentviewlayout.invalid_split",
+                        $"The view layout of document type '{document}' of plugin '{plugin}' has a split with a missing branch, an unknown axis or a first-branch share outside 0.05..0.95.",
+                        plugin));
+                }
+
+                if (split.First is not null)
+                {
+                    ValidateDocumentViewLayoutNode(
+                        plugin, document, split.First, known, referenced, ref groups, diagnostics);
+                }
+
+                if (split.Second is not null)
+                {
+                    ValidateDocumentViewLayoutNode(
+                        plugin, document, split.Second, known, referenced, ref groups, diagnostics);
+                }
+
+                break;
+
+            default:
+                diagnostics.Add(LierneDiagnostic.Error(
+                    "lattice.documentviewlayout.invalid_split",
+                    $"The view layout of document type '{document}' of plugin '{plugin}' contains an unknown node.",
+                    plugin));
+                break;
         }
     }
 

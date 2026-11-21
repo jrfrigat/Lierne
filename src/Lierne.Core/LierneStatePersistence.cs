@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
@@ -32,6 +33,14 @@ public sealed class LierneStatePersistence(
                 group => group.Key,
                 group => (IReadOnlyDictionary<DocumentViewId, DocumentViewDescriptor>)group
                     .ToDictionary(view => view.Id));
+    private readonly IReadOnlyDictionary<DocumentTypeId, LierneDocumentViewLayout> _layoutsByType =
+        catalog.Documents
+            .GroupBy(type => type.Id)
+            .ToDictionary(
+                group => group.Key,
+                group => LierneDocumentViewLayoutResolver.Resolve(
+                    group.First().ViewLayout,
+                    catalog.ViewsFor(group.Key)));
     private WorkspaceSave? _pendingWorkspace;
     private Task? _workspaceWrites;
     private bool _preferencesLoaded;
@@ -273,12 +282,50 @@ public sealed class LierneStatePersistence(
                 }
             }
 
+            var groupSelectedViews = new Dictionary<string, string>(StringComparer.Ordinal);
+            var splitFractions = new Dictionary<string, double>(StringComparer.Ordinal);
+            if (_layoutsByType.TryGetValue(document.TypeId, out var viewLayout))
+            {
+                if (document.GroupSelectedViews is { Count: > 0 } selections)
+                {
+                    foreach (var (groupIndex, viewId) in selections)
+                    {
+                        if (groupIndex >= 0 && groupIndex < viewLayout.Groups.Count &&
+                            viewLayout.Groups[groupIndex].Contains(viewId))
+                        {
+                            groupSelectedViews[groupIndex.ToString(CultureInfo.InvariantCulture)] =
+                                viewId.Value;
+                        }
+                    }
+                }
+
+                if (document.SplitFractions is { Count: > 0 } fractions)
+                {
+                    foreach (var (splitIndex, fraction) in fractions)
+                    {
+                        if (splitIndex >= 0 && splitIndex < viewLayout.Splits.Count &&
+                            double.IsFinite(fraction))
+                        {
+                            splitFractions[splitIndex.ToString(CultureInfo.InvariantCulture)] =
+                                Math.Round(
+                                    Math.Clamp(
+                                        fraction,
+                                        DocumentViewSplitLayout.MinimumFraction,
+                                        DocumentViewSplitLayout.MaximumFraction),
+                                    4);
+                        }
+                    }
+                }
+            }
+
             savedDocuments.Add(new DocumentState(
                 document.Id, document.TypeId.Value, document.Title.Namespace, document.Title.Name,
                 document.Location, document.IconKey, document.IconColor, type.StateCodec?.Version ?? 0,
                 type.StateCodec?.Write(document.Payload), document.Key?.Value, document.Version,
                 document.SelectedView?.Value, document.Preview, document.Pinned,
-                viewStates.Count == 0 ? null : viewStates));
+                viewStates.Count == 0 ? null : viewStates,
+                groupSelectedViews.Count == 0 ? null : groupSelectedViews,
+                splitFractions.Count == 0 ? null : splitFractions));
             ids.Add(document.Id);
         }
 
@@ -338,6 +385,9 @@ public sealed class LierneStatePersistence(
             DocumentKey? key = string.IsNullOrWhiteSpace(entry.Key)
                 ? null
                 : new DocumentKey(entry.Key!);
+            var layout = _layoutsByType.TryGetValue(type.Id, out var resolvedLayout)
+                ? resolvedLayout
+                : LierneDocumentViewLayoutResolver.Resolve(type.ViewLayout, catalog.ViewsFor(type.Id));
             DocumentViewId? selectedView = null;
             Dictionary<DocumentViewId, object?>? viewStates = null;
             if (_viewsByType.TryGetValue(type.Id, out var views))
@@ -380,6 +430,55 @@ public sealed class LierneStatePersistence(
                 }
             }
 
+            Dictionary<int, DocumentViewId>? groupSelectedViews = null;
+            if (entry.GroupSelectedViews is { Count: > 0 } savedGroups)
+            {
+                foreach (var (group, view) in savedGroups)
+                {
+                    if (!int.TryParse(group, NumberStyles.Integer, CultureInfo.InvariantCulture, out var groupIndex) ||
+                        groupIndex < 0 || groupIndex >= layout.Groups.Count ||
+                        string.IsNullOrWhiteSpace(view))
+                    {
+                        continue;
+                    }
+
+                    var viewId = new DocumentViewId(view);
+                    if (layout.Groups[groupIndex].Contains(viewId))
+                    {
+                        groupSelectedViews ??= new Dictionary<int, DocumentViewId>();
+                        groupSelectedViews[groupIndex] = viewId;
+                    }
+                }
+            }
+
+            Dictionary<int, double>? splitFractions = null;
+            if (entry.SplitFractions is { Count: > 0 } savedFractions)
+            {
+                foreach (var (split, fraction) in savedFractions)
+                {
+                    if (!int.TryParse(split, NumberStyles.Integer, CultureInfo.InvariantCulture, out var splitIndex) ||
+                        splitIndex < 0 || splitIndex >= layout.Splits.Count ||
+                        !double.IsFinite(fraction))
+                    {
+                        continue;
+                    }
+
+                    splitFractions ??= new Dictionary<int, double>();
+                    splitFractions[splitIndex] = Math.Round(
+                        Math.Clamp(
+                            fraction,
+                            DocumentViewSplitLayout.MinimumFraction,
+                            DocumentViewSplitLayout.MaximumFraction),
+                        4);
+                }
+            }
+
+            if (selectedView is { } activeView && layout.GroupFor(activeView) is { } activeGroup)
+            {
+                groupSelectedViews ??= new Dictionary<int, DocumentViewId>();
+                groupSelectedViews[activeGroup.Index] = activeView;
+            }
+
             restored.Add(new LierneDocumentInstance(
                 entry.Id, type.Id, new StringKey(entry.TitleNamespace, entry.TitleName),
                 payload, entry.Location, entry.IconKey, entry.IconColor,
@@ -387,7 +486,9 @@ public sealed class LierneStatePersistence(
                 SelectedView: selectedView,
                 Preview: entry.Preview,
                 Pinned: entry.Pinned,
-                ViewStates: viewStates));
+                ViewStates: viewStates,
+                GroupSelectedViews: groupSelectedViews,
+                SplitFractions: splitFractions));
         }
 
         return restored;
@@ -473,7 +574,9 @@ public sealed class LierneStatePersistence(
         string? IconKey, string? IconColor, int PayloadVersion, JsonElement? Payload,
         string? Key = null, long Version = 0, string? SelectedView = null,
         bool Preview = false, bool Pinned = false,
-        IReadOnlyList<DocumentViewState?>? ViewStates = null);
+        IReadOnlyList<DocumentViewState?>? ViewStates = null,
+        IReadOnlyDictionary<string, string>? GroupSelectedViews = null,
+        IReadOnlyDictionary<string, double>? SplitFractions = null);
 
     private sealed record DocumentViewState(string View, int Version, JsonElement? State);
 

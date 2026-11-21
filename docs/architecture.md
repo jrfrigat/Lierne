@@ -250,15 +250,37 @@ Flare, а UI-слой разрешает ключ в `FlareIcon`. Плагин, 
 нужны. Описатель задаёт тип документа, id view, локализованный заголовок, иконку, компонент и
 порядок. Каталог проверяет, что тип объявлен хотя бы одним плагином, а id view уникален в
 пределах типа. `LiernePluginCatalog.DocumentViews` отдаёт все views, а `ViewsFor(typeId)` -
-views одного типа по `Order`, затем по `DocumentViewId.Value`. `LierneDocumentHost` показывает
-views вкладками `FlareTabs` и передаёт компоненту `LierneDocumentViewContext`; приложение может
-заменить host целиком через `LierneShell.WorkspaceContent`.
+views одного типа по `Order`, затем по `DocumentViewId.Value`.
+
+`DocumentDescriptor.ViewLayout` заменяет одну полосу вкладок раскладкой, которую объявляет тип
+документа. Дерево состоит из двух узлов:
+
+- `DocumentViewTabsLayout` - группа вкладок с явным списком `DocumentViewId` и `Placement`
+  (`Top` или `Bottom`). При `null` или пустом списке группа собирает все views, на которые не
+  ссылается дерево, в порядке каталога.
+- `DocumentViewSplitLayout` - две ветви, ось `Horizontal`/`Vertical` и доля первой ветви
+  (`FirstFraction`, эффективно 0.05..0.95). Ось объявлена в Lierne и не зависит от Flare.
+
+View, который не упомянут в дереве явно, добавляется вкладкой в последнюю tabs-группу, поэтому
+поздний плагин (профайлер, visual query builder) остаётся видимым без правки описателя.
+`LierneDocumentViewLayoutResolver` разрешает дерево в пронумерованные группы и split'ы.
+`LierneDocumentHost` рисует группу через `FlareTabs` с `FillHeight`, а split - через
+`FlareSplitter`; панели split'а занимают всю высоту документа. Без `ViewLayout` хост показывает
+одну полосу вкладок, как раньше, и передаёт компоненту `LierneDocumentViewContext`; приложение
+может заменить host целиком через `LierneShell.WorkspaceContent`.
 
 `DocumentDescriptor.ReusePolicy` и `DocumentKey` позволяют переиспользовать открытый документ по
 стабильному ключу. `LierneDocumentInstance` хранит `Dirty`, `Version`, выбранный view, preview и
 pin, а также per-view state. `SetPayload` увеличивает версию и ставит dirty; `MarkSaved` снимает
 dirty только для записанной версии. Состояние view сериализуется через
 `LierneDocumentViewStateCodec`.
+
+Раскладка хранит состояние экземпляра: `GroupSelectedViews` - выбранный view каждой группы по
+индексу в порядке дерева, `SplitFractions` - доля первой ветви каждого split'а.
+`SetGroupSelectedView` меняет выбранный view группы и обновляет `SelectedView` документа, поэтому
+команды и сохранение видят активный view; `SetSplitFraction` ограничивает долю диапазоном
+0.05..0.95. Дескриптор `DefaultView` выбирается в той группе, где он показан. Оба словаря входят
+в workspace snapshot; снимки без этих полей читаются как прежде.
 
 #### Команды
 
@@ -348,7 +370,8 @@ resourceManager))`. Строки живут в embedded `.resx`: нейтрал�
 3. вызывает `Configure` каждого плагина в этом порядке;
 4. собирает вклады и проверяет дубликаты id по каждому виду вклада;
 5. проверяет, что view документа ссылается на объявленный тип документа, а его id уникален в
-   пределах типа;
+   пределах типа, и что `ViewLayout` не ссылается на неизвестный view, не повторяет view и не
+   содержит вырожденный split;
 6. проверяет, что пункт риббона ссылается на существующие команду и группу;
 7. проверяет пункты меню (группа, команда, лист без команды и детей) и настройки (страница);
 8. возвращает замороженный каталог и список диагностик.
@@ -365,6 +388,9 @@ resourceManager))`. Строки живут в embedded `.resx`: нейтрал�
 | `lattice.plugin.cycle` | цикл в зависимостях |
 | `lattice.contribution.duplicate` | один id вклада объявлен двумя плагинами |
 | `lattice.documentview.unknown_type` | view документа ссылается на неизвестный тип документа |
+| `lattice.documentviewlayout.unknown_view` | раскладка типа документа ссылается на неизвестный view |
+| `lattice.documentviewlayout.duplicate_view` | один view указан в раскладке больше одного раза |
+| `lattice.documentviewlayout.invalid_split` | у split нет ветви, неизвестная ось или доля вне 0.05..0.95; либо в раскладке нет tabs-группы |
 | `lattice.ribbon.unknown_command` | пункт риббона ссылается на неизвестную команду |
 | `lattice.ribbon.unknown_group` | пункт риббона ссылается на неизвестную группу |
 | `lattice.menu.unknown_group` | пункт меню ссылается на неизвестную группу |
@@ -416,8 +442,11 @@ resourceManager))`. Строки живут в embedded `.resx`: нейтрал�
   переводит их в `ILierneDocumentService`, `IPanelService` и `ILierneToolWindowService`,
   сохраняет принятую топологию сессии и записывает workspace;
 - `LierneDocumentHost` показывает выбранный view документа через `FlareTabs` или сам документ,
-  если views не объявлены; шаблон вкладки workspace учитывает `DocumentHeaderContent` хоста,
-  а preview и pin отмечаются маркерами состояния.
+  если views не объявлены; объявленный `DocumentDescriptor.ViewLayout` заменяет одну полосу
+  группами вкладок и split'ами `FlareSplitter` с прозрачным разделителем. Группы и панели
+  заполняют высоту документа (`FillHeight` и flex-обёртки), поэтому редактор и таблицы получают
+  definite height. Шаблон вкладки workspace учитывает `DocumentHeaderContent` хоста, а preview и
+  pin отмечаются маркерами состояния.
 
 `LierneCommandBar` проецирует `CommandPlacementDescriptor` на меню, риббон и тулбар.
 `LierneCommandMenuItem`, `LierneCommandButton` и `LierneCommandToolbarButton` читают
@@ -463,9 +492,10 @@ localStorage, для Hybrid `LierneFileStateStorage` атомарно замен
   снимка. Для документа с payload плагин задаёт `StateCodec` и обрабатывает старые версии
   формата при чтении. При редактировании payload компонент вызывает `SetPayload`, чтобы оболочка
   сохранила новое значение. Типы документов, которых больше нет в каталоге, пропускаются.
-- Ключ документа, выбранный view, preview/pin и per-view state сохраняются вместе с документом.
-  После успешной записи workspace dirty снимается только для записанной версии, поэтому
-  параллельное редактирование не теряет новый dirty.
+- Ключ документа, выбранный view, preview/pin, per-view state, выбранные views групп раскладки и
+  доли split'ов сохраняются вместе с документом. Снимок без полей раскладки читается как снимок
+  одной группы вкладок. После успешной записи workspace dirty снимается только для записанной
+  версии, поэтому параллельное редактирование не теряет новый dirty.
 - Quas продолжает восстанавливать свои SQL-документы через собственную модель рабочего
   пространства. Lierne сохраняет настройки, сочетания и панели оболочки Quas.
 
@@ -517,6 +547,10 @@ samples/Lierne.SampleIde  интерактивный пример хоста и 
   Flare или Blazor. Это позволяет позже добавить другой визуальный adapter.
 - **Документ - доменный объект.** Lierne не предполагает текст, PSI или редактор. View может
   быть таблицей, графиком, формой или SQL-редактором.
+- **Раскладка views принадлежит типу документа, а не хосту.** Тип объявляет tabs-группы и
+  split'ы, поэтому доменный UX (SQL над результатами) остаётся расширяемым: новый плагин
+  добавляет view как вкладку, не меняя раскладку. Хост владеет только рендерингом, per-instance
+  выбором групп и сохранением долей.
 - **Command-first.** Меню, риббон, тулбар, статус-бар и палитра - проекции команд, а не
   отдельные реестры.
 - **Workspace - first-class состояние.** Раскладка, открытые документы и view state

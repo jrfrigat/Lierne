@@ -41,6 +41,12 @@ public enum DocumentReusePolicy
 /// <param name="Preview">Whether the document host is a preview tab.</param>
 /// <param name="Pinned">Whether the document host is pinned.</param>
 /// <param name="ViewStates">Per-view state values keyed by view id.</param>
+/// <param name="GroupSelectedViews">
+/// The selected view of each tab group, keyed by the group index in document view layout order.
+/// </param>
+/// <param name="SplitFractions">
+/// The first-branch share of each split, keyed by the split index in document view layout order.
+/// </param>
 public sealed record LierneDocumentInstance(
     string Id,
     DocumentTypeId TypeId,
@@ -57,7 +63,9 @@ public sealed record LierneDocumentInstance(
     DocumentViewId? SelectedView = null,
     bool Preview = false,
     bool Pinned = false,
-    IReadOnlyDictionary<DocumentViewId, object?>? ViewStates = null);
+    IReadOnlyDictionary<DocumentViewId, object?>? ViewStates = null,
+    IReadOnlyDictionary<int, DocumentViewId>? GroupSelectedViews = null,
+    IReadOnlyDictionary<int, double>? SplitFractions = null);
 
 /// <summary>Owns the open documents of one host scope.</summary>
 public interface ILierneDocumentService
@@ -133,6 +141,24 @@ public interface ILierneDocumentService
     /// <param name="view">The view id, or <see langword="null"/> to clear the selection.</param>
     /// <returns>Whether the document exists and the view belongs to its type.</returns>
     LierneResult SetSelectedView(string instanceId, DocumentViewId? view) => LierneResult.Ok;
+
+    /// <summary>
+    /// Selects the visible view of one tab group and makes it the document's selected view.
+    /// </summary>
+    /// <param name="instanceId">The document instance id.</param>
+    /// <param name="groupIndex">The tab group index in document view layout order.</param>
+    /// <param name="view">The view id; it must belong to that group.</param>
+    /// <returns>Whether the document, the group and the view exist.</returns>
+    LierneResult SetGroupSelectedView(string instanceId, int groupIndex, DocumentViewId view) =>
+        LierneResult.Ok;
+
+    /// <summary>Sets the first-branch share of one split, clamped to 0.05..0.95.</summary>
+    /// <param name="instanceId">The document instance id.</param>
+    /// <param name="splitIndex">The split index in document view layout order.</param>
+    /// <param name="fraction">The share of the first branch.</param>
+    /// <returns>Whether the document and the split exist and the fraction is a finite number.</returns>
+    LierneResult SetSplitFraction(string instanceId, int splitIndex, double fraction) =>
+        LierneResult.Ok;
 
     /// <summary>Marks the document host as a preview tab.</summary>
     /// <param name="instanceId">The document instance id.</param>

@@ -76,6 +76,48 @@ public sealed class WelcomePlugin : ILiernePlugin
 через `DocumentTypeId`, поэтому плагинам не нужны ссылки друг на друга. Хост читает вкладки из
 `LiernePluginCatalog.ViewsFor` и рисует их сам.
 
+## Задайте раскладку views
+
+По умолчанию все views типа документа показываются одной полосой вкладок. Тип может объявить
+`DocumentDescriptor.ViewLayout` - дерево групп вкладок и split'ов. Дерево описано кодом и не
+зависит от Flare.
+
+```csharp
+builder.AddDocument(new DocumentDescriptor(
+    Query, StringKey.Literal("Query"), null, typeof(QueryDocument))
+{
+    ViewLayout = new DocumentViewSplitLayout(
+        new DocumentViewTabsLayout([SqlView]),
+        new DocumentViewTabsLayout { Placement = DocumentViewTabPlacement.Bottom },
+        DocumentViewSplitAxis.Vertical,
+        0.55)
+});
+```
+
+- `DocumentViewTabsLayout` перечисляет свои views явно. При `null` или пустом списке группа
+  собирает все views, на которые не ссылается остальное дерево, в порядке каталога. `Placement` -
+  `Top` (по умолчанию) или `Bottom`, поэтому группа результатов может держать полосу вкладок
+  внизу документа.
+- `DocumentViewSplitLayout` располагает две раскладки слева и справа (`Horizontal`) или сверху и
+  снизу (`Vertical`). `FirstFraction` задаёт начальную долю первой ветви; хост ограничивает её
+  диапазоном 0.05..0.95.
+- View, который дерево не упоминает, добавляется вкладкой в последнюю tabs-группу дерева, поэтому
+  поздний view (профайлер или visual query builder) остаётся видимым без правки описателя.
+
+Хост отдаёт каждой группе и панели split'а всю высоту документа (`FlareTabs` с `FillHeight` и
+flex-обёртки), поэтому view может растянуться на 100% высоты. Для каждого экземпляра документа
+хост помнит выбранный view каждой группы и долю каждого split'а.
+`ILierneDocumentService.SetGroupSelectedView(instanceId, groupIndex, view)` и
+`SetSplitFraction(instanceId, splitIndex, fraction)` меняют их; выбор view в группе обновляет и
+`SelectedView` документа, поэтому команды и сохранение видят активный view. Индексы групп и
+split'ов следуют порядку разрешённого дерева и сохраняются в workspace snapshot. `DefaultView`
+описателя выбирается в той группе, где он показан.
+
+Каталог отвергает раскладку со ссылкой на неизвестный view, с повторной ссылкой на view и со
+split'ом без ветви, с неизвестной осью или с долей первой ветви вне 0.05..0.95. Коды диагностик:
+`lattice.documentviewlayout.unknown_view`, `lattice.documentviewlayout.duplicate_view` и
+`lattice.documentviewlayout.invalid_split`.
+
 Используйте `StringKey.Literal` для постоянного текста или подключите каталог ресурсов через
 `AddStrings(new LierneStringCatalog(namespace, resourceManager))`. Нейтральный файл ресурсов
 служит запасным вариантом перевода. Хост может зарегистрировать собственный `ILierneIconResolver`

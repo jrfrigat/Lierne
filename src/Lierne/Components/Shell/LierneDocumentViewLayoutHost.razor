@@ -1,0 +1,67 @@
+@namespace Lierne
+@using Flare.Components
+
+@if (Node is LierneDocumentViewLayoutTabs tabs && Group(tabs.GroupIndex) is { } group)
+{
+    <div style="display:flex;flex-direction:column;height:100%;min-height:0;min-width:0;">
+        @if (group.Views.Count > 0 && group.ShowTabs)
+        {
+            <FlareTabs FillHeight="true"
+                       Lazy="true"
+                       Placement="@ToTabsPlacement(group.Placement)"
+                       ActiveIndex="@SelectedIndex(group)"
+                       ActiveIndexChanged="@ViewChanged(group)">
+                @foreach (var view in group.Views)
+                {
+                    <FlareTab @key="view.Id.Value"
+                              Label="@Localizer.Get(view.Title)"
+                              Tooltip="@Localizer.Get(view.Title)">
+                        <LeadingIcon>
+                            @if (Icons.Resolve(view.IconKey) is { } icon)
+                            {
+                                <FlareIconView Value="icon" Size="1rem" />
+                            }
+                        </LeadingIcon>
+                        <ChildContent>
+                            <DynamicComponent Type="@view.Component"
+                                              Parameters="@ViewParameters(view)" />
+                        </ChildContent>
+                    </FlareTab>
+                }
+            </FlareTabs>
+        }
+        else if (group.Views.Count > 0)
+        {
+            @* The host asked for a chrome-less branch: the selected view fills the group. *@
+            var view = group.Views[SelectedIndex(group)];
+            <DynamicComponent Type="@view.Component"
+                              Parameters="@ViewParameters(view)" />
+        }
+    </div>
+}
+else if (Node is LierneDocumentViewLayoutSplit split && Split(split.SplitIndex) is { } info)
+{
+    <div class="lierne-document-view-layout__split"
+         data-lierne-split="@info.Index"
+         style="@SplitStyle(info)">
+        <div class="lierne-document-view-layout__pane"
+             data-lierne-split-first="@info.Index"
+             style="@FirstPaneStyle(info)"
+             @ref="_firstPane">
+            <LierneDocumentViewLayoutHost Document="Document" Layout="Layout" Node="split.First" />
+        </div>
+        <FlareSplitter Orientation="@SplitterOrientation(info.Axis)"
+                       Color="transparent"
+                       ShowStepButtons="false"
+                       ValueTarget="@FirstPaneSelector(info.Index)"
+                       ValueVariable="@SplitVariable(info.Index)"
+                       ValueScope="@SplitSelector(info.Index)"
+                       MaxSize="95%"
+                       OnSizeChanged="@SizeChanged(info.Index)" />
+        <div class="lierne-document-view-layout__pane"
+             style="@SecondPaneStyle(info)"
+             @ref="_secondPane">
+            <LierneDocumentViewLayoutHost Document="Document" Layout="Layout" Node="split.Second" />
+        </div>
+    </div>
+}

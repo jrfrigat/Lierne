@@ -65,6 +65,12 @@ public sealed record DocumentDescriptor(
     /// Gets or sets the payload codec. With no codec, only documents with a null payload can be restored.
     /// </summary>
     public LierneDocumentStateCodec? StateCodec { get; init; }
+
+    /// <summary>
+    /// Gets or sets how the contributed views of this document type are arranged. A null layout keeps
+    /// the default single tab strip over every view.
+    /// </summary>
+    public DocumentViewLayout? ViewLayout { get; init; }
 }
 
 /// <summary>

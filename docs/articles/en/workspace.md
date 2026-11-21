@@ -75,8 +75,9 @@ services.AddScoped<ILierneStateStorage>(_ => new LierneFileStateStorage(stateDir
 
 Preferences and workspace state are separate versioned JSON sections. Preferences contain
 setting overrides and keyboard shortcuts. The workspace contains tool visibility, panel layout,
-document positions and selection. `LierneFileStateStorage` replaces each file atomically.
-A host can implement `ILierneStateStorage` for a different store.
+document positions and selection, the selected view of each document view group and the share of
+each document split. `LierneFileStateStorage` replaces each file atomically. A host can implement
+`ILierneStateStorage` for a different store.
 
 ## Restore document content
 

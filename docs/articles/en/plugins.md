@@ -76,6 +76,48 @@ A document view adds a tab to a document type declared by any plugin and refers 
 `DocumentTypeId`, so plugins do not need to reference each other. The host reads the views from
 `LiernePluginCatalog.ViewsFor` and renders them itself.
 
+## Lay out document views
+
+By default every view of a document type appears in one tab strip. The document type can declare
+`DocumentDescriptor.ViewLayout` instead: a tree of tab groups and splits. The tree is code-only and
+does not depend on Flare.
+
+```csharp
+builder.AddDocument(new DocumentDescriptor(
+    Query, StringKey.Literal("Query"), null, typeof(QueryDocument))
+{
+    ViewLayout = new DocumentViewSplitLayout(
+        new DocumentViewTabsLayout([SqlView]),
+        new DocumentViewTabsLayout { Placement = DocumentViewTabPlacement.Bottom },
+        DocumentViewSplitAxis.Vertical,
+        0.55)
+});
+```
+
+- `DocumentViewTabsLayout` lists its views explicitly. A null or empty list collects every view that
+  no other part of the tree references, in catalog order. `Placement` is `Top` (the default) or
+  `Bottom`, so a results group can keep its tab strip at the bottom of the document.
+- `DocumentViewSplitLayout` places two layouts left and right (`Horizontal`) or above and below
+  (`Vertical`). `FirstFraction` sets the initial share of the first branch; the host clamps it to
+  0.05..0.95.
+- A view the tree does not reference is appended as a tab to the last tab group in tree order, so a
+  later plugin view (a profiler or a visual query builder) stays visible without changing the
+  descriptor.
+
+The host gives every group and split pane the full document height (`FlareTabs` with `FillHeight`
+and flex wrappers), so a view can size itself to 100% height. It remembers the selected view of each
+group and the share of each split per document instance.
+`ILierneDocumentService.SetGroupSelectedView(instanceId, groupIndex, view)` and
+`SetSplitFraction(instanceId, splitIndex, fraction)` change them; selecting a view in a group also
+updates the document's `SelectedView`, so commands and persistence see the active view. Group and
+split indices follow the resolved tree order and are stored in the workspace snapshot. A descriptor
+`DefaultView` is selected in the group that contains it.
+
+The catalog rejects a layout that references an unknown view, repeats a view, or declares a split
+without a branch, with an unknown axis, or with a first-branch share outside 0.05..0.95. The
+diagnostic codes are `lattice.documentviewlayout.unknown_view`,
+`lattice.documentviewlayout.duplicate_view` and `lattice.documentviewlayout.invalid_split`.
+
 Use `StringKey.Literal` for static text or provide a resource catalog with
 `AddStrings(new LierneStringCatalog(namespace, resourceManager))`. The neutral resource file
 supplies fallback strings. A host-provided `ILierneIconResolver` can turn descriptor icon keys into

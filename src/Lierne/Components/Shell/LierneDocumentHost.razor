@@ -10,32 +10,45 @@
 @if (Instance is { } document)
 {
     var views = Catalog.ViewsFor(document.TypeId);
+    var descriptor = Descriptor(document.TypeId);
     if (views.Count > 0)
     {
-        <FlareTabs ActiveIndex="SelectedIndex" ActiveIndexChanged="SelectView" Lazy="true">
-            @foreach (var view in views)
-            {
-                <FlareTab @key="view.Id.Value"
-                          Label="@Localizer.Get(view.Title)"
-                          Tooltip="@Localizer.Get(view.Title)">
-                    <LeadingIcon>
-                        @if (Icons.Resolve(view.IconKey) is { } icon)
-                        {
-                            <FlareIconView Value="icon" Size="1rem" />
-                        }
-                    </LeadingIcon>
-                    <ChildContent>
-                        <DynamicComponent Type="@view.Component"
-                                          Parameters="@ViewParameters(document, view)" />
-                    </ChildContent>
-                </FlareTab>
-            }
-        </FlareTabs>
+        if (descriptor?.ViewLayout is not null &&
+            LayoutFor(document.TypeId) is { Groups.Count: > 0 } layout)
+        {
+            <LierneDocumentViewLayoutHost Document="document" Layout="layout" Node="layout.Root" />
+        }
+        else
+        {
+            <div style="display:flex;flex-direction:column;height:100%;min-height:0;min-width:0;">
+                <FlareTabs FillHeight="true" ActiveIndex="SelectedIndex" ActiveIndexChanged="SelectView" Lazy="true">
+                    @foreach (var view in views)
+                    {
+                        <FlareTab @key="view.Id.Value"
+                                  Label="@Localizer.Get(view.Title)"
+                                  Tooltip="@Localizer.Get(view.Title)">
+                            <LeadingIcon>
+                                @if (Icons.Resolve(view.IconKey) is { } icon)
+                                {
+                                    <FlareIconView Value="icon" Size="1rem" />
+                                }
+                            </LeadingIcon>
+                            <ChildContent>
+                                <DynamicComponent Type="@view.Component"
+                                                  Parameters="@ViewParameters(document, view)" />
+                            </ChildContent>
+                        </FlareTab>
+                    }
+                </FlareTabs>
+            </div>
+        }
     }
-    else if (Descriptor(document.TypeId) is { } descriptor)
+    else if (descriptor is { } plain)
     {
-        <DynamicComponent Type="@descriptor.Component"
-                          Parameters="@DocumentParameters(document)" />
+        <div style="display:flex;flex-direction:column;height:100%;min-height:0;min-width:0;">
+            <DynamicComponent Type="@plain.Component"
+                              Parameters="@DocumentParameters(document)" />
+        </div>
     }
 }
 
@@ -43,6 +56,8 @@
     /// <summary>Gets or sets the document instance shown by the host.</summary>
     [Parameter, EditorRequired]
     public string DocumentId { get; set; } = string.Empty;
+
+    private readonly Dictionary<DocumentTypeId, LierneDocumentViewLayout> _layouts = [];
 
     private LierneDocumentInstance? Instance =>
         Documents.Documents.FirstOrDefault(document =>
@@ -75,6 +90,20 @@
 
     private DocumentDescriptor? Descriptor(DocumentTypeId type) =>
         Catalog.Documents.FirstOrDefault(descriptor => descriptor.Id == type);
+
+    private LierneDocumentViewLayout LayoutFor(DocumentTypeId type)
+    {
+        if (_layouts.TryGetValue(type, out var layout))
+        {
+            return layout;
+        }
+
+        layout = LierneDocumentViewLayoutResolver.Resolve(
+            Descriptor(type)?.ViewLayout,
+            Catalog.ViewsFor(type));
+        _layouts.Add(type, layout);
+        return layout;
+    }
 
     private void SelectView(int index)
     {
