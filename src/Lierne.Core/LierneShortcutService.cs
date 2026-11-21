@@ -84,6 +84,27 @@ public sealed class LierneShortcutService : ILierneShortcutService
     }
 
     /// <inheritdoc />
+    public IReadOnlyList<CommandId> ResolveAll(string gesture)
+    {
+        var normalized = gesture.AsSpan().Trim();
+        if (normalized.IsEmpty)
+        {
+            return [];
+        }
+
+        var commands = new List<CommandId>();
+        foreach (var binding in _bindings)
+        {
+            if (normalized.Equals(binding.EffectiveShortcut.AsSpan(), StringComparison.OrdinalIgnoreCase))
+            {
+                commands.Add(binding.Command);
+            }
+        }
+
+        return commands;
+    }
+
+    /// <inheritdoc />
     public IReadOnlyList<LierneShortcutConflict> FindConflicts()
     {
         return _bindings

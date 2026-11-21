@@ -4,11 +4,14 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Lierne;
 
 /// <summary>Executes commands, applies their predicates and notifies the observers.</summary>
-public sealed class LierneCommandService : ILierneCommandService
+public sealed class LierneCommandService : ILierneCommandService, ICommandPresentationService
 {
     private readonly Dictionary<CommandId, LierneCommandRegistration> _registrations;
+    private readonly LiernePluginCatalog _catalog;
     private readonly ILierneContext _context;
     private readonly IServiceProvider _services;
+    private readonly Lock _presentationLock = new();
+    private readonly Dictionary<CommandId, CommandPresentation> _presentations = [];
 
     /// <summary>Creates the command service.</summary>
     /// <param name="catalog">The composed plugin catalog.</param>
@@ -25,6 +28,7 @@ public sealed class LierneCommandService : ILierneCommandService
         Registrations = catalog.CommandRegistrations;
         _registrations = catalog.CommandRegistrations
             .ToDictionary(registration => registration.Descriptor.Id);
+        _catalog = catalog;
         _context = context;
         _services = services;
     }
@@ -36,6 +40,114 @@ public sealed class LierneCommandService : ILierneCommandService
     public bool CanExecute(CommandId command) =>
         _registrations.TryGetValue(command, out var registration) &&
         (registration.CanExecute?.Invoke(_context) ?? true);
+
+    /// <inheritdoc />
+    public event Action<CommandId>? Changed;
+
+    /// <inheritdoc />
+    public CommandPresentation GetPresentation(CommandId command)
+    {
+        lock (_presentationLock)
+        {
+            if (_presentations.TryGetValue(command, out var cached))
+            {
+                return cached;
+            }
+        }
+
+        var presentation = CreateDefaultPresentation(command);
+        lock (_presentationLock)
+        {
+            return _presentations.TryAdd(command, presentation) ? presentation : _presentations[command];
+        }
+    }
+
+    /// <inheritdoc />
+    public async ValueTask<CommandPresentation> UpdateAsync(
+        CommandId command,
+        object? argument = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (!_registrations.ContainsKey(command))
+        {
+            return GetPresentation(command);
+        }
+
+        CommandPresentation presentation;
+        if (_catalog.CommandUpdateHandlers.TryGetValue(command, out var updateHandler))
+        {
+            var context = new LierneCommandContext(_services, _context, argument);
+            try
+            {
+                presentation = await updateHandler.UpdateAsync(context, cancellationToken);
+                if (presentation.Command != command)
+                {
+                    Trace.TraceError(
+                        "The update handler for command {0} returned the presentation of {1}.",
+                        command,
+                        presentation.Command);
+                    presentation = CreateDefaultPresentation(command) with { Enabled = false };
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception exception)
+            {
+                Trace.TraceError("The update handler for command {0} failed: {1}", command, exception);
+                presentation = CreateDefaultPresentation(command) with { Enabled = false };
+            }
+        }
+        else
+        {
+            presentation = CreateDefaultPresentation(command);
+        }
+
+        lock (_presentationLock)
+        {
+            _presentations[command] = presentation;
+        }
+
+        Notify(command);
+        return presentation;
+    }
+
+    /// <inheritdoc />
+    public IReadOnlyList<CommandDescriptor> Search(string query)
+    {
+        var text = query?.Trim() ?? string.Empty;
+        return text.Length == 0
+            ? _catalog.Commands.ToArray()
+            : _catalog.Commands.Where(command => Matches(command, text)).ToArray();
+    }
+
+    /// <inheritdoc />
+    public void Invalidate(CommandId? command = null)
+    {
+        if (command is { } id)
+        {
+            lock (_presentationLock)
+            {
+                _presentations.Remove(id);
+            }
+
+            Notify(id);
+            return;
+        }
+
+        CommandId[] commands;
+        lock (_presentationLock)
+        {
+            commands = _presentations.Keys.ToArray();
+            _presentations.Clear();
+        }
+
+        foreach (var changedCommand in commands)
+        {
+            Notify(changedCommand);
+        }
+    }
 
     /// <inheritdoc />
     public async Task<LierneCommandResult> ExecuteAsync(
@@ -114,8 +226,57 @@ public sealed class LierneCommandService : ILierneCommandService
         return result;
     }
 
-    private LierneCommandResult Localize(LierneCommandResult result)
+    private CommandPresentation CreateDefaultPresentation(CommandId command)
     {
+        if (!_registrations.TryGetValue(command, out var registration))
+        {
+            return new CommandPresentation(
+                command,
+                new StringKey("lierne", command.Value),
+                Enabled: false,
+                Visible: false);
+        }
+
+        var descriptor = registration.Descriptor;
+        var shortcut = _services.GetService<ILierneShortcutService>()?
+            .Bindings
+            .FirstOrDefault(binding => binding.Command == command)?
+            .EffectiveShortcut;
+        return new CommandPresentation(
+            command,
+            descriptor.Title,
+            descriptor.Description,
+            descriptor.IconKey,
+            registration.CanExecute?.Invoke(_context) ?? true,
+            Visible: true,
+            Checked: false,
+            ShortcutText: shortcut);
+    }
+
+    private void Notify(CommandId command)
+    {
+        try
+        {
+            Changed?.Invoke(command);
+        }
+        catch (Exception exception)
+        {
+            Trace.TraceError("A command presentation observer failed: {0}", exception);
+        }
+    }
+
+    private static bool Matches(CommandDescriptor command, string query) =>
+        Contains(command.Id.Value, query) ||
+        Contains(command.Title.Namespace, query) ||
+        Contains(command.Title.Name, query) ||
+        (command.Description is { } description &&
+            (Contains(description.Namespace, query) || Contains(description.Name, query))) ||
+        (command.Keywords?.Any(keyword => Contains(keyword, query)) ?? false);
+
+    private static bool Contains(string? value, string query) =>
+        value?.Contains(query, StringComparison.OrdinalIgnoreCase) == true;
+
+    private LierneCommandResult Localize(LierneCommandResult result)    {
         if (result.Success || result.ErrorCode is not { } code)
         {
             return result;

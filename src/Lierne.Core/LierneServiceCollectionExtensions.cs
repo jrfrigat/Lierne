@@ -41,7 +41,12 @@ public static class LierneServiceCollectionExtensions
 
         services.AddSingleton(catalog);
         services.AddScoped<ILierneContext, LierneContext>();
-        services.AddScoped<ILierneCommandService, LierneCommandService>();
+        services.AddScoped<LierneCommandService>();
+        services.AddScoped<ILierneCommandService>(provider =>
+            provider.GetRequiredService<LierneCommandService>());
+        services.AddScoped<ICommandPresentationService>(provider =>
+            provider.GetRequiredService<LierneCommandService>());
+        services.AddScoped<ICommandPlacementService, LierneCommandPlacementService>();
         services.AddScoped<ILierneDocumentService, LierneDocumentService>();
         services.AddScoped<ILierneToolWindowService, LierneToolWindowService>();
         services.AddScoped<ISettingsStore, LierneSettingsStore>();

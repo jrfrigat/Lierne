@@ -8,6 +8,11 @@ namespace Lierne;
 /// <param name="Descriptor">The descriptor.</param>
 internal readonly record struct OwnedContribution<T>(PluginId Plugin, T Descriptor);
 
+/// <summary>One command update handler together with the command it serves.</summary>
+/// <param name="Command">The command id.</param>
+/// <param name="Handler">The update handler.</param>
+internal sealed record CommandUpdateDescriptor(CommandId Command, ICommandUpdateHandler Handler);
+
 /// <summary>Collects contributions while the catalog configures the plugins.</summary>
 internal sealed class LiernePluginBuilder : ILiernePluginBuilder
 {
@@ -15,6 +20,8 @@ internal sealed class LiernePluginBuilder : ILiernePluginBuilder
     private readonly List<OwnedContribution<DocumentViewDescriptor>> _documentViews = [];
     private readonly List<OwnedContribution<ToolWindowDescriptor>> _toolWindows = [];
     private readonly List<OwnedContribution<LierneCommandRegistration>> _commands = [];
+    private readonly List<OwnedContribution<CommandPlacementDescriptor>> _commandPlacements = [];
+    private readonly List<OwnedContribution<CommandUpdateDescriptor>> _commandUpdateHandlers = [];
     private readonly List<OwnedContribution<RibbonGroupDescriptor>> _ribbonGroups = [];
     private readonly List<OwnedContribution<RibbonItemDescriptor>> _ribbonItems = [];
     private readonly List<OwnedContribution<SettingsPageDescriptor>> _settingsPages = [];
@@ -62,6 +69,18 @@ internal sealed class LiernePluginBuilder : ILiernePluginBuilder
     /// <summary>Gets the command registrations with their handlers.</summary>
     public IReadOnlyList<LierneCommandRegistration> CommandRegistrations =>
         _commands.Select(contribution => contribution.Descriptor).ToArray();
+
+    /// <inheritdoc />
+    public IReadOnlyList<CommandPlacementDescriptor> CommandPlacements =>
+        _commandPlacements.Select(contribution => contribution.Descriptor).ToArray();
+
+    /// <inheritdoc />
+    public IReadOnlyDictionary<CommandId, ICommandUpdateHandler> CommandUpdateHandlers =>
+        _commandUpdateHandlers
+            .GroupBy(contribution => contribution.Descriptor.Command)
+            .ToDictionary(
+                group => group.Key,
+                group => group.First().Descriptor.Handler);
 
     /// <inheritdoc />
     public IReadOnlyList<RibbonGroupDescriptor> RibbonGroups =>
@@ -119,6 +138,14 @@ internal sealed class LiernePluginBuilder : ILiernePluginBuilder
 
     /// <summary>Gets the commands with their declaring plugin.</summary>
     public IReadOnlyList<OwnedContribution<LierneCommandRegistration>> OwnedCommands => _commands;
+
+    /// <summary>Gets the command placements with their declaring plugin.</summary>
+    public IReadOnlyList<OwnedContribution<CommandPlacementDescriptor>> OwnedCommandPlacements =>
+        _commandPlacements;
+
+    /// <summary>Gets the command update handlers with their declaring plugin.</summary>
+    public IReadOnlyList<OwnedContribution<CommandUpdateDescriptor>> OwnedCommandUpdateHandlers =>
+        _commandUpdateHandlers;
 
     /// <summary>Gets the ribbon groups with their declaring plugin.</summary>
     public IReadOnlyList<OwnedContribution<RibbonGroupDescriptor>> OwnedRibbonGroups => _ribbonGroups;
@@ -188,6 +215,23 @@ internal sealed class LiernePluginBuilder : ILiernePluginBuilder
         _commands.Add(new OwnedContribution<LierneCommandRegistration>(
             CurrentPlugin,
             new LierneCommandRegistration(descriptor, handler, canExecute, CurrentPlugin)));
+    }
+
+    /// <inheritdoc />
+    public void AddCommandPlacement(CommandPlacementDescriptor descriptor)
+    {
+        ArgumentNullException.ThrowIfNull(descriptor);
+        ArgumentException.ThrowIfNullOrWhiteSpace(descriptor.Group);
+        Add(_commandPlacements, descriptor);
+    }
+
+    /// <inheritdoc />
+    public void AddCommandUpdateHandler(CommandId command, ICommandUpdateHandler updateHandler)
+    {
+        ArgumentNullException.ThrowIfNull(updateHandler);
+        _commandUpdateHandlers.Add(new OwnedContribution<CommandUpdateDescriptor>(
+            CurrentPlugin,
+            new CommandUpdateDescriptor(command, updateHandler)));
     }
 
     /// <inheritdoc />

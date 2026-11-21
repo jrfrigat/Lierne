@@ -20,6 +20,8 @@ public sealed class LiernePluginCatalog
         IReadOnlyList<ToolWindowDescriptor> toolWindows,
         IReadOnlyList<CommandDescriptor> commands,
         IReadOnlyList<LierneCommandRegistration> commandRegistrations,
+        IReadOnlyList<CommandPlacementDescriptor> commandPlacements,
+        IReadOnlyDictionary<CommandId, ICommandUpdateHandler> commandUpdateHandlers,
         IReadOnlyList<RibbonGroupDescriptor> ribbonGroups,
         IReadOnlyList<RibbonItemDescriptor> ribbonItems,
         IReadOnlyList<SettingsPageDescriptor> settingsPages,
@@ -47,6 +49,8 @@ public sealed class LiernePluginCatalog
         ToolWindows = toolWindows;
         Commands = commands;
         CommandRegistrations = commandRegistrations;
+        CommandPlacements = commandPlacements;
+        CommandUpdateHandlers = commandUpdateHandlers;
         RibbonGroups = ribbonGroups;
         RibbonItems = ribbonItems;
         SettingsPages = settingsPages;
@@ -78,6 +82,12 @@ public sealed class LiernePluginCatalog
 
     /// <summary>Gets the command registrations with their handlers in plugin order.</summary>
     public IReadOnlyList<LierneCommandRegistration> CommandRegistrations { get; }
+
+    /// <summary>Gets the command placements in plugin order.</summary>
+    public IReadOnlyList<CommandPlacementDescriptor> CommandPlacements { get; }
+
+    /// <summary>Gets the command update handlers by command.</summary>
+    public IReadOnlyDictionary<CommandId, ICommandUpdateHandler> CommandUpdateHandlers { get; }
 
     /// <summary>Gets the ribbon groups in plugin order.</summary>
     public IReadOnlyList<RibbonGroupDescriptor> RibbonGroups { get; }
@@ -165,6 +175,8 @@ public sealed class LiernePluginCatalog
                 .Select(contribution => contribution.Descriptor.Descriptor)
                 .ToArray(),
             builder.OwnedCommands.Select(contribution => contribution.Descriptor).ToArray(),
+            builder.OwnedCommandPlacements.Select(contribution => contribution.Descriptor).ToArray(),
+            builder.CommandUpdateHandlers,
             builder.OwnedRibbonGroups.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedRibbonItems.Select(contribution => contribution.Descriptor).ToArray(),
             builder.OwnedSettingsPages.Select(contribution => contribution.Descriptor).ToArray(),
@@ -325,6 +337,7 @@ public sealed class LiernePluginCatalog
             .Where(command => command.ArgumentType is not null)
             .Select(command => command.Id)
             .ToHashSet();
+        ValidateCommandSurfaces(builder, commands, diagnostics);
         ValidateStatusBarItems(builder, commands, commandsWithArguments, diagnostics);
         ValidateMenus(builder, commands, commandsWithArguments, diagnostics);
         var groups = new HashSet<string>(
@@ -538,6 +551,61 @@ public sealed class LiernePluginCatalog
                 diagnostics.Add(LierneDiagnostic.Error(
                     "lattice.menu.invalid_item",
                     $"Menu item '{item.Id}' of plugin '{entry.Plugin}' has no command and no children."));
+            }
+        }
+    }
+
+    private static void ValidateCommandSurfaces(
+        LiernePluginBuilder builder,
+        HashSet<string> commands,
+        List<LierneDiagnostic> diagnostics)
+    {
+        foreach (var contribution in builder.OwnedCommandPlacements)
+        {
+            var placement = contribution.Descriptor;
+            if (!commands.Contains(placement.Command.Value))
+            {
+                diagnostics.Add(LierneDiagnostic.Error(
+                    "lattice.commandplacement.unknown_command",
+                    $"Command placement of plugin '{contribution.Plugin}' references unknown command '{placement.Command}'."));
+            }
+
+            if (placement.Anchor is CommandPlacementAnchor.Before or CommandPlacementAnchor.After)
+            {
+                if (placement.RelativeTo is not { } relativeTo)
+                {
+                    diagnostics.Add(LierneDiagnostic.Error(
+                        "lattice.commandplacement.missing_relative",
+                        $"Command placement of plugin '{contribution.Plugin}' uses {placement.Anchor} without a relative command."));
+                }
+                else if (!commands.Contains(relativeTo.Value))
+                {
+                    diagnostics.Add(LierneDiagnostic.Error(
+                        "lattice.commandplacement.unknown_relative",
+                        $"Command placement of plugin '{contribution.Plugin}' references unknown relative command '{relativeTo}'."));
+                }
+            }
+        }
+
+        var handled = new Dictionary<CommandId, PluginId>();
+        foreach (var contribution in builder.OwnedCommandUpdateHandlers)
+        {
+            var command = contribution.Descriptor.Command;
+            if (!commands.Contains(command.Value))
+            {
+                diagnostics.Add(LierneDiagnostic.Error(
+                    "lattice.commandupdate.unknown_command",
+                    $"Command update handler of plugin '{contribution.Plugin}' references unknown command '{command}'."));
+            }
+            else if (handled.TryGetValue(command, out var existing))
+            {
+                diagnostics.Add(LierneDiagnostic.Error(
+                    "lattice.commandupdate.duplicate",
+                    $"Command '{command}' has update handlers in plugins '{existing}' and '{contribution.Plugin}'."));
+            }
+            else
+            {
+                handled.Add(command, contribution.Plugin);
             }
         }
     }

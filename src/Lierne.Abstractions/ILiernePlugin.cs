@@ -47,6 +47,12 @@ public interface ILiernePluginBuilder
     /// <summary>Gets the commands declared so far.</summary>
     IReadOnlyList<CommandDescriptor> Commands { get; }
 
+    /// <summary>Gets the command placements declared so far.</summary>
+    IReadOnlyList<CommandPlacementDescriptor> CommandPlacements { get; }
+
+    /// <summary>Gets the command update handlers declared so far.</summary>
+    IReadOnlyDictionary<CommandId, ICommandUpdateHandler> CommandUpdateHandlers { get; }
+
     /// <summary>Gets the ribbon groups declared so far.</summary>
     IReadOnlyList<RibbonGroupDescriptor> RibbonGroups { get; }
 
@@ -104,6 +110,15 @@ public interface ILiernePluginBuilder
         CommandDescriptor descriptor,
         LierneCommandHandler handler,
         Func<ILierneContext, bool>? canExecute = null);
+
+    /// <summary>Declares where a command appears on a surface.</summary>
+    /// <param name="descriptor">The placement descriptor.</param>
+    void AddCommandPlacement(CommandPlacementDescriptor descriptor);
+
+    /// <summary>Declares the handler that computes the live presentation of a command.</summary>
+    /// <param name="command">The command id.</param>
+    /// <param name="updateHandler">The update handler.</param>
+    void AddCommandUpdateHandler(CommandId command, ICommandUpdateHandler updateHandler);
 
     /// <summary>Declares a ribbon group.</summary>
     /// <param name="descriptor">The group descriptor.</param>

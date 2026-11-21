@@ -113,6 +113,11 @@ public interface ILierneShortcutService
     /// <returns>The command, or a not-found result.</returns>
     LierneResult<CommandId> Resolve(string gesture);
 
+    /// <summary>Resolves every command that declares or overrides a gesture.</summary>
+    /// <param name="gesture">The gesture text.</param>
+    /// <returns>The matching commands in binding order, or an empty list.</returns>
+    IReadOnlyList<CommandId> ResolveAll(string gesture);
+
     /// <summary>Finds effective gestures shared by more than one command.</summary>
     /// <returns>The conflicts in binding order.</returns>
     IReadOnlyList<LierneShortcutConflict> FindConflicts();

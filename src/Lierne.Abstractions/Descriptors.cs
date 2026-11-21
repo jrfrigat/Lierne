@@ -142,12 +142,16 @@ public sealed record ShellContentDescriptor(
 /// <param name="ArgumentType">
 /// The typed argument the command accepts, or <see langword="null"/> when it takes no argument.
 /// </param>
+/// <param name="Description">The localized description shown in menus and the command palette.</param>
+/// <param name="Keywords">Extra search terms for the command palette.</param>
 public sealed record CommandDescriptor(
     CommandId Id,
     StringKey Title,
     string? IconKey = null,
     string? DefaultShortcut = null,
-    Type? ArgumentType = null);
+    Type? ArgumentType = null,
+    StringKey? Description = null,
+    IReadOnlyList<string>? Keywords = null);
 
 /// <summary>Describes where a status-bar item is placed.</summary>
 public enum LierneStatusBarAlignment

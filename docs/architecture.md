@@ -258,8 +258,16 @@ views одного типа по `Order`, затем по `DocumentViewId.Value`
 
 `ILierneShortcutService` собирает shortcut'ы из описателей, применяет пользовательские
 переопределения (пустой жест снимает привязку), разрешает жест без учёта регистра и сообщает
-конфликты (`LierneShortcutConflict`). Нормализация жестов остаётся за клавиатурным роутером
+конфликты (`LierneShortcutConflict`). `Resolve` возвращает первый кандидат, `ResolveAll` -
+все кандидаты в порядке регистрации. Нормализация жестов остаётся за клавиатурным роутером
 хоста.
+
+`ICommandPresentationService` (реализуется `LierneCommandService`) отдаёт
+`CommandPresentation` для поверхности и запускает `ICommandUpdateHandler`; `Search` ищет
+команды по id, заголовку, описанию и keywords. `ICommandPlacementService` отдаёт
+`CommandPlacementDescriptor` по поверхности. Меню и риббон пока продолжают использовать
+описатели `MenuItemDescriptor`/`RibbonItemDescriptor`; переход поверхностей на placements
+выполняется в задаче shell kit.
 
 #### Риббоны и меню
 
@@ -351,6 +359,8 @@ resourceManager))`. Строки живут в embedded `.resx`: нейтрал�
 | Каталог плагинов | `LiernePluginCatalog` | singleton |
 | Состояние | `ILierneContext` | scoped |
 | Команды | `ILierneCommandService` | scoped |
+| Презентации команд | `ICommandPresentationService` | scoped |
+| Размещения команд | `ICommandPlacementService` | scoped |
 | Документы | `ILierneDocumentService` | scoped |
 | Tool windows | `ILierneToolWindowService` | scoped |
 | Настройки | `ISettingsStore` | scoped |
