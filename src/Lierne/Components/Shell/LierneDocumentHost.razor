@@ -20,7 +20,7 @@
         }
         else
         {
-            <div style="display:flex;flex-direction:column;height:100%;min-height:0;min-width:0;">
+            <FlareStack Height="100%" MinHeight="0" MinWidth="0" StretchItems="true">
                 <FlareTabs FillHeight="true" ActiveIndex="SelectedIndex" ActiveIndexChanged="SelectView" Lazy="true">
                     @foreach (var view in views)
                     {
@@ -41,15 +41,15 @@
                         </FlareTab>
                     }
                 </FlareTabs>
-            </div>
+            </FlareStack>
         }
     }
     else if (descriptor is { } plain)
     {
-        <div style="display:flex;flex-direction:column;height:100%;min-height:0;min-width:0;">
+        <FlareStack Height="100%" MinHeight="0" MinWidth="0" StretchItems="true">
             <DynamicComponent Type="@plain.Component"
                               Parameters="@DocumentParameters(document)" />
-        </div>
+        </FlareStack>
     }
 }
 

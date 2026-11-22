@@ -36,6 +36,15 @@
 <LierneShell DropZones="@(DockDropZones.Into | DockDropZones.Start | DockDropZones.End)" />
 ```
 
+## Скройте подсказку докинга
+
+Задайте `ShowDropGuide="false"` у `LierneShell` или `LierneWorkspace`, чтобы оставить зоны переноса
+активными без базовой подсветки Flare. Хост может показать собственную подсказку.
+
+```razor
+<LierneShell ShowDropGuide="false" />
+```
+
 ## Настройте вкладки документов
 
 Задайте один шаблон `DocumentHeaderContent` для центра, левой и правой областей. Шаблон

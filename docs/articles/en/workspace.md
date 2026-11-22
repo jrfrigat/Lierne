@@ -34,6 +34,15 @@ For example, keeping only the center and horizontal edges removes the vertical s
 <LierneShell DropZones="@(DockDropZones.Into | DockDropZones.Start | DockDropZones.End)" />
 ```
 
+## Hide the drop guide
+
+Set `ShowDropGuide="false"` on `LierneShell` or `LierneWorkspace` to keep the drop zones active
+without Flare's base highlight. The host can present its own guide.
+
+```razor
+<LierneShell ShowDropGuide="false" />
+```
+
 ## Customize document tabs
 
 Supply a single `DocumentHeaderContent` template for the center, left, and right regions.

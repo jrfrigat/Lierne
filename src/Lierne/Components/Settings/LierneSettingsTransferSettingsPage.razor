@@ -17,7 +17,7 @@
 <FlareStack Gap="FlareSpacing.Small">
     <FlareText Color="FlareColor.OnSurfaceVariant">@Localizer.Get(Key("transferHint"))</FlareText>
 
-    <div style="display:flex;flex-wrap:wrap;gap:var(--flare-spacing-2);align-items:center;">
+    <FlareStack Row="true" Wrap="true" Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
         <FlareButton Variant="ButtonVariant.Outlined"
                      Size="ButtonSize.Sm"
                      Loading="@_busy"
@@ -41,25 +41,25 @@
                 <FlareIconView Value="FlareIcons.Upload" Size="1rem" />
             </LeadingIcon>
         </FlareFileUploadButton>
-    </div>
+    </FlareStack>
 
-    <FlarePaper Outlined="true" Padding="FlareSpacing.Small"
-                Style="margin-block-start:var(--flare-spacing-2);">
-        <FlareText Weight="FontWeight.SemiBold"
-                   Style="margin-block-end:var(--flare-spacing-1);">@Localizer.Get(Key("transferSections"))</FlareText>
-        @if (Catalog.SettingsTransfers.Count == 0)
-        {
-            <FlareText Color="FlareColor.OnSurfaceVariant">@Localizer.Get(Key("transferEmpty"))</FlareText>
-        }
-        else
-        {
-            <ul style="margin:0;padding-inline-start:var(--flare-spacing-5);">
-                @foreach (var section in Catalog.SettingsTransfers)
-                {
-                    <li>@Localizer.Get(section.Title)</li>
-                }
-            </ul>
-        }
+    <FlarePaper Outlined="true" Padding="FlareSpacing.Small">
+        <FlareStack Gap="FlareSpacing.XSmall">
+            <FlareText Weight="FontWeight.SemiBold">@Localizer.Get(Key("transferSections"))</FlareText>
+            @if (Catalog.SettingsTransfers.Count == 0)
+            {
+                <FlareText Color="FlareColor.OnSurfaceVariant">@Localizer.Get(Key("transferEmpty"))</FlareText>
+            }
+            else
+            {
+                <FlareList TItem="object" Dense="true">
+                    @foreach (var section in Catalog.SettingsTransfers)
+                    {
+                        <FlareListItem Primary="@Localizer.Get(section.Title)" />
+                    }
+                </FlareList>
+            }
+        </FlareStack>
     </FlarePaper>
 
     @if (_message is { Length: > 0 })

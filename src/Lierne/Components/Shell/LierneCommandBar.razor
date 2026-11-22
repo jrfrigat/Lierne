@@ -5,15 +5,13 @@
 
 @if (MenuBar is not null || (ShowMenuBar && MenuGroups.Count > 0) || ShowPaletteButton)
 {
-    <div class="lierne-commandbar__menurow"
-         style="display:flex;align-items:center;gap:0.25rem;min-width:0;">
+    <FlareStack Row="true" Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall" StretchFirst="true">
         @if (MenuBar is not null)
         {
-            <div style="display:flex;flex:1 1 auto;min-width:0;">@MenuBar</div>
+            @MenuBar
         }
         else if (ShowMenuBar && MenuGroups.Count > 0)
         {
-            <div style="display:flex;flex:1 1 auto;min-width:0;">
             <FlareMenuBar>
                 @foreach (var group in MenuGroups)
                 {
@@ -43,7 +41,6 @@
                     </FlareMenu>
                 }
             </FlareMenuBar>
-            </div>
         }
         @if (ShowPaletteButton)
         {
@@ -56,7 +53,7 @@
                 </FlareButton>
             </FlareTooltip>
         }
-    </div>
+    </FlareStack>
 }
 
 @if (ShowToolbars)

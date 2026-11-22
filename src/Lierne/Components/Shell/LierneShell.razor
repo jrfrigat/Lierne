@@ -1,6 +1,7 @@
 @namespace Lierne
+@using Flare.Components
 
-<div class="lierne-shell" style="display:flex;flex-direction:column;block-size:100%;min-block-size:0;">
+<FlareStack Height="100%" MinHeight="0">
     @if (Options.ShowNotifications)
     {
         @if (NotificationsContent is not null)
@@ -32,10 +33,11 @@
 
     @if (Options.ShowWorkspace)
     {
-        <div class="lierne-shell__body" style="display:flex;flex:1 1 auto;min-block-size:0;min-inline-size:0;">
+        <FlareStack Row="true" StretchLast="true" Align="FlareAlignItems.Stretch" FlexGrow="1"
+                    MinHeight="0" MinWidth="0">
             @if (WorkspaceContent is not null)
             {
-                <div style="display:flex;flex:1 1 auto;min-block-size:0;min-inline-size:0;">@WorkspaceContent</div>
+                <FlareStack MinHeight="0" MinWidth="0">@WorkspaceContent</FlareStack>
             }
             else
             {
@@ -44,9 +46,10 @@
                                  DocumentHeaderContent="@DocumentHeaderContent"
                                  ShowStartPage="@Options.ShowStartPage"
                                  ShowBottomPanel="@Options.ShowBottomPanel"
-                                 DropZones="@DropZones" />
+                                 DropZones="@DropZones"
+                                 ShowDropGuide="@ShowDropGuide" />
             }
-        </div>
+        </FlareStack>
     }
 
     @if (Options.ShowStatusBar)
@@ -65,4 +68,4 @@
             <LierneCommandPalette />
         }
     }
-</div>
+</FlareStack>

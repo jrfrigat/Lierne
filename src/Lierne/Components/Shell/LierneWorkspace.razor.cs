@@ -4,7 +4,6 @@ using Flare.Components.IDE;
 using Flare.Icons;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
-using Microsoft.AspNetCore.Components.Web;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.JSInterop;
 
@@ -27,12 +26,16 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     };
     private readonly string _workspaceId = $"lierne-workspace-{Guid.NewGuid():N}";
 
+    private static readonly FlareSvgIcon PreviewDot = new()
+    {
+        Data = "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"
+    };
+
     private DockNode _layout = new DockGroup("group:main", []);
     private IReadOnlyList<DockItem> _items = [];
     private IReadOnlyDictionary<string, LierneDockEntry> _entries =
         new Dictionary<string, LierneDockEntry>(StringComparer.Ordinal);
     private string? _layoutSignature;
-    private string? _itemSignature;
     private string? _lastActiveId;
     private LierneDockLocation? _lastActiveLocation;
     private LierneStatePersistence? _persistence;
@@ -85,6 +88,10 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     /// <summary>Gets or sets the body regions the dock offers as drop targets.</summary>
     [Parameter]
     public DockDropZones DropZones { get; set; } = DockDropZones.All;
+
+    /// <summary>Gets or sets whether Flare paints its base drop guide while a tab is dragged.</summary>
+    [Parameter]
+    public bool ShowDropGuide { get; set; } = true;
 
     private RenderFragment? StartSurface =>
         LierneShellContentResolver.Resolve(Catalog, LierneShellSlot.StartPage) is { } start
@@ -308,21 +315,30 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
         var model = BuildModel(rebuildFractions);
         var layoutChanged = forceLayout ||
             !string.Equals(model.LayoutSignature, _layoutSignature, StringComparison.Ordinal);
-        var itemsChanged = layoutChanged ||
-            !string.Equals(model.ItemSignature, _itemSignature, StringComparison.Ordinal);
         if (layoutChanged)
         {
             _layout = model.Layout;
             _layoutSignature = model.LayoutSignature;
         }
 
-        if (itemsChanged)
+        _items = model.Items.Select(item => Decorate(item, model.Entries)).ToArray();
+        _entries = model.Entries;
+    }
+
+    private DockItem Decorate(DockItem item, IReadOnlyDictionary<string, LierneDockEntry> entries)
+    {
+        if (!entries.TryGetValue(item.Key, out var entry))
         {
-            _items = model.Items;
-            _itemSignature = model.ItemSignature;
+            return item;
         }
 
-        _entries = model.Entries;
+        var preview = entry.Document?.Preview == true;
+        return item with
+        {
+            Icon = TabIcon(entry.Document, entry.Panel),
+            BadgeDot = preview,
+            BadgeColor = preview ? FlareColor.OnSurfaceVariant : item.BadgeColor
+        };
     }
 
     private LierneDockModel BuildModel(bool rebuildFractions = false)
@@ -573,8 +589,7 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
         _layout = change.Proposed;
         var model = BuildModel();
         _layoutSignature = model.LayoutSignature;
-        _items = model.Items;
-        _itemSignature = model.ItemSignature;
+        _items = model.Items.Select(item => Decorate(item, model.Entries)).ToArray();
         _entries = model.Entries;
         if (changed)
         {
@@ -635,14 +650,6 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
             case { Panel: { } panel }:
                 Panels.Hide(panel.Panel);
                 break;
-        }
-    }
-
-    private void CloseItemOnKeyDown(KeyboardEventArgs args, DockItem item)
-    {
-        if (args.Key is "Enter" or " ")
-        {
-            CloseItem(item);
         }
     }
 

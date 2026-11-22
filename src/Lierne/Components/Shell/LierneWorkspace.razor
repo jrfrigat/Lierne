@@ -5,72 +5,71 @@
 
 @if (!_workspaceReady)
 {
-    <div role="status" class="lierne-workspace__loading"
-         style="display:grid;place-items:center;height:100%;flex:1 1 auto;">@HostLabel("stateLoading")</div>
+    <FlareStack Align="FlareAlignItems.Center" Justify="FlareJustifyContent.Center" Height="100%" FlexGrow="1">
+        <FlareText>@HostLabel("stateLoading")</FlareText>
+    </FlareStack>
 }
 else
 {
-    <div id="@_workspaceId" class="lierne-workspace"
-         style="position:relative;display:flex;flex:1 1 auto;min-height:0;height:100%;width:100%;">
-        <FlareDockWorkspace Layout="_layout"
-                            Items="_items"
-                            OnChangeRequested="ApplyChangeAsync"
-                            CanRequest="CanRequest"
-                            DropZones="@DropZones"
-                            GroupLabel="GroupLabel"
-                            Style="flex:1 1 auto;min-width:0;min-height:0;">
-            <ContentTemplate Context="item">@RenderItem(item)</ContentTemplate>
-            <TabTemplate Context="item">
-                @{
-                    var entry = Entry(item.Key);
-                    var document = entry?.Document;
-                    var panel = entry?.Panel;
-                    var icon = TabIcon(document, panel);
-                    var closeLabel = item.CanClose ? $"{HostLabel("close")} {item.Title}" : null;
-                }
-                @if (icon != null)
-                {
-                    <FlareIconView Value="icon" Size="0.875rem" />
-                }
-                @if (document is not null && DocumentHeaderContent is { } template)
-                {
-                    @template(new LierneDocumentHeaderContext(document, item.Title))
-                }
-                else
-                {
-                    <span class="lierne-workspace__tab-title"
-                          style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">@item.Title</span>
-                }
-                @if (document?.Preview == true)
-                {
-                    <span class="lierne-workspace__preview" aria-hidden="true"
-                          style="width:0.375rem;height:0.375rem;border-radius:var(--flare-shape-full, 999px);background:currentColor;opacity:0.55;flex:none;"></span>
-                }
-                @if (document?.Pinned == true)
-                {
-                    <span class="lierne-workspace__pin" aria-hidden="true"
-                          style="display:inline-flex;align-items:center;flex:none;opacity:0.7;">
-                        <FlareIconView Value="FlareIcons.PushPin" Size="0.75rem" />
-                    </span>
-                }
-                @if (item.CanClose)
-                {
-                    <span class="lierne-workspace__close"
-                          role="button"
-                          tabindex="0"
-                          style="display:inline-flex;align-items:center;justify-content:center;flex:none;width:1rem;height:1rem;margin-inline-start:0.125rem;border-radius:var(--flare-shape-small, 0.25rem);cursor:pointer;opacity:0.7;"
-                          aria-label="@closeLabel"
-                          title="@closeLabel"
-                          @onclick="() => CloseItem(item)"
-                          @onclick:stopPropagation="true"
-                          @onclick:preventDefault="true"
-                          @onkeydown="args => CloseItemOnKeyDown(args, item)"
-                          @onkeydown:stopPropagation="true"
-                          @onkeydown:preventDefault="true">
-                        <FlareIconView Value="FlareIcons.Close" Size="0.75rem" />
-                    </span>
-                }
-            </TabTemplate>
-        </FlareDockWorkspace>
-    </div>
+    <FlareStack id="@_workspaceId" Height="100%" FlexGrow="1" MinHeight="0">
+        <FlareStack StretchItems="true" FlexGrow="1" MinWidth="0" MinHeight="0">
+            <FlareDockWorkspace Layout="_layout"
+                                Items="_items"
+                                OnChangeRequested="ApplyChangeAsync"
+                                CanRequest="CanRequest"
+                                DropZones="@DropZones"
+                                ShowDropGuide="@ShowDropGuide"
+                                GroupLabel="GroupLabel">
+                <ContentTemplate Context="item">@RenderItem(item)</ContentTemplate>
+                <TabTemplate Context="item">
+                    @{
+                        var entry = Entry(item.Key);
+                        var document = entry?.Document;
+                    }
+                    @if (item.Icon is { } icon)
+                    {
+                        <FlareIconView Value="icon" Size="0.875rem" />
+                    }
+                    @if (document is not null && DocumentHeaderContent is { } template)
+                    {
+                        @template(new LierneDocumentHeaderContext(document, item.Title))
+                    }
+                    else
+                    {
+                        <FlareText Element="span">@item.Title</FlareText>
+                    }
+                    @if (item.BadgeDot)
+                    {
+                        <span data-lierne-marker="preview" aria-hidden="true">
+                            <FlareIconView Value="PreviewDot" Size="0.375rem" />
+                        </span>
+                    }
+                </TabTemplate>
+                <TabMarkerTemplate Context="item">
+                    @{
+                        var entry = Entry(item.Key);
+                        var document = entry?.Document;
+                    }
+                    @if (document?.Pinned == true)
+                    {
+                        <span data-lierne-marker="pin" aria-hidden="true">
+                            <FlareIconView Value="FlareIcons.PushPin" Size="0.75rem" />
+                        </span>
+                    }
+                </TabMarkerTemplate>
+                <TabActionsTemplate Context="item">
+                    @if (item.CanClose)
+                    {
+                        var closeLabel = $"{HostLabel("close")} {item.Title}";
+                        <FlareIconButton Size="ButtonSize.Xs"
+                                         Variant="ButtonVariant.Text"
+                                         Icon="FlareIcons.Close"
+                                         AriaLabel="@closeLabel"
+                                         Tooltip="@closeLabel"
+                                         OnClick="() => CloseItem(item)" />
+                    }
+                </TabActionsTemplate>
+            </FlareDockWorkspace>
+        </FlareStack>
+    </FlareStack>
 }

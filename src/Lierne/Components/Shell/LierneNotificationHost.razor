@@ -6,8 +6,8 @@
 
 @if (Notifications.Items is { Count: > 0 } items)
 {
-    <div class="lierne-notifications" role="region" aria-label="@Label"
-         style="display:flex;flex-direction:column;gap:var(--flare-spacing-1);padding:var(--flare-spacing-1) var(--flare-spacing-2);max-block-size:30vh;overflow:auto;">
+    <FlareStack Gap="FlareSpacing.XSmall" Padding="FlareSpacing.XSmall" MaxHeight="30vh" Overflow="auto"
+                role="region" aria-label="@Label">
         @foreach (var item in items)
         {
             <FlareAlert @key="item.Id"
@@ -17,7 +17,7 @@
                 @Text(item)
             </FlareAlert>
         }
-    </div>
+    </FlareStack>
 }
 
 @code {

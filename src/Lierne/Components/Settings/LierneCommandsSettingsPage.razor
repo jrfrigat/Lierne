@@ -16,18 +16,20 @@
                        Color="FlareColor.OnSurfaceVariant">@Localizer.Get(group.Title)</FlareText>
             @foreach (var binding in group.Bindings)
             {
-                <div style="display:flex;align-items:center;gap:var(--flare-spacing-2);min-block-size:2rem;"
-                     @key="binding.Command.Value">
-                    <FlareText Style="flex:0 0 220px;min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">@Localizer.Get(binding.Title)</FlareText>
-                    <div style="flex:1 1 auto;min-inline-size:0;max-inline-size:22.5rem;">
+                <FlareStack Row="true" Align="FlareAlignItems.Center" Gap="FlareSpacing.Small"
+                            MinHeight="2rem" @key="binding.Command.Value">
+                    <FlareStack Width="220px" MinWidth="0">
+                        <FlareText>@Localizer.Get(binding.Title)</FlareText>
+                    </FlareStack>
+                    <FlareStack FlexGrow="1" MinWidth="0" MaxWidth="22.5rem">
                         <FlareShortcutEditor Compact="true"
                                              AriaLabel="@Localizer.Get(binding.Title)"
                                              Value="@binding.EffectiveShortcut"
                                              DefaultValue="@binding.DefaultShortcut"
                                              AssignedShortcuts="@AssignedFor(binding)"
                                              ValueChanged="value => SetAsync(binding, value)" />
-                    </div>
-                </div>
+                    </FlareStack>
+                </FlareStack>
             }
         </FlareStack>
     }

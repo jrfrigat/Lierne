@@ -3,7 +3,7 @@
 
 @if (Node is LierneDocumentViewLayoutTabs tabs && Group(tabs.GroupIndex) is { } group)
 {
-    <div style="display:flex;flex-direction:column;height:100%;min-height:0;min-width:0;">
+    <FlareStack Height="100%" MinHeight="0" MinWidth="0" StretchItems="true">
         @if (group.Views.Count > 0 && group.ShowTabs)
         {
             <FlareTabs FillHeight="true"
@@ -38,30 +38,22 @@
             <DynamicComponent Type="@view.Component"
                               Parameters="@ViewParameters(view)" />
         }
-    </div>
+    </FlareStack>
 }
 else if (Node is LierneDocumentViewLayoutSplit split && Split(split.SplitIndex) is { } info)
 {
-    <div class="lierne-document-view-layout__split"
-         data-lierne-split="@info.Index"
-         style="@SplitStyle(info)">
-        <div class="lierne-document-view-layout__pane"
-             data-lierne-split-first="@info.Index"
-             style="@FirstPaneStyle(info)"
-             @ref="_firstPane">
-            <LierneDocumentViewLayoutHost Document="Document" Layout="Layout" Node="split.First" />
-        </div>
-        <FlareSplitter Orientation="@SplitterOrientation(info.Axis)"
-                       Color="transparent"
-                       ValueTarget="@FirstPaneSelector(info.Index)"
-                       ValueVariable="@SplitVariable(info.Index)"
-                       ValueScope="@SplitSelector(info.Index)"
-                       MaxSize="95%"
-                       OnSizeChanged="@SizeChanged(info.Index)" />
-        <div class="lierne-document-view-layout__pane"
-             style="@SecondPaneStyle(info)"
-             @ref="_secondPane">
-            <LierneDocumentViewLayoutHost Document="Document" Layout="Layout" Node="split.Second" />
-        </div>
-    </div>
+    <FlareStack Height="100%" MinHeight="0" MinWidth="0" StretchItems="true">
+        <FlareSplitPane Orientation="@ToSplitPaneOrientation(info.Axis)"
+                        Fraction="@SplitFraction(info)"
+                        FractionChanged="@(value => SplitFractionChanged(info.Index, value))"
+                        MinSize="5%"
+                        MaxSize="95%">
+            <FirstPaneContent>
+                <LierneDocumentViewLayoutHost Document="Document" Layout="Layout" Node="split.First" />
+            </FirstPaneContent>
+            <SecondPaneContent>
+                <LierneDocumentViewLayoutHost Document="Document" Layout="Layout" Node="split.Second" />
+            </SecondPaneContent>
+        </FlareSplitPane>
+    </FlareStack>
 }

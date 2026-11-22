@@ -456,6 +456,27 @@ public sealed class LierneShellRenderTests
     }
 
     [Fact]
+    public async Task RendersADocumentViewSplitWithFlareSplitPane()
+    {
+        await using var provider = BuildProvider(new SplitViewPlugin());
+        var documents = provider.GetRequiredService<ILierneDocumentService>();
+        var document = documents.Open(SplitViewPlugin.Type).Data!;
+
+        var html = await RenderAsync(provider);
+
+        Assert.Contains("flare-split-pane", html, StringComparison.Ordinal);
+        Assert.Contains("summary-body", html, StringComparison.Ordinal);
+        Assert.Contains("details-body", html, StringComparison.Ordinal);
+        Assert.Contains("--_flare-splitpane-first:40%", html, StringComparison.Ordinal);
+
+        Assert.True(documents.SetSplitFraction(document.Id, 0, 0.7).Success);
+
+        var updated = await RenderAsync(provider);
+
+        Assert.Contains("--_flare-splitpane-first:70%", updated, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task MarksPreviewAndPinnedDocumentTabs()
     {
         await using var provider = BuildProvider();
@@ -464,15 +485,27 @@ public sealed class LierneShellRenderTests
 
         var preview = await RenderAsync(provider);
 
-        Assert.Contains("lierne-workspace__preview", preview, StringComparison.Ordinal);
-        Assert.DoesNotContain("lierne-workspace__pin", preview, StringComparison.Ordinal);
+        Assert.Contains("data-lierne-marker=\"preview\"", preview, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-lierne-marker=\"pin\"", preview, StringComparison.Ordinal);
 
         Assert.True(documents.SetPreview(document.Id, false).Success);
         Assert.True(documents.SetPinned(document.Id, true).Success);
         var pinned = await RenderAsync(provider);
 
-        Assert.DoesNotContain("lierne-workspace__preview", pinned, StringComparison.Ordinal);
-        Assert.Contains("lierne-workspace__pin", pinned, StringComparison.Ordinal);
+        Assert.DoesNotContain("data-lierne-marker=\"preview\"", pinned, StringComparison.Ordinal);
+        Assert.Contains("data-lierne-marker=\"pin\"", pinned, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task RendersATabActionThatClosesADocument()
+    {
+        await using var provider = BuildProvider();
+        var documents = provider.GetRequiredService<ILierneDocumentService>();
+        documents.Open(new DocumentTypeId("app.document"));
+
+        var html = await RenderAsync(provider);
+
+        Assert.Contains("aria-label=\"Close Document\"", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -548,6 +581,7 @@ public sealed class LierneShellRenderTests
         services.AddLogging();
         services.AddSingleton<IFlareLocalization>(new TestLocalization());
         services.AddSingleton<Microsoft.JSInterop.IJSRuntime>(new ModuleJsRuntime());
+        services.AddSingleton<NavigationManager>(new TestNavigationManager());
         if (storage is not null)
         {
             services.AddSingleton(storage);
@@ -669,6 +703,48 @@ public sealed class LierneShellRenderTests
             builder.AddContent(2, Context.Document.Title.ToString());
             builder.AddContent(3, Context.Document.Payload?.ToString());
             builder.CloseElement();
+        }
+    }
+
+    private sealed class SplitViewPlugin : ILiernePlugin
+    {
+        public static readonly DocumentTypeId Type = new("app.splitDocument");
+        public static readonly DocumentViewId Summary = new("app.splitSummary");
+        public static readonly DocumentViewId Details = new("app.splitDetails");
+
+        public PluginId Id => new("app.splitViews");
+
+        public StringKey DisplayName => StringKey.Literal("Split views");
+
+        public IReadOnlyList<PluginId> DependsOn => [];
+
+        public void Configure(ILiernePluginBuilder builder)
+        {
+            builder.AddDocument(new DocumentDescriptor(
+                Type,
+                StringKey.Literal("Split document"),
+                null,
+                typeof(TestDocumentComponent))
+            {
+                ViewLayout = new DocumentViewSplitLayout(
+                    new DocumentViewTabsLayout([Summary]),
+                    new DocumentViewTabsLayout([Details]),
+                    DocumentViewSplitAxis.Horizontal,
+                    0.4)
+            });
+            builder.AddDocumentView(new DocumentViewDescriptor(
+                Type,
+                Summary,
+                StringKey.Literal("Summary"),
+                null,
+                typeof(SummaryViewComponent)));
+            builder.AddDocumentView(new DocumentViewDescriptor(
+                Type,
+                Details,
+                StringKey.Literal("Details"),
+                null,
+                typeof(DetailsViewComponent),
+                Order: 10));
         }
     }
 
@@ -848,19 +924,32 @@ public sealed class LierneShellRenderTests
 
         public LierneCommandPalette GetPalette() => Find<LierneCommandPalette>("command palette");
 
-        private T Find<T>(string name) where T : class, IComponent
+        private T Find<T>(string name) where T : class, IComponent =>
+            FindIn<T>(_shellId) ?? throw new InvalidOperationException($"The shell did not render a {name}.");
+
+        private T? FindIn<T>(int componentId) where T : class, IComponent
         {
-            var frames = GetCurrentRenderTreeFrames(_shellId);
+            var frames = GetCurrentRenderTreeFrames(componentId);
             for (var index = 0; index < frames.Count; index++)
             {
                 var frame = frames.Array[index];
-                if (frame.FrameType == RenderTreeFrameType.Component && frame.Component is T component)
+                if (frame.FrameType != RenderTreeFrameType.Component)
+                {
+                    continue;
+                }
+
+                if (frame.Component is T component)
                 {
                     return component;
                 }
+
+                if (frame.ComponentId != 0 && FindIn<T>(frame.ComponentId) is { } nested)
+                {
+                    return nested;
+                }
             }
 
-            throw new InvalidOperationException($"The shell did not render a {name}.");
+            return null;
         }
 
         protected override Task UpdateDisplayAsync(in RenderBatch renderBatch)

@@ -43,11 +43,3 @@ export function unwatchWorkspaceSize(id) {
     workspaceWatches.get(id)?.();
     workspaceWatches.delete(id);
 }
-
-// Returns the two pane lengths along the split axis, so .NET can turn the splitter's pixel
-// report into the persisted first-branch share without knowing the container size in advance.
-export function measureSplit(first, second, axis) {
-    if (!first || !second) return [0, 0];
-    const property = axis === "horizontal" ? "width" : "height";
-    return [first.getBoundingClientRect()[property], second.getBoundingClientRect()[property]];
-}

@@ -72,11 +72,15 @@ public partial class LierneSettingsHost
 
     private bool IsCollapsed(string key) => _collapsedGroups.Contains(key);
 
-    private void ToggleGroup(string key)
+    private void SetGroupExpanded(string key, bool expanded)
     {
-        if (!_collapsedGroups.Add(key))
+        if (expanded)
         {
             _collapsedGroups.Remove(key);
+        }
+        else
+        {
+            _collapsedGroups.Add(key);
         }
     }
 

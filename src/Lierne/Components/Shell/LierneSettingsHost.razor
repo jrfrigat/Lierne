@@ -6,57 +6,42 @@
 @inject ISettingsStore Settings
 @inject ILierneLocalizer Localizer
 
-<div class="lierne-options" style="display:flex;block-size:100%;min-block-size:0;">
-    <nav class="lierne-options__pages" role="tablist" aria-label="@PageListLabel"
-         style="inline-size:220px;min-inline-size:180px;overflow:auto;padding-block:var(--flare-spacing-1);border-inline-end:1px solid var(--flare-color-outline-variant);">
-        @foreach (var group in Groups)
-        {
-            <FlareStack Gap="FlareSpacing.XSmall" @key="group.Key"
-                        Style="margin-block-end:var(--flare-spacing-2);">
-                <FlareButton Variant="ButtonVariant.Text"
-                             Size="ButtonSize.Xs"
-                             FullWidth="true"
-                             Style="justify-content:flex-start;padding-inline-start:var(--flare-spacing-1);"
-                             OnClick="() => ToggleGroup(group.Key)">
-                    <LeadingIcon>
-                        <FlareIconView Value="@(IsCollapsed(group.Key) ? FlareIcons.ChevronRight : FlareIcons.ExpandMore)" />
-                    </LeadingIcon>
-                    <ChildContent>@Localizer.Get(group.Title)</ChildContent>
-                </FlareButton>
-                @if (!IsCollapsed(group.Key))
-                {
+<FlareStack Row="true" Height="100%" MinHeight="0" StretchLast="true" Align="FlareAlignItems.Stretch">
+    <FlareStack Width="220px" MinWidth="180px" Overflow="auto"
+                PaddingBlockStart="FlareSpacing.XXSmall">
+        <FlareNavMenu AriaLabel="@PageListLabel">
+            @foreach (var group in Groups)
+            {
+                <FlareNavGroup @key="group.Key"
+                               Label="@Localizer.Get(group.Title)"
+                               Expanded="@(!IsCollapsed(group.Key))"
+                               ExpandedChanged="expanded => SetGroupExpanded(group.Key, expanded)">
                     @foreach (var page in group.Pages)
                     {
-                        <FlareButton Variant="ButtonVariant.Text"
-                                     Size="ButtonSize.Xs"
-                                     FullWidth="true"
-                                     Selected="@(SelectedPage?.Id == page.Id)"
-                                     Style="justify-content:flex-start;padding-inline-start:var(--flare-spacing-3);"
-                                     role="tab"
-                                     aria-selected="@(SelectedPage?.Id == page.Id ? "true" : "false")"
-                                     OnClick="() => Select(page.Id)">@Localizer.Get(page.Title)</FlareButton>
+                        <FlareNavLink @key="page.Id.Value"
+                                      Active="@(SelectedPage?.Id == page.Id)"
+                                      OnClick="() => Select(page.Id)">@Localizer.Get(page.Title)</FlareNavLink>
                     }
-                }
-            </FlareStack>
-        }
-    </nav>
-    <section class="lierne-options__pane"
-             style="flex:1 1 auto;min-inline-size:0;overflow:auto;padding:var(--flare-spacing-3) var(--flare-spacing-4);">
+                </FlareNavGroup>
+            }
+        </FlareNavMenu>
+    </FlareStack>
+    <FlareDivider Vertical="true" />
+    <FlareStack FlexGrow="1" MinWidth="0" Overflow="auto" Padding="FlareSpacing.Small">
         @if (SelectedPage is { } selected)
         {
-            <FlareText Typo="TypographyScale.TitleSmall" Element="h3"
-                       Style="margin:0 0 var(--flare-spacing-3);">@Localizer.Get(selected.Title)</FlareText>
-            @if (selected.Component is { } component)
-            {
-                <DynamicComponent Type="@component" />
-            }
-            else
-            {
-                @if (CurrentSettings.Count == 0)
+            <FlareStack Gap="FlareSpacing.Small">
+                <FlareText Typo="TypographyScale.TitleSmall" Element="h3">@Localizer.Get(selected.Title)</FlareText>
+                @if (selected.Component is { } component)
                 {
-                    <FlareText Color="FlareColor.OnSurfaceVariant">@NoSettingsText</FlareText>
+                    <DynamicComponent Type="@component" />
                 }
-                <FlareStack Gap="FlareSpacing.Small">
+                else
+                {
+                    @if (CurrentSettings.Count == 0)
+                    {
+                        <FlareText Color="FlareColor.OnSurfaceVariant">@NoSettingsText</FlareText>
+                    }
                     @foreach (var setting in CurrentSettings)
                     {
                         @switch (setting.Kind)
@@ -86,15 +71,12 @@
                                 break;
 
                             case LierneSettingKind.Boolean:
-                                <div style="display:flex;align-items:center;gap:var(--flare-spacing-2);">
-                                    <label for="@setting.Key.Value"
-                                           style="color:var(--flare-color-on-surface-variant);">@Localizer.Get(setting.Label)</label>
-                                    <FlareCheckbox TValue="bool"
-                                                   Size="FieldSize.Sm"
-                                                   Value="@ReadBool(setting.Key)"
-                                                   ValueChanged="value => Set(setting, value)"
-                                                   InputAttributes="@(new Dictionary<string, object> { ["id"] = setting.Key.Value, ["aria-label"] = Localizer.Get(setting.Label) })" />
-                                </div>
+                                <FlareCheckbox TValue="bool"
+                                               Size="FieldSize.Sm"
+                                               Label="@Localizer.Get(setting.Label)"
+                                               Value="@ReadBool(setting.Key)"
+                                               ValueChanged="value => Set(setting, value)"
+                                               InputAttributes="@(new Dictionary<string, object> { ["id"] = setting.Key.Value })" />
                                 break;
 
                             default:
@@ -106,17 +88,16 @@
                                 break;
                         }
                     }
-                </FlareStack>
-                @if (_error is { Length: > 0 })
-                {
-                    <FlareText Color="FlareColor.Error"
-                               Style="margin-block-start:var(--flare-spacing-2);">@_error</FlareText>
+                    @if (_error is { Length: > 0 })
+                    {
+                        <FlareText Color="FlareColor.Error">@_error</FlareText>
+                    }
                 }
-            }
+            </FlareStack>
         }
         else
         {
             <FlareText Color="FlareColor.OnSurfaceVariant">@NoSettingsText</FlareText>
         }
-    </section>
-</div>
+    </FlareStack>
+</FlareStack>

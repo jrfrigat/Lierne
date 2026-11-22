@@ -113,7 +113,6 @@ public partial class LierneStatusBar
                 builder.AddAttribute(sequence++, nameof(LierneCommandToolbarButton.Placement), item.Placement);
                 builder.AddAttribute(sequence++, nameof(LierneCommandToolbarButton.ShowLabel), true);
                 builder.AddAttribute(sequence++, nameof(LierneCommandToolbarButton.Size), ButtonSize.Xs);
-                builder.AddAttribute(sequence++, nameof(LierneCommandToolbarButton.Class), "lierne-statusbar__item");
                 builder.AddAttribute(sequence++, nameof(LierneCommandToolbarButton.ExecuteCommand),
                     EventCallback.Factory.Create<CommandId>(this, ExecuteCommandAsync));
                 builder.CloseComponent();
@@ -121,7 +120,6 @@ public partial class LierneStatusBar
             else if (item.Legacy is { } legacy)
             {
                 builder.OpenElement(sequence++, "span");
-                builder.AddAttribute(sequence++, "class", "lierne-statusbar__item");
                 if (Icons.Resolve(legacy.IconKey) is { } icon)
                 {
                     builder.OpenComponent<FlareIconView>(sequence++);
