@@ -4,12 +4,12 @@ Lierne is a .NET 11 framework for composing IDE-style Blazor applications on
 [Flare](https://github.com/jrfrigat/Flare). Plugins provide documents, tool windows, commands and
 settings. The host chooses its plugins and creates a workspace from their contributions.
 
-Install the package and a Flare theme:
+Install the package and `Flare.Blazor`, plus the Flare themes your application offers:
 
 ```sh
 dotnet add package Lierne
 dotnet add package Flare.Blazor
-dotnet add package Flare.Theme.VisualStudio
+# plus the Flare theme packages your application offers
 ```
 
 For a Blazor host with Flare and a theme already configured, register the plugin catalog and
@@ -33,8 +33,9 @@ Lierne - фреймворк для IDE-подобных Blazor-приложен�
 документы, окна инструментов, команды и настройки. Хост выбирает плагины и собирает из их
 вкладов рабочую область.
 
-Настройте Flare и тему в Blazor-хосте, затем зарегистрируйте каталог плагинов и сервисы
-оболочки, как показано выше. В примере подключён встроенный документ параметров.
+Настройте Flare и темы в Blazor-хосте, затем зарегистрируйте каталог плагинов и сервисы
+оболочки, как показано выше. Приложение подключает свои темы и палитры; настройки Themes в Lierne
+только выбирают среди них. В примере подключён встроенный документ параметров.
 
 Добавьте свои плагины и разместите `<LierneShell />` на интерактивной странице внутри провайдеров
 темы и локализации Flare. Для восстановления настроек и документов в браузере зарегистрируйте

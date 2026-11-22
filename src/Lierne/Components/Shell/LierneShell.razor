@@ -1,6 +1,6 @@
 @namespace Lierne
 
-<div class="lierne-shell">
+<div class="lierne-shell" style="display:flex;flex-direction:column;block-size:100%;min-block-size:0;">
     @if (Options.ShowNotifications)
     {
         @if (NotificationsContent is not null)
@@ -32,10 +32,10 @@
 
     @if (Options.ShowWorkspace)
     {
-        <div class="lierne-shell__body">
+        <div class="lierne-shell__body" style="display:flex;flex:1 1 auto;min-block-size:0;min-inline-size:0;">
             @if (WorkspaceContent is not null)
             {
-                @WorkspaceContent
+                <div style="display:flex;flex:1 1 auto;min-block-size:0;min-inline-size:0;">@WorkspaceContent</div>
             }
             else
             {
@@ -44,9 +44,7 @@
                                  DocumentHeaderContent="@DocumentHeaderContent"
                                  ShowStartPage="@Options.ShowStartPage"
                                  ShowBottomPanel="@Options.ShowBottomPanel"
-                                 DropZones="@DropZones"
-                                 DockingGuide="@DockingGuide"
-                                 CustomDockingGuide="@CustomDockingGuide" />
+                                 DropZones="@DropZones" />
             }
         </div>
     }

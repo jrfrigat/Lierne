@@ -30,11 +30,13 @@ Lierne - каркас рабочих пространств для доменн�
 ```sh
 dotnet add package Lierne
 dotnet add package Flare.Blazor
-dotnet add package Flare.Theme.VisualStudio
+# добавьте один или несколько пакетов темы Flare на ваш выбор
 ```
 
-Пакет `Lierne` подключает компоненты IDE Flare. Добавьте `Flare.Blazor` и пакет темы, например
-`Flare.Theme.VisualStudio`, если хост ещё их не использует.
+Пакет `Lierne` подключает компоненты IDE Flare. Добавьте `Flare.Blazor` и один или несколько
+пакетов темы Flare на ваш выбор, если хост ещё их не использует: приложение подключает свои темы
+и палитры, а настройки Themes в Lierne только выбирают среди них. Lierne не поставляет тему
+и не требует конкретную.
 
 ## Быстрый старт
 

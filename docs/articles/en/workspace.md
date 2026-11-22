@@ -34,18 +34,6 @@ For example, keeping only the center and horizontal edges removes the vertical s
 <LierneShell DropZones="@(DockDropZones.Into | DockDropZones.Start | DockDropZones.End)" />
 ```
 
-## Choose the docking guide
-
-The default `DockingGuide.Base` is the Flare guide: while a tab is dragged, the region under
-the pointer receives one restrained highlight. Set `None` to keep dropping enabled without the
-visual guide, or `Custom` and pass `CustomDockingGuide` to render the host overlay instead.
-Custom content is pointer-transparent; the host owns pointer tracking until Flare exposes a
-guide API.
-
-```razor
-<LierneShell DockingGuide="LierneDockingGuide.None" />
-```
-
 ## Customize document tabs
 
 Supply a single `DocumentHeaderContent` template for the center, left, and right regions.

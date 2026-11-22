@@ -16,15 +16,16 @@
                                         OnActivated="() => Commands.ExecuteAsync(binding.Command)" />
                 }
             }
-            <main class="sample-workspace">
+            <main style="height:100%;">
                 <LierneShell RibbonTitle="@Text.Get(NotesPlugin.Text("app"))">
                     <StartContent>
-                        <div class="sample-start">
+                        <FlareStack Gap="FlareSpacing.Small" Align="FlareAlignItems.Start"
+                                    Style="padding:var(--flare-spacing-4);">
                             <FlareText>@Text.Get(NotesPlugin.Text("welcome"))</FlareText>
                             <FlareButton OnClick="() => Commands.ExecuteAsync(NotesPlugin.NewNote)">
                                 @Text.Get(NotesPlugin.Text("newNote"))
                             </FlareButton>
-                        </div>
+                        </FlareStack>
                     </StartContent>
                 </LierneShell>
             </main>

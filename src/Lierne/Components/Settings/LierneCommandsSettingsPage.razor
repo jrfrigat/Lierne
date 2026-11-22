@@ -1,4 +1,5 @@
 @namespace Lierne
+@using Flare.Abstractions
 @using Flare.Components
 @using Flare.Components.IDE
 @implements IDisposable
@@ -9,13 +10,16 @@
 <FlareStack Gap="FlareSpacing.Small">
     @foreach (var group in Groups)
     {
-        <div class="lierne-commands__group" @key="group.Plugin">
-            <div class="lierne-commands__group-title">@Localizer.Get(group.Title)</div>
+        <FlareStack Gap="FlareSpacing.XSmall" @key="group.Plugin">
+            <FlareText Typo="TypographyScale.LabelMedium"
+                       Transform="TextTransform.Uppercase"
+                       Color="FlareColor.OnSurfaceVariant">@Localizer.Get(group.Title)</FlareText>
             @foreach (var binding in group.Bindings)
             {
-                <div class="lierne-commands__row" @key="binding.Command.Value">
-                    <span class="lierne-commands__title">@Localizer.Get(binding.Title)</span>
-                    <div class="lierne-commands__shortcut">
+                <div style="display:flex;align-items:center;gap:var(--flare-spacing-2);min-block-size:2rem;"
+                     @key="binding.Command.Value">
+                    <FlareText Style="flex:0 0 220px;min-inline-size:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">@Localizer.Get(binding.Title)</FlareText>
+                    <div style="flex:1 1 auto;min-inline-size:0;max-inline-size:22.5rem;">
                         <FlareShortcutEditor Compact="true"
                                              AriaLabel="@Localizer.Get(binding.Title)"
                                              Value="@binding.EffectiveShortcut"
@@ -25,17 +29,17 @@
                     </div>
                 </div>
             }
-        </div>
+        </FlareStack>
     }
     @if (_error is { Length: > 0 })
     {
         <FlareText Typo="TypographyScale.BodySmall"
-                   Style="color: var(--flare-color-error);">@_error</FlareText>
+                   Color="FlareColor.Error">@_error</FlareText>
     }
     @if (_conflict is { Length: > 0 })
     {
         <FlareText Typo="TypographyScale.BodySmall"
-                   Style="color: var(--flare-color-error);">@_conflict</FlareText>
+                   Color="FlareColor.Error">@_conflict</FlareText>
     }
 </FlareStack>
 

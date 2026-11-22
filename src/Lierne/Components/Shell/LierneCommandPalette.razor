@@ -4,50 +4,55 @@
 
 @if (_open)
 {
-    <div class="lierne-palette" @onclick="BackdropClick">
-        <div class="lierne-palette__dialog" role="dialog" aria-modal="true" aria-label="@Title"
-             @onclick:stopPropagation="true" @onkeydown="HandleKeyDownAsync">
-            <FlareTextField Value="@_query"
-                            ValueChanged="OnQueryChanged"
-                            Placeholder="@Placeholder"
-                            Size="FieldSize.Sm"
-                            InputAttributes="InputAttributes" />
-            <div class="lierne-palette__list" role="listbox" aria-label="@Title">
-                @if (_results.Count == 0)
-                {
-                    <p class="lierne-palette__empty">@EmptyText</p>
-                }
-                else
-                {
-                    @for (var index = 0; index < _results.Count; index++)
+    <div style="position:fixed;inset:0;z-index:var(--flare-z-modal);display:flex;justify-content:center;align-items:flex-start;padding:12vh var(--flare-spacing-4) var(--flare-spacing-4);background:color-mix(in srgb, var(--flare-color-scrim) calc(var(--flare-scrim-opacity) * 100%), transparent);"
+         @onclick="BackdropClick">
+        <div style="display:flex;width:min(42rem,100%);max-block-size:70vh;min-block-size:0;"
+             role="dialog" aria-modal="true" aria-label="@Title"
+             @onclick:stopPropagation="true"
+             @onkeydown="HandleKeyDownAsync">
+            <FlarePaper Elevation="4" Padding="FlareSpacing.Small"
+                        Style="display:flex;flex-direction:column;gap:var(--flare-spacing-2);min-block-size:0;inline-size:100%;">
+                <FlareTextField Value="@_query"
+                                ValueChanged="OnQueryChanged"
+                                Placeholder="@Placeholder"
+                                Size="FieldSize.Sm"
+                                InputAttributes="InputAttributes" />
+                <FlareList TItem="object" Dense="true" aria-label="@Title" Style="overflow:auto;min-block-size:0;">
+                    @if (_results.Count == 0)
                     {
-                        var descriptor = _results[index];
-                        var presentation = Presentation(descriptor);
-                        var selected = index == _selected;
-                        <button @key="descriptor.Id.Value"
-                                type="button"
-                                role="option"
-                                aria-selected="@(selected ? "true" : "false")"
-                                class="@(selected ? "lierne-palette__item lierne-palette__item--selected" : "lierne-palette__item")"
-                                disabled="@(!presentation.Enabled)"
-                                @onclick="() => ExecuteAsync(descriptor)">
-                            @if (IconOf(descriptor, presentation) is { } icon)
-                            {
-                                <FlareIconView Value="icon" Size="1rem" />
-                            }
-                            <span class="lierne-palette__title">@Localizer.Get(TitleOf(descriptor, presentation))</span>
-                            @if (presentation.ShortcutText is { Length: > 0 } shortcut)
-                            {
-                                <span class="lierne-palette__shortcut">@shortcut</span>
-                            }
-                            @if (DescriptionOf(presentation) is { Length: > 0 } description)
-                            {
-                                <span class="lierne-palette__description">@description</span>
-                            }
-                        </button>
+                        <FlareListItem Primary="@EmptyText" Disabled="true" />
                     }
-                }
-            </div>
+                    else
+                    {
+                        @for (var index = 0; index < _results.Count; index++)
+                        {
+                            var descriptor = _results[index];
+                            var presentation = Presentation(descriptor);
+                            var selected = index == _selected;
+                            <FlareListItem @key="descriptor.Id.Value"
+                                           Primary="@Localizer.Get(TitleOf(descriptor, presentation))"
+                                           Secondary="@DescriptionOf(presentation)"
+                                           Selected="@selected"
+                                           Disabled="@(!presentation.Enabled)"
+                                           OnClick="() => ExecuteAsync(descriptor)">
+                                <Leading>
+                                    @if (IconOf(descriptor, presentation) is { } icon)
+                                    {
+                                        <FlareIconView Value="icon" Size="1rem" />
+                                    }
+                                </Leading>
+                                <Trailing>
+                                    @if (presentation.ShortcutText is { Length: > 0 } shortcut)
+                                    {
+                                        <FlareText Typo="TypographyScale.LabelSmall"
+                                                   Color="FlareColor.OnSurfaceVariant">@shortcut</FlareText>
+                                    }
+                                </Trailing>
+                            </FlareListItem>
+                        }
+                    }
+                </FlareList>
+            </FlarePaper>
         </div>
     </div>
 }

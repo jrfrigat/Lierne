@@ -1,6 +1,6 @@
 @inherits LierneToolWindowComponent
 
-<div class="sample-note">
+<div style="padding:var(--flare-spacing-4);">
     <FlareButton OnClick="() => Context.Commands.ExecuteAsync(NotesPlugin.NewNote)">
         @Context.Localizer.Get(NotesPlugin.Text("newNote"))
     </FlareButton>

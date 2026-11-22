@@ -1,8 +1,0 @@
-.lierne-notifications {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    padding: 0.25rem 0.5rem;
-    max-height: 30vh;
-    overflow: auto;
-}

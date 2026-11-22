@@ -40,14 +40,6 @@ public partial class LierneShell : IDisposable
     [Parameter]
     public DockDropZones DropZones { get; set; } = DockDropZones.All;
 
-    /// <summary>Gets or sets the docking guide shown while a tab is dragged.</summary>
-    [Parameter]
-    public LierneDockingGuide DockingGuide { get; set; } = LierneDockingGuide.Base;
-
-    /// <summary>Gets or sets the host guide rendered when <see cref="DockingGuide"/> is Custom.</summary>
-    [Parameter]
-    public RenderFragment? CustomDockingGuide { get; set; }
-
     /// <summary>Gets or sets a host command bar that replaces <see cref="LierneCommandBar"/>.</summary>
     [Parameter]
     public RenderFragment? CommandBarContent { get; set; }

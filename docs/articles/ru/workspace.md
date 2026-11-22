@@ -36,18 +36,6 @@
 <LierneShell DropZones="@(DockDropZones.Into | DockDropZones.Start | DockDropZones.End)" />
 ```
 
-## Выберите подсказку докинга
-
-По умолчанию `DockingGuide.Base` показывает подсказку Flare: при переносе вкладки зона под
-указателем получает один сдержанный highlight. Значение `None` оставляет перенос без визуальной
-подсказки, а `Custom` с `CustomDockingGuide` позволяет отрисовать собственный overlay. Содержимое
-Custom не перехватывает указатель; отслеживание указателя остаётся у хоста, пока Flare не
-предоставит API подсказки.
-
-```razor
-<LierneShell DockingGuide="LierneDockingGuide.None" />
-```
-
 ## Настройте вкладки документов
 
 Задайте один шаблон `DocumentHeaderContent` для центра, левой и правой областей. Шаблон

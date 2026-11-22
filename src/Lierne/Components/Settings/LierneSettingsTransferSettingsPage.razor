@@ -15,9 +15,9 @@
 @inject IJSRuntime JS
 
 <FlareStack Gap="FlareSpacing.Small">
-    <p class="lierne-transfer__hint">@Localizer.Get(Key("transferHint"))</p>
+    <FlareText Color="FlareColor.OnSurfaceVariant">@Localizer.Get(Key("transferHint"))</FlareText>
 
-    <div class="lierne-transfer__actions">
+    <div style="display:flex;flex-wrap:wrap;gap:var(--flare-spacing-2);align-items:center;">
         <FlareButton Variant="ButtonVariant.Outlined"
                      Size="ButtonSize.Sm"
                      Loading="@_busy"
@@ -43,27 +43,29 @@
         </FlareFileUploadButton>
     </div>
 
-    <div class="lierne-transfer__sections">
-        <div class="lierne-transfer__sections-title">@Localizer.Get(Key("transferSections"))</div>
+    <FlarePaper Outlined="true" Padding="FlareSpacing.Small"
+                Style="margin-block-start:var(--flare-spacing-2);">
+        <FlareText Weight="FontWeight.SemiBold"
+                   Style="margin-block-end:var(--flare-spacing-1);">@Localizer.Get(Key("transferSections"))</FlareText>
         @if (Catalog.SettingsTransfers.Count == 0)
         {
-            <p class="lierne-transfer__empty">@Localizer.Get(Key("transferEmpty"))</p>
+            <FlareText Color="FlareColor.OnSurfaceVariant">@Localizer.Get(Key("transferEmpty"))</FlareText>
         }
         else
         {
-            <ul class="lierne-transfer__list">
+            <ul style="margin:0;padding-inline-start:var(--flare-spacing-5);">
                 @foreach (var section in Catalog.SettingsTransfers)
                 {
                     <li>@Localizer.Get(section.Title)</li>
                 }
             </ul>
         }
-    </div>
+    </FlarePaper>
 
     @if (_message is { Length: > 0 })
     {
-        <div class="lierne-transfer__message @(_isError ? "lierne-transfer__message--error" : null)"
-             role="status">@_message</div>
+        <FlareText Color="@(_isError ? FlareColor.Error : FlareColor.Success)"
+                   role="status">@_message</FlareText>
     }
 </FlareStack>
 

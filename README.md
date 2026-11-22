@@ -30,11 +30,13 @@ IDE, is its first consumer.
 ```sh
 dotnet add package Lierne
 dotnet add package Flare.Blazor
-dotnet add package Flare.Theme.VisualStudio
+# add one or more Flare theme packages of your choice
 ```
 
-The `Lierne` package references the Flare IDE components. Add `Flare.Blazor` and a theme package
-such as `Flare.Theme.VisualStudio` when the host does not already use them.
+The `Lierne` package references the Flare IDE components. Add `Flare.Blazor` and one or more Flare
+theme packages of your choice when the host does not already use them: the application registers its
+themes and palettes, and Lierne's Themes settings only select among them. Lierne ships no theme and
+does not require a particular one.
 
 ## Get started
 

@@ -2,19 +2,21 @@
 
 [English](../en/getting-started.md)
 
-Lierne работает в приложении Blazor на .NET 11. Хост регистрирует Flare, выбирает тему и
-перечисляет плагины рабочей области.
+Lierne работает в приложении Blazor на .NET 11. Хост регистрирует Flare, одну или несколько тем
+и палитр и перечисляет плагины рабочей области. Lierne управляет выбором среди зарегистрированных
+тем и палитр через настройки Themes и сама темы и палитры не поставляет, не устанавливает
+и не регистрирует.
 
 ## Установка
 
 ```sh
 dotnet add package Lierne
 dotnet add package Flare.Blazor
-dotnet add package Flare.Theme.VisualStudio
+# добавьте один или несколько пакетов темы Flare на ваш выбор
 ```
 
-Пакет `Lierne` подключает компоненты IDE Flare. Добавьте `Flare.Blazor` и пакет темы, если хост
-ещё их не использует.
+Пакет `Lierne` подключает компоненты IDE Flare. Добавьте `Flare.Blazor` и один или несколько
+пакетов темы Flare на ваш выбор, если хост ещё их не использует. Lierne не поставляет тему.
 
 ## Запустите пример
 
@@ -31,15 +33,15 @@ dotnet run --project samples/Lierne.SampleIde
 ## Подключите своё приложение
 
 В Blazor Web App добавьте ссылку на проект `src/Lierne/Lierne.csproj` из исходников
-или установите пакет `Lierne`. Подключите `Flare.Blazor` и совместимый пакет темы Flare.
-В примере используется `Flare.Theme.VisualStudio`.
+или установите пакет `Lierne`. Подключите `Flare.Blazor` и те пакеты темы Flare, которые
+предлагает ваше приложение; ни один из них Lierne не требует.
 
 Для интерактивного серверного хоста зарегистрируйте сервисы до `builder.Build()`. В своём
 приложении замените `NotesPlugin` на собственный плагин.
 
 ```csharp
 using Flare.Extensions;
-using Flare.Theme.VisualStudio;
+using Flare.Theme.YourTheme;
 using Lierne;
 using Lierne.SampleIde;
 
@@ -47,8 +49,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddLocalization();
 
-builder.Services.AddFlare(options => options.DefaultTheme = new VisualStudioTheme());
-builder.Services.AddFlareTheme(new VisualStudioTheme());
+builder.Services.AddFlare(options => options.DefaultTheme = new YourTheme());
+builder.Services.AddFlareTheme(new YourTheme());
 
 builder.Services.AddLierne(options => options
     .AddPlugin<LierneHostPlugin>()
@@ -63,14 +65,13 @@ app.MapRazorComponents<App>().AddInteractiveServerRenderMode();
 app.Run();
 ```
 
-Подключите скрипт и стили Flare в HTML-оболочке приложения. Для темы Visual Studio
-[пример IDE](#запустите-пример) использует следующие ссылки.
+Подключите скрипт и стили Flare в HTML-оболочке приложения. В `data-default-theme` укажите тему,
+с которой стартует приложение. Собственного стилевого файла у Lierne нет.
 
 ```html
-<script src="_content/Flare.Components/js/flare-bootstrap.js" data-default-theme="visualstudio"></script>
+<script src="_content/Flare.Components/js/flare-bootstrap.js" data-default-theme="your-theme-id"></script>
 <link rel="stylesheet" href="_content/Flare.Components/css/flare-components.css" />
 <link rel="stylesheet" href="_content/Flare.Components.IDE/css/flare-ide.css" />
-<link rel="stylesheet" href="_content/Lierne/Lierne.bundle.scp.css" />
 ```
 
 Разместите оболочку на интерактивной странице внутри провайдеров Flare.
@@ -89,8 +90,9 @@ app.Run();
 </FlareLocalizationProvider>
 ```
 
-`LierneHostPlugin` добавляет встроенный документ параметров. Браузерное хранилище
-подключается по желанию. [Руководство по плагинам](plugins.md) описывает первый вклад,
+`LierneHostPlugin` добавляет встроенный документ параметров, включая страницу Themes, которая
+переключает зарегистрированные приложением темы и палитры. Браузерное хранилище подключается по
+желанию. [Руководство по плагинам](plugins.md) описывает первый вклад,
 а [руководство по рабочей области](workspace.md) - хранение и компоновку.
 
 ## Обновите хост, который использовал Lattice
@@ -98,7 +100,8 @@ app.Run();
 Подключите `src/Lierne/Lierne.csproj` или пакет `Lierne`. Если хост напрямую ссылается на ядро
 или контракты, обновите эти ссылки до `Lierne.Core` и `Lierne.Abstractions`. Замените импорты
 на `using Lierne;`, а префикс `Lattice` в именах API - на `Lierne`, как в `AddLierne`,
-`ILiernePlugin` и `LierneShell`. Укажите путь к таблице стилей из примера выше.
+`ILiernePlugin` и `LierneShell`. Удалите старую ссылку на стилевой файл Lattice: Lierne больше
+не поставляет CSS, оболочку оформляет тема Flare приложения.
 
 Сохраните ключ приложения для браузерного хранилища или каталог для файлового. Lierne читает
 существующие рабочие области и экспортированные настройки с их исходными идентификаторами.
