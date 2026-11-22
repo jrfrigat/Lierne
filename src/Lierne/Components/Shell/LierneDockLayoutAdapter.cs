@@ -117,7 +117,7 @@ internal static class LierneDockLayoutAdapter
             var activeKey = active is { } tool && keys.Contains(PanelKey(new ToolWindowId(tool)))
                 ? PanelKey(new ToolWindowId(tool))
                 : keys.FirstOrDefault();
-            resolvedPanels[region] = activeKey is null ? null : activeKey[PrefixLength..];
+            resolvedPanels[region] = activeKey is null ? null : activeKey[PanelPrefixLength..];
         }
 
         var resolvedDocuments = new Dictionary<LierneDockLocation, string?>();
@@ -204,7 +204,7 @@ internal static class LierneDockLayoutAdapter
     {
         if (key.StartsWith("panel:", StringComparison.Ordinal))
         {
-            var value = key[PrefixLength..];
+            var value = key[PanelPrefixLength..];
             if (value.Length > 0)
             {
                 panel = new ToolWindowId(value);
@@ -304,6 +304,7 @@ internal static class LierneDockLayoutAdapter
     internal static string PanelKey(ToolWindowId id) => $"panel:{id.Value}";
 
     private const int PrefixLength = 4;
+    private const int PanelPrefixLength = 6;
 
     private static DockNode? BuildRegion(
         LierneToolRegion region,
