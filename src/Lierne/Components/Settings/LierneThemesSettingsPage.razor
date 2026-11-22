@@ -8,7 +8,7 @@
 
 <FlareStack Gap="FlareSpacing.Small">
     <FlareSelect TValue="string"
-                 Size="FieldSize.Sm"
+                 Size="FlareSize.Sm"
                  Label="@Localizer.Get(LierneHostPlugin.Key("theme"))"
                  Value="@Themes.CurrentTheme.Id"
                  ValueChanged="SetThemeAsync">
@@ -19,7 +19,7 @@
     </FlareSelect>
 
     <FlareSelect TValue="string"
-                 Size="FieldSize.Sm"
+                 Size="FlareSize.Sm"
                  Label="@Localizer.Get(LierneHostPlugin.Key("palette"))"
                  Value="@Themes.CurrentPalette.Id"
                  ValueChanged="SetPaletteAsync">
@@ -30,7 +30,7 @@
     </FlareSelect>
 
     <FlareSelect TValue="string"
-                 Size="FieldSize.Sm"
+                 Size="FlareSize.Sm"
                  Label="@Localizer.Get(LierneHostPlugin.Key("mode"))"
                  Value="@ModeValue"
                  ValueChanged="SetModeAsync">

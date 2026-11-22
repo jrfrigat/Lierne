@@ -112,7 +112,7 @@ public partial class LierneStatusBar
                 builder.AddAttribute(sequence++, nameof(LierneCommandToolbarButton.Command), command);
                 builder.AddAttribute(sequence++, nameof(LierneCommandToolbarButton.Placement), item.Placement);
                 builder.AddAttribute(sequence++, nameof(LierneCommandToolbarButton.ShowLabel), true);
-                builder.AddAttribute(sequence++, nameof(LierneCommandToolbarButton.Size), ButtonSize.Xs);
+                builder.AddAttribute(sequence++, nameof(LierneCommandToolbarButton.Size), FlareSize.Xs);
                 builder.AddAttribute(sequence++, nameof(LierneCommandToolbarButton.ExecuteCommand),
                     EventCallback.Factory.Create<CommandId>(this, ExecuteCommandAsync));
                 builder.CloseComponent();

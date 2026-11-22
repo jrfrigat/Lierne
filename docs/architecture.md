@@ -271,7 +271,7 @@ View, который не упомянут в дереве явно, добав�
 поздний плагин (профайлер, visual query builder) остаётся видимым без правки описателя.
 `LierneDocumentViewLayoutResolver` разрешает дерево в пронумерованные группы и split'ы.
 `LierneDocumentHost` рисует группу через `FlareTabs` с `FillHeight`, а split - через
-`FlareSplitter`; панели split'а занимают всю высоту документа. Без `ViewLayout` хост показывает
+`FlareSplitPane` с контролируемой долей; панели split'а занимают всю высоту документа. Без `ViewLayout` хост показывает
 одну полосу вкладок, как раньше, и передаёт компоненту `LierneDocumentViewContext`; приложение
 может заменить host целиком через `LierneShell.WorkspaceContent`.
 
@@ -449,9 +449,9 @@ resourceManager))`. Строки живут в embedded `.resx`: нейтрал�
   сохраняет принятую топологию сессии и записывает workspace;
 - `LierneDocumentHost` показывает выбранный view документа через `FlareTabs` или сам документ,
   если views не объявлены; объявленный `DocumentDescriptor.ViewLayout` заменяет одну полосу
-  группами вкладок и split'ами `FlareSplitter` с прозрачным разделителем. Группы и панели
-  заполняют высоту документа (`FillHeight` и flex-обёртки), поэтому редактор и таблицы получают
-  definite height. Шаблон вкладки workspace учитывает `DocumentHeaderContent` хоста, а preview и
+  группами вкладок и split'ами `FlareSplitPane` с прозрачным разделителем и сохранённой долей.
+  Группы и панели заполняют высоту документа (`FillHeight` и обёртки `FlareStack`), поэтому
+  редактор и таблицы получают definite height. Шаблон вкладки workspace учитывает `DocumentHeaderContent` хоста, а preview и
   pin отмечаются маркерами состояния.
 
 `LierneCommandBar` проецирует `CommandPlacementDescriptor` на меню, риббон и тулбар.
@@ -476,10 +476,9 @@ Design 3). `AddLierneComponents()` регистрирует резолвер, с
 Это единственная точка, где хост знает о Flare-иконках; сами описатели остаются свободными
 от Flare.
 
-Generic docking входит в сборку `Flare.Components.IDE` начиная с версии, где появился
-`FlareDockWorkspace`. Пакет, привязанный в `Directory.Packages.props`, должен её содержать;
-до выпуска такой версии локальная сборка использует sibling checkout Flare через
-`UseLocalFlare`.
+Generic docking входит в сборку `Flare.Components.IDE` с версии 0.61.0, где появился
+`FlareDockWorkspace`. `Directory.Packages.props` привязывает эту версию; локальная сборка
+против sibling checkout Flare включается через `UseLocalFlare`.
 
 ### 4.6 Сохранение состояния
 

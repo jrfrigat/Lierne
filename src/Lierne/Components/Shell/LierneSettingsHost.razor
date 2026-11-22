@@ -48,7 +48,7 @@
                         {
                             case LierneSettingKind.Select:
                                 <FlareSelect TValue="string"
-                                             Size="FieldSize.Sm"
+                                             Size="FlareSize.Sm"
                                              Label="@Localizer.Get(setting.Label)"
                                              Value="@(Settings.Get<string>(setting.Key) ?? string.Empty)"
                                              ValueChanged="value => Set(setting, value)">
@@ -61,7 +61,7 @@
 
                             case LierneSettingKind.Integer:
                                 <FlareNumericField TValue="int?"
-                                                   Size="FieldSize.Sm"
+                                                   Size="FlareSize.Sm"
                                                    Label="@Localizer.Get(setting.Label)"
                                                    Min="@setting.Min"
                                                    Max="@setting.Max"
@@ -72,7 +72,7 @@
 
                             case LierneSettingKind.Boolean:
                                 <FlareCheckbox TValue="bool"
-                                               Size="FieldSize.Sm"
+                                               Size="FlareSize.Sm"
                                                Label="@Localizer.Get(setting.Label)"
                                                Value="@ReadBool(setting.Key)"
                                                ValueChanged="value => Set(setting, value)"
@@ -80,7 +80,7 @@
                                 break;
 
                             default:
-                                <FlareTextField Size="FieldSize.Sm"
+                                <FlareTextField Size="FlareSize.Sm"
                                                 Label="@Localizer.Get(setting.Label)"
                                                 Value="@(Settings.Get<string>(setting.Key) ?? string.Empty)"
                                                 ValueChanged="value => Set(setting, value)"

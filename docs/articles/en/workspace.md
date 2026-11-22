@@ -9,7 +9,7 @@ item, or a component for a supported slot.
 
 The workspace maps documents and tool windows to `FlareDockWorkspace`. Users can move tabs, split
 groups, reorder and resize them; Lierne accepts the change and updates the document and panel
-services. The referenced Flare package must provide `FlareDockWorkspace`.
+services. Lierne targets Flare 0.61.0, the release that provides `FlareDockWorkspace`.
 
 ## Compose the shell
 

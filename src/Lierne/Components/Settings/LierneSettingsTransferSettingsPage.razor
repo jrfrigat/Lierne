@@ -19,7 +19,7 @@
 
     <FlareStack Row="true" Wrap="true" Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
         <FlareButton Variant="ButtonVariant.Outlined"
-                     Size="ButtonSize.Sm"
+                     Size="FlareSize.Sm"
                      Loading="@_busy"
                      OnClick="ExportAsync">
             <LeadingIcon>
@@ -29,7 +29,7 @@
         </FlareButton>
 
         <FlareFileUploadButton Variant="ButtonVariant.Outlined"
-                               Size="ButtonSize.Sm"
+                               Size="FlareSize.Sm"
                                Accept=".json,application/json"
                                MaxFiles="1"
                                MaxFileSize="@MaxFileBytes"

@@ -20,7 +20,7 @@
                                AriaLabel="@Localizer.Get(group.Group.Title)">
                         <Activator>
                             <FlareButton Variant="ButtonVariant.Text"
-                                         Size="ButtonSize.Sm"
+                                         Size="FlareSize.Sm"
                                          @attributes="context.Attributes">@Localizer.Get(group.Group.Title)</FlareButton>
                         </Activator>
                         <ChildContent>
@@ -46,7 +46,7 @@
         {
             <FlareTooltip Content="@PaletteLabel" Placement="Placement.Bottom">
                 <FlareButton Variant="ButtonVariant.Text"
-                             Size="ButtonSize.Sm"
+                             Size="FlareSize.Sm"
                              AriaLabel="@PaletteLabel"
                              OnClick="OpenPalette">
                     <FlareIconView Value="FlareIcons.Search" Size="1rem" />
