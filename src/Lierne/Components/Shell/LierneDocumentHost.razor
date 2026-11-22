@@ -25,6 +25,7 @@
                     @foreach (var view in views)
                     {
                         <FlareTab @key="view.Id.Value"
+                                  Key="@view.Id.Value"
                                   Label="@Localizer.Get(view.Title)"
                                   Tooltip="@Localizer.Get(view.Title)">
                             <LeadingIcon>
