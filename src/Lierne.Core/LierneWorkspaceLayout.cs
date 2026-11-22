@@ -17,6 +17,10 @@ public sealed record LierneWorkspaceLayout
 
     /// <summary>Gets or sets the semantic placements of the tool panels.</summary>
     public IReadOnlyList<PanelPlacement>? Panels { get; init; }
+
+    /// <summary>Gets or sets the accepted fraction of each dock split, keyed by split key. Absent in
+    /// snapshots written before split fractions were stored; the panel sizes then define the layout.</summary>
+    public IReadOnlyDictionary<string, double>? Splits { get; init; }
 }
 
 /// <summary>The stored size, expansion, and selected tool of a shell panel.</summary>

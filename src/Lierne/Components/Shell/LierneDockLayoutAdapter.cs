@@ -48,7 +48,9 @@ internal static class LierneDockLayoutAdapter
         string startTitle,
         string bottomTitle,
         bool hasStart,
-        bool hasBottom)
+        bool hasBottom,
+        DockNode? current = null,
+        IReadOnlyDictionary<string, double>? fractions = null)
     {
         var visible = tools
             .Where(tool => tool.Visible)
@@ -169,6 +171,11 @@ internal static class LierneDockLayoutAdapter
             layout = new DockSplit("split:bottom", DockAxis.Vertical, layout, bottom,
                 Fraction(600 / (600 + bottomHeight)));
         }
+
+        // A rebuild caused by a document change keeps the splits the user has already resized:
+        // recomputing every fraction from the panel sizes would snap a dragged panel back. A restored
+        // workspace supplies the fractions it saved instead.
+        layout = PreserveFractions(current, fractions, layout);
 
         return new LierneDockModel(
             items,
@@ -368,6 +375,39 @@ internal static class LierneDockLayoutAdapter
 
     private static double Fraction(double value) =>
         Math.Clamp(double.IsFinite(value) ? value : 0.5, 0.05, 0.95);
+
+    // Carries the fractions of the already accepted split tree into the rebuilt one, keyed by split
+    // key, so a rebuild only invents a fraction for a split that did not exist before. A saved
+    // fraction wins over the current tree, because the snapshot is what the user left behind.
+    private static DockNode PreserveFractions(
+        DockNode? current,
+        IReadOnlyDictionary<string, double>? fractions,
+        DockNode built)
+    {
+        if (built is not DockSplit split)
+        {
+            return built;
+        }
+
+        var existing = FindSplit(current, split.Key);
+        var saved = fractions is not null && fractions.TryGetValue(split.Key, out var fraction) &&
+            double.IsFinite(fraction)
+                ? Fraction(fraction)
+                : (double?)null;
+        return new DockSplit(
+            split.Key,
+            split.Axis,
+            PreserveFractions(existing?.First, fractions, split.First),
+            PreserveFractions(existing?.Second, fractions, split.Second),
+            saved ?? existing?.Fraction ?? split.Fraction);
+    }
+
+    private static DockSplit? FindSplit(DockNode? node, string key) => node switch
+    {
+        DockSplit split when split.Key == key => split,
+        DockSplit split => FindSplit(split.First, key) ?? FindSplit(split.Second, key),
+        _ => null
+    };
 
     private static string LayoutSignature(
         DockNode main,

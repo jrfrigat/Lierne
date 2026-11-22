@@ -43,6 +43,7 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     private DotNetObjectReference<LierneWorkspace>? _sizeReference;
     private double _viewportWidth;
     private double _viewportHeight;
+    private IReadOnlyDictionary<string, double>? _restoredFractions;
     private bool _workspaceReady = true;
     private bool _applying;
     private bool _detailedDocumentChanges;
@@ -152,7 +153,8 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
             }
 
             _workspaceReady = true;
-            Refresh(forceLayout: true);
+            // The restored sizes, not the pre-restore fractions, define the first painted layout.
+            Refresh(forceLayout: true, rebuildFractions: true);
             StateHasChanged();
             return;
         }
@@ -275,6 +277,7 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
 
     internal void ApplyLayout(LierneWorkspaceLayout layout)
     {
+        _restoredFractions = layout.Splits;
         _panels[LierneToolRegion.Left] = CoercePanel(layout.Left, _panels[LierneToolRegion.Left]);
         _panels[LierneToolRegion.Right] = CoercePanel(layout.Right, _panels[LierneToolRegion.Right]);
         _panels[LierneToolRegion.Bottom] = CoercePanel(layout.Bottom, _panels[LierneToolRegion.Bottom]);
@@ -304,9 +307,9 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     private static LiernePanelState CoercePanel(LiernePanelState? saved, LiernePanelState fallback) =>
         saved is null ? fallback : saved with { Size = saved.Size is >= 120 and <= 32768 ? saved.Size : fallback.Size };
 
-    private void Refresh(bool forceLayout = false)
+    private void Refresh(bool forceLayout = false, bool rebuildFractions = false)
     {
-        var model = BuildModel();
+        var model = BuildModel(rebuildFractions);
         var layoutChanged = forceLayout ||
             !string.Equals(model.LayoutSignature, _layoutSignature, StringComparison.Ordinal);
         var itemsChanged = layoutChanged ||
@@ -326,7 +329,7 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
         _entries = model.Entries;
     }
 
-    private LierneDockModel BuildModel()
+    private LierneDockModel BuildModel(bool rebuildFractions = false)
     {
         var placements = Panels.Placements.ToList();
         foreach (var tool in ToolWindows.ToolWindows.Where(tool => tool.Visible))
@@ -365,7 +368,9 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
             HostLabel("start"),
             HostLabel("bottomPanel"),
             hasStart,
-            hasBottom);
+            hasBottom,
+            rebuildFractions ? null : _layout,
+            rebuildFractions ? _restoredFractions : null);
     }
 
     private void SyncSelection()
@@ -576,8 +581,8 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
         }
 
         SyncSelection();
-        var model = BuildModel();
         _layout = change.Proposed;
+        var model = BuildModel();
         _layoutSignature = model.LayoutSignature;
         _items = model.Items;
         _itemSignature = model.ItemSignature;
@@ -872,8 +877,24 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
                 : null)
             .Where(placement => placement is not null)
             .Cast<PanelPlacement>()
-            .ToArray()
+            .ToArray(),
+        Splits = CaptureFractions(_layout)
     };
+
+    private static Dictionary<string, double> CaptureFractions(
+        DockNode? node,
+        Dictionary<string, double>? fractions = null)
+    {
+        fractions ??= new Dictionary<string, double>(StringComparer.Ordinal);
+        if (node is DockSplit split)
+        {
+            fractions[split.Key] = split.Fraction;
+            CaptureFractions(split.First, fractions);
+            CaptureFractions(split.Second, fractions);
+        }
+
+        return fractions;
+    }
 
     private void OnWorkspaceSaveError(Exception exception)
     {
