@@ -2,57 +2,58 @@
 @using Flare.Components
 @using Flare.Icons
 
-@if (_open)
-{
-    <div style="position:fixed;inset:0;z-index:var(--flare-z-modal);display:flex;justify-content:center;align-items:flex-start;padding:12vh var(--flare-spacing-4) var(--flare-spacing-4);background:color-mix(in srgb, var(--flare-color-scrim) calc(var(--flare-scrim-opacity) * 100%), transparent);"
-         @onclick="BackdropClick">
-        <div style="display:flex;width:min(42rem,100%);max-block-size:70vh;min-block-size:0;"
-             role="dialog" aria-modal="true" aria-label="@Title"
-             @onclick:stopPropagation="true"
-             @onkeydown="HandleKeyDownAsync">
-            <FlarePaper Elevation="4" Padding="FlareSpacing.Small"
-                        Style="display:flex;flex-direction:column;gap:var(--flare-spacing-2);min-block-size:0;inline-size:100%;">
-                <FlareTextField Value="@_query"
-                                ValueChanged="OnQueryChanged"
-                                Placeholder="@Placeholder"
-                                Size="FieldSize.Sm"
-                                InputAttributes="InputAttributes" />
-                <FlareList TItem="object" Dense="true" aria-label="@Title" Style="overflow:auto;min-block-size:0;">
-                    @if (_results.Count == 0)
-                    {
-                        <FlareListItem Primary="@EmptyText" Disabled="true" />
-                    }
-                    else
-                    {
-                        @for (var index = 0; index < _results.Count; index++)
-                        {
-                            var descriptor = _results[index];
-                            var presentation = Presentation(descriptor);
-                            var selected = index == _selected;
-                            <FlareListItem @key="descriptor.Id.Value"
-                                           Primary="@Localizer.Get(TitleOf(descriptor, presentation))"
-                                           Secondary="@DescriptionOf(presentation)"
-                                           Selected="@selected"
-                                           Disabled="@(!presentation.Enabled)"
-                                           OnClick="() => ExecuteAsync(descriptor)">
-                                <Leading>
-                                    @if (IconOf(descriptor, presentation) is { } icon)
-                                    {
-                                        <FlareIconView Value="icon" Size="1rem" />
-                                    }
-                                </Leading>
-                                <Trailing>
-                                    @if (presentation.ShortcutText is { Length: > 0 } shortcut)
-                                    {
-                                        <FlareText Typo="TypographyScale.LabelSmall"
-                                                   Color="FlareColor.OnSurfaceVariant">@shortcut</FlareText>
-                                    }
-                                </Trailing>
-                            </FlareListItem>
-                        }
-                    }
-                </FlareList>
+<FlareOverlay Open="_open" OnBackdropClick="BackdropClick">
+    <FlareStack Height="100%" Align="FlareAlignItems.Center" Justify="FlareJustifyContent.Start"
+                Padding="FlareSpacing.Small" PaddingBlockStart="FlareSpacing.XLarge"
+                role="dialog" aria-modal="true" aria-label="@Title"
+                @onkeydown="HandleKeyDownAsync">
+        <FlareStack Width="100%" MaxWidth="42rem" MinWidth="0">
+            <FlarePaper Elevation="4" Padding="FlareSpacing.Small">
+                <FlareStack Gap="FlareSpacing.Small" MinHeight="0">
+                    <FlareTextField Value="@_query"
+                                    ValueChanged="OnQueryChanged"
+                                    Placeholder="@Placeholder"
+                                    Size="FieldSize.Sm"
+                                    InputAttributes="InputAttributes" />
+                    <FlareStack MaxHeight="70vh" Overflow="auto" MinHeight="0">
+                        <FlareList TItem="object" Dense="true" aria-label="@Title">
+                            @if (_results.Count == 0)
+                            {
+                                <FlareListItem Primary="@EmptyText" Disabled="true" />
+                            }
+                            else
+                            {
+                                @for (var index = 0; index < _results.Count; index++)
+                                {
+                                    var descriptor = _results[index];
+                                    var presentation = Presentation(descriptor);
+                                    var selected = index == _selected;
+                                    <FlareListItem @key="descriptor.Id.Value"
+                                                   Primary="@Localizer.Get(TitleOf(descriptor, presentation))"
+                                                   Secondary="@DescriptionOf(presentation)"
+                                                   Selected="@selected"
+                                                   Disabled="@(!presentation.Enabled)"
+                                                   OnClick="() => ExecuteAsync(descriptor)">
+                                        <Leading>
+                                            @if (IconOf(descriptor, presentation) is { } icon)
+                                            {
+                                                <FlareIconView Value="icon" Size="1rem" />
+                                            }
+                                        </Leading>
+                                        <Trailing>
+                                            @if (presentation.ShortcutText is { Length: > 0 } shortcut)
+                                            {
+                                                <FlareText Typo="TypographyScale.LabelSmall"
+                                                           Color="FlareColor.OnSurfaceVariant">@shortcut</FlareText>
+                                            }
+                                        </Trailing>
+                                    </FlareListItem>
+                                }
+                            }
+                        </FlareList>
+                    </FlareStack>
+                </FlareStack>
             </FlarePaper>
-        </div>
-    </div>
-}
+        </FlareStack>
+    </FlareStack>
+</FlareOverlay>

@@ -119,16 +119,26 @@ public partial class LierneStatusBar
             }
             else if (item.Legacy is { } legacy)
             {
-                builder.OpenElement(sequence++, "span");
-                if (Icons.Resolve(legacy.IconKey) is { } icon)
+                builder.OpenComponent<FlareStack>(sequence++);
+                builder.AddAttribute(sequence++, nameof(FlareStack.Row), true);
+                builder.AddAttribute(sequence++, nameof(FlareStack.Align), FlareAlignItems.Center);
+                builder.AddAttribute(sequence++, nameof(FlareStack.Gap), FlareSpacing.XSmall);
+                builder.AddAttribute(sequence++, nameof(FlareStack.ChildContent), (RenderFragment)(content =>
                 {
-                    builder.OpenComponent<FlareIconView>(sequence++);
-                    builder.AddAttribute(sequence++, nameof(FlareIconView.Value), icon);
-                    builder.CloseComponent();
-                }
+                    var contentSequence = 0;
+                    if (Icons.Resolve(legacy.IconKey) is { } icon)
+                    {
+                        content.OpenComponent<FlareIconView>(contentSequence++);
+                        content.AddAttribute(contentSequence++, nameof(FlareIconView.Value), icon);
+                        content.CloseComponent();
+                    }
 
-                builder.AddContent(sequence++, Localizer.Get(legacy.Title));
-                builder.CloseElement();
+                    content.OpenComponent<FlareText>(contentSequence++);
+                    content.AddAttribute(contentSequence++, nameof(FlareText.ChildContent), (RenderFragment)(text =>
+                        text.AddContent(0, Localizer.Get(legacy.Title))));
+                    content.CloseComponent();
+                }));
+                builder.CloseComponent();
             }
         }
     };

@@ -40,9 +40,7 @@ else
                     }
                     @if (item.BadgeDot)
                     {
-                        <span data-lierne-marker="preview" aria-hidden="true">
-                            <FlareIconView Value="PreviewDot" Size="0.375rem" />
-                        </span>
+                        <FlareIconView Value="PreviewDot" Size="0.375rem" data-lierne-marker="preview" />
                     }
                 </TabTemplate>
                 <TabMarkerTemplate Context="item">
@@ -52,9 +50,7 @@ else
                     }
                     @if (document?.Pinned == true)
                     {
-                        <span data-lierne-marker="pin" aria-hidden="true">
-                            <FlareIconView Value="FlareIcons.PushPin" Size="0.75rem" />
-                        </span>
+                        <FlareIconView Value="FlareIcons.PushPin" Size="0.75rem" data-lierne-marker="pin" />
                     }
                 </TabMarkerTemplate>
                 <TabActionsTemplate Context="item">
