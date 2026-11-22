@@ -23,7 +23,7 @@ else
                     var document = entry?.Document;
                     var panel = entry?.Panel;
                     var icon = TabIcon(document, panel);
-                    var closeLabel = document is null ? null : $"{HostLabel("close")} {item.Title}";
+                    var closeLabel = item.CanClose ? $"{HostLabel("close")} {item.Title}" : null;
                 }
                 @if (icon != null)
                 {
@@ -47,17 +47,17 @@ else
                         <FlareIconView Value="FlareIcons.PushPin" Size="0.75rem" />
                     </span>
                 }
-                @if (document is not null && item.CanClose)
+                @if (item.CanClose)
                 {
                     <span class="lierne-workspace__close"
                           role="button"
                           tabindex="0"
                           aria-label="@closeLabel"
                           title="@closeLabel"
-                          @onclick="() => CloseDocument(document)"
+                          @onclick="() => CloseItem(item)"
                           @onclick:stopPropagation="true"
                           @onclick:preventDefault="true"
-                          @onkeydown="args => CloseDocumentOnKeyDown(args, document)"
+                          @onkeydown="args => CloseItemOnKeyDown(args, item)"
                           @onkeydown:stopPropagation="true"
                           @onkeydown:preventDefault="true">
                         <FlareIconView Value="FlareIcons.Close" Size="0.75rem" />

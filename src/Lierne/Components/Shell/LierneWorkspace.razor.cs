@@ -44,6 +44,7 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     private double _viewportWidth;
     private double _viewportHeight;
     private IReadOnlyDictionary<string, double>? _restoredFractions;
+    private HashSet<string> _visibleTools = new(StringComparer.Ordinal);
     private bool _workspaceReady = true;
     private bool _applying;
     private bool _detailedDocumentChanges;
@@ -124,6 +125,7 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
         InitializePersistence();
         InitializeDocumentSelection();
         Refresh(forceLayout: true);
+        _visibleTools = [.. ToolWindows.ToolWindows.Where(tool => tool.Visible).Select(tool => tool.Id.Value)];
     }
 
     /// <inheritdoc />
@@ -153,6 +155,8 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
             }
 
             _workspaceReady = true;
+            // Restored visibility is the baseline, not a command that should select a tool.
+            _visibleTools = [.. ToolWindows.ToolWindows.Where(tool => tool.Visible).Select(tool => tool.Id.Value)];
             // The restored sizes, not the pre-restore fractions, define the first painted layout.
             Refresh(forceLayout: true, rebuildFractions: true);
             StateHasChanged();
@@ -628,19 +632,32 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
         return false;
     }
 
-    private void CloseDocument(LierneDocumentInstance document)
+    // A tab closes whatever it represents: a document is closed, a tool window is hidden back to
+    // its rail, which is what the dock's own close action does for a panel.
+    private void CloseItem(DockItem item)
     {
-        if (!_disposed)
+        if (_disposed)
         {
-            Documents.Close(document.Id);
+            return;
+        }
+
+        switch (Entry(item.Key))
+        {
+            case { Document: { } document }:
+                Documents.Close(document.Id);
+                break;
+
+            case { Panel: { } panel }:
+                Panels.Hide(panel.Panel);
+                break;
         }
     }
 
-    private void CloseDocumentOnKeyDown(KeyboardEventArgs args, LierneDocumentInstance document)
+    private void CloseItemOnKeyDown(KeyboardEventArgs args, DockItem item)
     {
         if (args.Key is "Enter" or " ")
         {
-            CloseDocument(document);
+            CloseItem(item);
         }
     }
 
@@ -820,12 +837,36 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
             {
                 if (!_disposed)
                 {
+                    ActivateNewlyShownTools();
                     Refresh();
                     SaveWorkspace();
                     StateHasChanged();
                 }
             });
         }
+    }
+
+    // Showing a tool from a command brings it to the front of its region, the way a View-menu
+    // command opens its tool window. Restored visibility is recorded as the baseline instead, so
+    // restoring the workspace keeps the saved selection.
+    private void ActivateNewlyShownTools()
+    {
+        var visible = ToolWindows.ToolWindows.Where(tool => tool.Visible).ToArray();
+        if (_workspaceReady)
+        {
+            foreach (var tool in visible)
+            {
+                if (!_visibleTools.Add(tool.Id.Value))
+                {
+                    continue;
+                }
+
+                var region = Panels.Get(tool.Id)?.Region ?? tool.Region;
+                _panels[region] = _panels[region] with { ToolKey = tool.Id.Value };
+            }
+        }
+
+        _visibleTools = [.. visible.Select(tool => tool.Id.Value)];
     }
 
     private void OnLocalizerChanged() => _ = InvokeAsync(() =>
