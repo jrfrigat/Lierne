@@ -96,5 +96,6 @@ jobs:
         run: >-
           gh release create "${{ github.ref_name }}"
           artifacts/*.nupkg artifacts/*.snupkg
+          --repo "${{ github.repository }}"
           --generate-notes
           --title "${{ github.ref_name }}"
