@@ -31,6 +31,12 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
         Data = "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"
     };
 
+    // Older Flare packages do not expose the group selector.
+    private const string TabCompressionParameter = "AdaptiveTabCompressionForGroup";
+    private static readonly bool SupportsTabCompression =
+        typeof(FlareDockWorkspace).GetProperty(TabCompressionParameter) is not null;
+    private IReadOnlyDictionary<string, object>? _dockTabParameters;
+
     private DockNode _layout = new DockGroup("group:main", []);
     private DockItem[] _items = [];
     private Dictionary<string, LierneDockEntry> _entries = new(StringComparer.Ordinal);
@@ -104,6 +110,14 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     /// <inheritdoc />
     protected override void OnInitialized()
     {
+        if (SupportsTabCompression)
+        {
+            _dockTabParameters = new Dictionary<string, object>
+            {
+                [TabCompressionParameter] = (Func<DockGroup, bool>)CompressDockTabs
+            };
+        }
+
         _dockContentTemplate = RenderItem;
         if (LierneShellContentResolver.Resolve(Catalog, LierneShellSlot.StartPage) is { } start)
         {
@@ -494,6 +508,9 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
         _lastActiveId = active?.Id;
         _lastActiveLocation = active?.Location;
     }
+
+    private bool CompressDockTabs(DockGroup group) =>
+        LierneDockLayoutAdapter.ToolRegionOf(_layout, group.Key) is LierneToolRegion.Left or LierneToolRegion.Right;
 
     private void SelectDocument(LierneDockLocation location, string? key)
     {
