@@ -32,10 +32,10 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     };
 
     private DockNode _layout = new DockGroup("group:main", []);
-    private IReadOnlyList<DockItem> _items = [];
-    private IReadOnlyDictionary<string, LierneDockEntry> _entries =
-        new Dictionary<string, LierneDockEntry>(StringComparer.Ordinal);
+    private DockItem[] _items = [];
+    private Dictionary<string, LierneDockEntry> _entries = new(StringComparer.Ordinal);
     private DockNode? _canonicalLayout;
+    private RenderFragment<DockItem> _dockContentTemplate = default!;
     private RenderFragment? _pluginStartSurface;
     private RenderFragment? _pluginBottomSurface;
     private bool? _showStartPage;
@@ -104,6 +104,7 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     /// <inheritdoc />
     protected override void OnInitialized()
     {
+        _dockContentTemplate = RenderItem;
         if (LierneShellContentResolver.Resolve(Catalog, LierneShellSlot.StartPage) is { } start)
         {
             _pluginStartSurface = RenderComponent(start.Component);
@@ -345,20 +346,18 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
         var items = new DockItem[model.Items.Count];
         for (var index = 0; index < items.Length; index++)
         {
-            items[index] = Decorate(model.Items[index], model.Entries);
+            var item = model.Items[index];
+            var entry = model.Entries[item.Key];
+            entry.ItemIndex = index;
+            items[index] = Decorate(item, entry);
         }
 
         _items = items;
         _entries = model.Entries;
     }
 
-    private DockItem Decorate(DockItem item, IReadOnlyDictionary<string, LierneDockEntry> entries)
+    private DockItem Decorate(DockItem item, LierneDockEntry entry)
     {
-        if (!entries.TryGetValue(item.Key, out var entry))
-        {
-            return item;
-        }
-
         var preview = entry.Document?.Preview == true;
         var icon = TabIcon(entry.Document, entry.Panel);
         if (!preview && icon is null)
@@ -372,6 +371,60 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
             BadgeDot = preview,
             BadgeColor = preview ? FlareColor.OnSurfaceVariant : item.BadgeColor
         };
+    }
+
+    private bool UpdateDocumentTab(string? id)
+    {
+        if (id is null || LierneDockLayoutAdapter.FindDocumentEntry(_entries, id) is not { Document: { } previous } entry ||
+            FindDocument(id) is not { } document)
+        {
+            return false;
+        }
+
+        var item = _items[entry.ItemIndex];
+        entry.Document = document;
+        var title = previous.Title == document.Title ? item.Title : Localizer.Get(document.Title);
+        var icon = previous.IconKey == document.IconKey && previous.IconColor == document.IconColor
+            ? item.Icon
+            : TabIcon(document, null);
+        if (title != item.Title || icon != item.Icon || document.Preview != item.BadgeDot)
+        {
+            var items = (DockItem[])_items.Clone();
+            items[entry.ItemIndex] = item with
+            {
+                Title = title,
+                Icon = icon,
+                BadgeDot = document.Preview,
+                BadgeColor = document.Preview ? FlareColor.OnSurfaceVariant : default
+            };
+            _items = items;
+        }
+
+        return true;
+    }
+
+    private bool UpdateActiveDocument()
+    {
+        var active = Documents.Active;
+        RememberActiveDocument(active);
+        if (active is null || LierneDockLayoutAdapter.FindDocumentEntry(_entries, active.Id) is not { } entry)
+        {
+            return false;
+        }
+
+        var key = _items[entry.ItemIndex].Key;
+        var layout = LierneDockLayoutAdapter.SelectItem(_layout, key);
+        var canonical = ReferenceEquals(_canonicalLayout, _layout)
+            ? layout
+            : LierneDockLayoutAdapter.SelectItem(_canonicalLayout, key);
+        if (layout is null || canonical is null)
+        {
+            return false;
+        }
+
+        _layout = layout;
+        _canonicalLayout = canonical;
+        return true;
     }
 
     private LierneDockModel BuildModel(bool rebuildFractions = false)
@@ -428,7 +481,11 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
             }
         }
 
-        var active = Documents.Active;
+        RememberActiveDocument(Documents.Active);
+    }
+
+    private void RememberActiveDocument(LierneDocumentInstance? active)
+    {
         if (active is not null && (active.Id != _lastActiveId || active.Location != _lastActiveLocation))
         {
             _selection[active.Location] = active.Id;
@@ -493,21 +550,10 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
         return false;
     }
 
-    private string GroupLabel(DockGroup group)
-    {
-        if (group.ActiveKey is { } key)
-        {
-            for (var index = 0; index < _items.Count; index++)
-            {
-                if (string.Equals(_items[index].Key, key, StringComparison.Ordinal))
-                {
-                    return _items[index].Title;
-                }
-            }
-        }
-
-        return HostLabel("emptyPanel");
-    }
+    private string GroupLabel(DockGroup group) =>
+        group.ActiveKey is { } key && Entry(key) is { } entry
+            ? _items[entry.ItemIndex].Title
+            : HostLabel("emptyPanel");
 
     private LierneDockEntry? Entry(string key) => _entries.GetValueOrDefault(key);
 
@@ -516,26 +562,55 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
 
     private FlareIcon? TabIcon(LierneDocumentInstance? document, PanelPlacement? panel)
     {
-        string? iconKey;
-        string? iconColor = null;
         if (document is not null)
         {
-            var descriptor = Catalog.Documents.FirstOrDefault(item => item.Id == document.TypeId);
-            iconKey = document.IconKey ?? descriptor?.IconKey;
-            iconColor = document.IconColor;
-        }
-        else if (panel is not null)
-        {
-            iconKey = Catalog.ToolWindows
-                .FirstOrDefault(item => item.Id == panel.Panel)?
-                .IconKey;
-        }
-        else
-        {
-            return null;
+            var iconKey = document.IconKey ?? FindDocumentIconKey(document.TypeId);
+            return ResolveIcon(iconKey, document.IconColor);
         }
 
-        return ResolveIcon(iconKey, iconColor);
+        return panel is not null ? Icons.Resolve(FindToolDescriptor(panel.Panel)?.IconKey) : null;
+    }
+
+    private string? FindDocumentIconKey(DocumentTypeId type)
+    {
+        var descriptors = Catalog.Documents;
+        for (var index = 0; index < descriptors.Count; index++)
+        {
+            if (descriptors[index].Id == type)
+            {
+                return descriptors[index].IconKey;
+            }
+        }
+
+        return null;
+    }
+
+    private ToolWindowDescriptor? FindToolDescriptor(ToolWindowId id)
+    {
+        var descriptors = Catalog.ToolWindows;
+        for (var index = 0; index < descriptors.Count; index++)
+        {
+            if (descriptors[index].Id == id)
+            {
+                return descriptors[index];
+            }
+        }
+
+        return null;
+    }
+
+    private LierneToolWindowInstance? FindTool(ToolWindowId id)
+    {
+        var tools = ToolWindows.ToolWindows;
+        for (var index = 0; index < tools.Count; index++)
+        {
+            if (tools[index].Id == id)
+            {
+                return tools[index];
+            }
+        }
+
+        return null;
     }
 
     private FlareIcon? ResolveIcon(string? iconKey, string? iconColor)
@@ -563,9 +638,8 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
                 builder.CloseComponent();
                 break;
             case LierneDockEntryKind.Panel when entry.Panel is { } placement:
-                var descriptor = Catalog.ToolWindows.FirstOrDefault(item => item.Id == placement.Panel);
-                var tool = ToolWindows.ToolWindows.FirstOrDefault(item => item.Id == placement.Panel);
-                if (descriptor is null || tool is null)
+                if (FindToolDescriptor(placement.Panel) is not { } descriptor ||
+                    FindTool(placement.Panel) is not { } tool)
                 {
                     return;
                 }
@@ -626,6 +700,21 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
         if (!changed && !IsSessionChange(change))
         {
             return Task.CompletedTask;
+        }
+
+        if (_detailedDocumentChanges && change.Action == DockAction.Activate && change.ItemKey is { } key)
+        {
+            var canonical = ReferenceEquals(_canonicalLayout, change.Previous)
+                ? change.Proposed
+                : LierneDockLayoutAdapter.SelectItem(_canonicalLayout, key);
+            if (canonical is not null)
+            {
+                RememberActiveDocument(Documents.Active);
+                _layout = change.Proposed;
+                _canonicalLayout = canonical;
+                SaveWorkspace();
+                return Task.CompletedTask;
+            }
         }
 
         SyncSelection();
@@ -813,7 +902,7 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
             : FindSplit(split.First, key) ?? FindSplit(split.Second, key);
     }
 
-    private void OnDocumentChanged(LierneDocumentChange change)
+    private void OnDocumentChanged(LierneDocumentChange change, string? tabDocumentId)
     {
         if (_applying)
         {
@@ -827,13 +916,11 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
                 return;
             }
 
-            if ((change & LierneDocumentChange.Selection) != 0)
+            if ((change & LierneDocumentChange.Structure) != 0 ||
+                ((change & LierneDocumentChange.Tabs) != 0 && !UpdateDocumentTab(tabDocumentId)) ||
+                ((change & LierneDocumentChange.Selection) != 0 && !UpdateActiveDocument()))
             {
                 SyncSelection();
-            }
-
-            if ((change & (LierneDocumentChange.Tabs | LierneDocumentChange.Selection)) != 0)
-            {
                 Refresh();
             }
             if ((change & LierneDocumentChange.Workspace) != 0)
@@ -841,7 +928,8 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
                 SaveWorkspace();
             }
 
-            if ((change & (LierneDocumentChange.Tabs | LierneDocumentChange.Selection | LierneDocumentChange.Content)) != 0)
+            if ((change & (LierneDocumentChange.Structure | LierneDocumentChange.Tabs |
+                           LierneDocumentChange.Selection | LierneDocumentChange.Content)) != 0)
             {
                 StateHasChanged();
             }

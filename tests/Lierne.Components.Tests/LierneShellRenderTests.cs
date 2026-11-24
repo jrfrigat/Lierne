@@ -399,6 +399,91 @@ public sealed class LierneShellRenderTests
         });
     }
 
+    [Fact]
+    public async Task UpdatingDocumentMetadataKeepsTheLayoutAndOtherDockItems()
+    {
+        var plugin = new TestContribution("app.icons",
+            builder => builder.Services.AddSingleton<ILierneIconResolver, TestIconResolver>());
+        await using var provider = BuildProvider(plugin);
+        var documents = provider.GetRequiredService<ILierneDocumentService>();
+        var type = new DocumentTypeId("app.document");
+        var document = documents.Open(type).Data!;
+        documents.Open(type);
+        await using var renderer = new InteractiveRenderer(provider);
+
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            await renderer.StartAsync();
+            var workspace = renderer.GetWorkspace();
+            var layout = workspace.Layout;
+            var items = workspace.Items;
+            var key = LierneDockLayoutAdapter.DocumentKey(document.Id);
+            var original = Assert.Single(items, item => item.Key == key);
+
+            Assert.True(documents.SetStatusIcon(document.Id, "connected", "#abcdef").Success);
+            Assert.True(documents.SetPinned(document.Id, true).Success);
+            Assert.Same(items, workspace.Items);
+
+            Assert.True(documents.SetTitle(document.Id, StringKey.Literal("Updated tab")).Success);
+            Assert.True(documents.SetIcon(document.Id, "connected", "#abcdef").Success);
+            Assert.Same(layout, workspace.Layout);
+            Assert.Equal(items.Select(item => item.Key), workspace.Items.Select(item => item.Key));
+            var updated = Assert.Single(workspace.Items, item => item.Key == key);
+            Assert.Equal("Updated tab", updated.Title);
+            Assert.NotNull(updated.Icon);
+            Assert.NotEqual(updated.Title, original.Title);
+            for (var index = 0; index < items.Count; index++)
+            {
+                if (items[index].Key != key)
+                {
+                    Assert.Same(items[index], workspace.Items[index]);
+                }
+            }
+        });
+    }
+
+    [Fact]
+    public async Task ProgrammaticSelectionKeepsTheDockOrderAndOtherSplitBranches()
+    {
+        await using var provider = BuildProvider();
+        var documents = provider.GetRequiredService<ILierneDocumentService>();
+        var type = new DocumentTypeId("app.document");
+        var first = documents.Open(type).Data!;
+        var second = documents.Open(type).Data!;
+        var side = documents.Open(type, location: LierneDockLocation.Left).Data!;
+        await using var renderer = new InteractiveRenderer(provider);
+
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            await renderer.StartAsync();
+            var workspace = renderer.GetWorkspace();
+            var firstKey = LierneDockLayoutAdapter.DocumentKey(first.Id);
+            var secondKey = LierneDockLayoutAdapter.DocumentKey(second.Id);
+            var group = FindGroup(workspace.Layout, firstKey);
+            var reordered = ReplaceGroup(workspace.Layout, group with { Items = [secondKey, firstKey] });
+            await workspace.ApplyChangeAsync(new(DockAction.Move, secondKey, group.Key, workspace.Layout, reordered));
+            var layout = Assert.IsType<DockSplit>(workspace.Layout);
+            Assert.Same(reordered, layout);
+            var items = workspace.Items;
+
+            Assert.True(documents.Activate(first.Id).Success);
+            var selected = Assert.IsType<DockSplit>(workspace.Layout);
+            Assert.Same(items, workspace.Items);
+            var sideKey = LierneDockLayoutAdapter.DocumentKey(side.Id);
+            Assert.Same(FindGroup(layout, sideKey), FindGroup(selected, sideKey));
+            Assert.Same(layout.Second, selected.Second);
+            Assert.Equal(layout.Fraction, selected.Fraction);
+            var updatedGroup = FindGroup(selected, firstKey);
+            Assert.Equal([secondKey, firstKey], updatedGroup.Items);
+            Assert.Equal(firstKey, updatedGroup.ActiveKey);
+
+            var batches = renderer.Batches;
+            Assert.True(documents.Activate(first.Id).Success);
+            Assert.Same(selected, workspace.Layout);
+            Assert.Equal(batches, renderer.Batches);
+        });
+    }
+
     [Theory]
     [InlineData(true, typeof(string), "lattice.component.invalid_type")]
     [InlineData(false, typeof(TestStartComponent), "lattice.component.invalid_context")]
@@ -611,12 +696,16 @@ public sealed class LierneShellRenderTests
         await using var provider = BuildProvider(plugin);
         var documents = provider.GetRequiredService<ILierneDocumentService>();
         var document = documents.Open(new("app.document")).Data!;
-        Assert.True(documents.SetStatusIcon(document.Id, "connected", "#abcdef").Success);
-
-        var html = await RenderAsync(provider);
-
-        Assert.Contains("data-lierne-marker=\"status\"", html, StringComparison.Ordinal);
-        Assert.Contains("#abcdef", html, StringComparison.Ordinal);
+        await using var renderer = CreateRenderer(provider);
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            var root = await renderer.RenderComponentAsync<LierneShell>(ShellParameters);
+            Assert.DoesNotContain("data-lierne-marker=\"status\"", root.ToHtmlString(), StringComparison.Ordinal);
+            Assert.True(documents.SetStatusIcon(document.Id, "connected", "#abcdef").Success);
+            var html = root.ToHtmlString();
+            Assert.Contains("data-lierne-marker=\"status\"", html, StringComparison.Ordinal);
+            Assert.Contains("#abcdef", html, StringComparison.Ordinal);
+        });
     }
 
     [Fact]

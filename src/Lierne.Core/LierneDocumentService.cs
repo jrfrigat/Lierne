@@ -29,7 +29,7 @@ public sealed class LierneDocumentService : ILierneDocumentService
     /// <inheritdoc />
     public event Action? Changed;
 
-    internal event Action<LierneDocumentChange>? DocumentChanged;
+    internal event Action<LierneDocumentChange, string?>? DocumentChanged;
 
     /// <inheritdoc />
     public IReadOnlyList<LierneDocumentInstance> Documents { get; }
@@ -113,7 +113,7 @@ public sealed class LierneDocumentService : ILierneDocumentService
                 {
                     _documents[existingIndex] = updated;
                     _activeId = updated.Id;
-                    NotifyChanged(change | LierneDocumentChange.Workspace);
+                    NotifyChanged(change | LierneDocumentChange.Workspace, updated.Id);
                 }
                 return LierneResult<LierneDocumentInstance>.Ok(updated);
             }
@@ -142,7 +142,7 @@ public sealed class LierneDocumentService : ILierneDocumentService
         _indices.Add(document.Id, _documents.Count);
         _documents.Add(document);
         _activeId = document.Id;
-        NotifyChanged(LierneDocumentChange.Structure);
+        NotifyChanged(LierneDocumentChange.Structure | LierneDocumentChange.Workspace);
         return LierneResult<LierneDocumentInstance>.Ok(document);
     }
 
@@ -185,7 +185,7 @@ public sealed class LierneDocumentService : ILierneDocumentService
         }
 
         _documents[index] = document with { Title = title };
-        NotifyChanged(LierneDocumentChange.Tabs | LierneDocumentChange.Workspace);
+        NotifyChanged(LierneDocumentChange.Tabs | LierneDocumentChange.Workspace, instanceId);
         return LierneResult.Ok;
     }
 
@@ -208,7 +208,7 @@ public sealed class LierneDocumentService : ILierneDocumentService
         }
 
         _documents[index] = document with { IconKey = iconKey, IconColor = iconColor };
-        NotifyChanged(LierneDocumentChange.Tabs | LierneDocumentChange.Workspace);
+        NotifyChanged(LierneDocumentChange.Tabs | LierneDocumentChange.Workspace, instanceId);
         return LierneResult.Ok;
     }
 
@@ -231,7 +231,7 @@ public sealed class LierneDocumentService : ILierneDocumentService
         }
 
         _documents[index] = document with { StatusIconKey = iconKey, StatusIconColor = iconColor };
-        NotifyChanged(LierneDocumentChange.Tabs);
+        NotifyChanged(LierneDocumentChange.Tabs, instanceId);
         return LierneResult.Ok;
     }
 
@@ -253,7 +253,7 @@ public sealed class LierneDocumentService : ILierneDocumentService
         }
 
         _documents[index] = document with { Location = location };
-        NotifyChanged(LierneDocumentChange.Structure);
+        NotifyChanged(LierneDocumentChange.Structure | LierneDocumentChange.Workspace);
         return LierneResult.Ok;
     }
 
@@ -313,7 +313,7 @@ public sealed class LierneDocumentService : ILierneDocumentService
         }
 
         _documents[index] = document with { Dirty = false };
-        NotifyChanged(LierneDocumentChange.Tabs);
+        NotifyChanged(LierneDocumentChange.Tabs, instanceId);
         return LierneResult.Ok;
     }
 
@@ -471,7 +471,7 @@ public sealed class LierneDocumentService : ILierneDocumentService
         }
 
         _documents[index] = document with { Preview = preview };
-        NotifyChanged(LierneDocumentChange.Tabs | LierneDocumentChange.Workspace);
+        NotifyChanged(LierneDocumentChange.Tabs | LierneDocumentChange.Workspace, instanceId);
         return LierneResult.Ok;
     }
 
@@ -493,7 +493,7 @@ public sealed class LierneDocumentService : ILierneDocumentService
         }
 
         _documents[index] = document with { Pinned = pinned };
-        NotifyChanged(LierneDocumentChange.Tabs | LierneDocumentChange.Workspace);
+        NotifyChanged(LierneDocumentChange.Tabs | LierneDocumentChange.Workspace, instanceId);
         return LierneResult.Ok;
     }
 
@@ -560,7 +560,7 @@ public sealed class LierneDocumentService : ILierneDocumentService
             _activeId = _documents.LastOrDefault()?.Id;
         }
 
-        NotifyChanged(LierneDocumentChange.Structure);
+        NotifyChanged(LierneDocumentChange.Structure | LierneDocumentChange.Workspace);
         return LierneResult.Ok;
     }
 
@@ -657,7 +657,7 @@ public sealed class LierneDocumentService : ILierneDocumentService
         _activeId = activeId is not null && IndexOf(activeId) >= 0 ? activeId : _documents.LastOrDefault()?.Id;
         if (_documents.Count > 0)
         {
-            NotifyChanged(LierneDocumentChange.Structure);
+            NotifyChanged(LierneDocumentChange.Structure | LierneDocumentChange.Workspace);
         }
 
         return true;
@@ -675,9 +675,9 @@ public sealed class LierneDocumentService : ILierneDocumentService
     private int IndexOf(string instanceId) =>
         instanceId is not null && _indices.TryGetValue(instanceId, out var index) ? index : -1;
 
-    private void NotifyChanged(LierneDocumentChange change)
+    private void NotifyChanged(LierneDocumentChange change, string? tabDocumentId = null)
     {
-        DocumentChanged?.Invoke(change);
+        DocumentChanged?.Invoke(change, tabDocumentId);
         Changed?.Invoke();
     }
 }
@@ -689,5 +689,5 @@ internal enum LierneDocumentChange
     Selection = 2,
     Workspace = 4,
     Content = 8,
-    Structure = Tabs | Selection | Workspace
+    Structure = 16
 }

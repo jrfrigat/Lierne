@@ -13,16 +13,22 @@ internal enum LierneDockEntryKind
 }
 
 /// <summary>Maps one dock key back to the Lierne object that owns it.</summary>
-internal sealed record LierneDockEntry(
-    LierneDockEntryKind Kind,
-    LierneDocumentInstance? Document = null,
-    PanelPlacement? Panel = null);
+internal sealed class LierneDockEntry(
+    LierneDockEntryKind kind,
+    LierneDocumentInstance? document = null,
+    PanelPlacement? panel = null)
+{
+    public LierneDockEntryKind Kind { get; } = kind;
+    public int ItemIndex { get; set; }
+    public LierneDocumentInstance? Document { get; set; } = document;
+    public PanelPlacement? Panel { get; } = panel;
+}
 
 /// <summary>The dock topology and catalog built from the semantic Lierne workspace.</summary>
 internal sealed record LierneDockModel(
     IReadOnlyList<DockItem> Items,
     DockNode Layout,
-    IReadOnlyDictionary<string, LierneDockEntry> Entries);
+    Dictionary<string, LierneDockEntry> Entries);
 
 /// <summary>Builds the generic Flare dock model from documents, panels and host surfaces.</summary>
 internal static class LierneDockLayoutAdapter
@@ -70,7 +76,7 @@ internal static class LierneDockLayoutAdapter
         foreach (var placement in panelOrder)
         {
             var key = PanelKey(placement.Panel);
-            entries[key] = new LierneDockEntry(LierneDockEntryKind.Panel, Panel: placement);
+            entries[key] = new LierneDockEntry(LierneDockEntryKind.Panel, panel: placement);
             var title = descriptorById.TryGetValue(placement.Panel, out var descriptor)
                 ? localize(descriptor.Title)
                 : placement.Panel.Value;
@@ -87,7 +93,7 @@ internal static class LierneDockLayoutAdapter
         foreach (var document in documents)
         {
             var key = DocumentKey(document.Id);
-            entries[key] = new LierneDockEntry(LierneDockEntryKind.Document, Document: document);
+            entries[key] = new LierneDockEntry(LierneDockEntryKind.Document, document: document);
             items.Add(new DockItem(key, localize(document.Title), KeepAlive: true, CanClose: true));
             if (!documentKeys.TryGetValue(document.Location, out var list))
             {
@@ -240,11 +246,28 @@ internal static class LierneDockLayoutAdapter
         _ => (inherited, inherited)
     };
 
-    internal static string DocumentKey(string id) => $"doc:{id}";
+    private const string DocumentPrefix = "doc:";
+
+    internal static string DocumentKey(string id) => DocumentPrefix + id;
     internal static string PanelKey(ToolWindowId id) => $"panel:{id.Value}";
 
     private const int PrefixLength = 4;
     private const int PanelPrefixLength = 6;
+
+    internal static LierneDockEntry? FindDocumentEntry(Dictionary<string, LierneDockEntry> entries, string id)
+    {
+        // Normal document ids contain a sequence number. Keep the stack buffer bounded
+        // for restored ids, which can also contain leading zeroes.
+        if (id.Length > 64)
+        {
+            return entries.GetValueOrDefault(DocumentKey(id));
+        }
+
+        Span<char> key = stackalloc char[PrefixLength + id.Length];
+        DocumentPrefix.AsSpan().CopyTo(key);
+        id.AsSpan().CopyTo(key[PrefixLength..]);
+        return entries.GetAlternateLookup<ReadOnlySpan<char>>().TryGetValue(key, out var entry) ? entry : null;
+    }
 
     private static DockNode? BuildRegion(
         LierneToolRegion region,
@@ -346,6 +369,37 @@ internal static class LierneDockLayoutAdapter
         DockSplit split => FindSplit(split.First, key) ?? FindSplit(split.Second, key),
         _ => null
     };
+
+    // A null result means the item is absent. An unchanged reference means it is already active.
+    internal static DockNode? SelectItem(DockNode? node, string key)
+    {
+        if (node is DockGroup group)
+        {
+            if (group.ActiveKey == key)
+            {
+                return group;
+            }
+
+            return group.Items.AsSpan().Contains(key) ? group with { ActiveKey = key } : null;
+        }
+
+        if (node is not DockSplit split)
+        {
+            return null;
+        }
+
+        if (SelectItem(split.First, key) is { } first)
+        {
+            return ReferenceEquals(split.First, first) ? split : split with { First = first };
+        }
+
+        if (SelectItem(split.Second, key) is { } second)
+        {
+            return ReferenceEquals(split.Second, second) ? split : split with { Second = second };
+        }
+
+        return null;
+    }
 
     internal static bool SameLayout(DockNode? current, DockNode next) =>
         ReferenceEquals(current, next) || (current, next) switch

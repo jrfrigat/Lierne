@@ -19,8 +19,8 @@ else
                                 CanRequest="CanRequest"
                                 DropZones="@DropZones"
                                 ShowDropGuide="@ShowDropGuide"
+                                ContentTemplate="_dockContentTemplate"
                                 GroupLabel="GroupLabel">
-                <ContentTemplate Context="item">@RenderItem(item)</ContentTemplate>
                 <TabTemplate Context="item">
                     @{
                         var entry = Entry(item.Key);
