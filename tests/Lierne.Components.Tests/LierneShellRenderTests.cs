@@ -3,6 +3,7 @@ using System.Text.Json;
 using Flare.Abstractions;
 using Flare.Components.IDE;
 using Flare.Extensions;
+using Flare.Icons;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
 using Microsoft.AspNetCore.Components.RenderTree;
@@ -350,6 +351,54 @@ public sealed class LierneShellRenderTests
         _ => node
     };
 
+    [Fact]
+    public async Task ClosingTheLastDocumentRestoresTheStartPageAndIgnoresStaleDockRequests()
+    {
+        await using var provider = BuildProvider();
+        var documents = provider.GetRequiredService<ILierneDocumentService>();
+        var document = documents.Open(new("app.document")).Data!;
+        await using var renderer = new InteractiveRenderer(provider);
+
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            await renderer.StartAsync();
+            var workspace = renderer.GetWorkspace();
+            var key = LierneDockLayoutAdapter.DocumentKey(document.Id);
+            var previous = workspace.Layout;
+            var group = FindGroup(previous, key);
+            var proposed = ReplaceGroup(previous, group with { Items = [], ActiveKey = null });
+            var close = new DockLayoutChange(DockAction.Close, key, group.Key, previous, proposed);
+
+            await workspace.ApplyChangeAsync(close);
+
+            Assert.Empty(documents.Documents);
+            Assert.Equal(LierneDockLayoutAdapter.StartKey,
+                FindGroup(workspace.Layout, LierneDockLayoutAdapter.StartKey).ActiveKey);
+            var restored = workspace.Layout;
+            await workspace.ApplyChangeAsync(close);
+            Assert.Same(restored, workspace.Layout);
+        });
+    }
+
+    [Fact]
+    public async Task WorkspaceAppliesUpdatedShellVisibility()
+    {
+        await using var provider = BuildProvider();
+        await using var renderer = new InteractiveRenderer(provider);
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            await renderer.StartAsync();
+            var workspace = renderer.GetWorkspace();
+            Assert.Contains(workspace.Items, item => item.Key == LierneDockLayoutAdapter.StartKey);
+            Assert.Contains(workspace.Items, item => item.Key == LierneDockLayoutAdapter.BottomKey);
+
+            await renderer.SetShellOptionsAsync(new() { ShowStartPage = false, ShowBottomPanel = false });
+
+            Assert.DoesNotContain(workspace.Items, item => item.Key == LierneDockLayoutAdapter.StartKey);
+            Assert.DoesNotContain(workspace.Items, item => item.Key == LierneDockLayoutAdapter.BottomKey);
+        });
+    }
+
     [Theory]
     [InlineData(true, typeof(string), "lattice.component.invalid_type")]
     [InlineData(false, typeof(TestStartComponent), "lattice.component.invalid_context")]
@@ -467,13 +516,16 @@ public sealed class LierneShellRenderTests
         Assert.Contains("flare-split-pane", html, StringComparison.Ordinal);
         Assert.Contains("summary-body", html, StringComparison.Ordinal);
         Assert.Contains("details-body", html, StringComparison.Ordinal);
-        Assert.Contains("--_flare-splitpane-first:40%", html, StringComparison.Ordinal);
 
-        Assert.True(documents.SetSplitFraction(document.Id, 0, 0.7).Success);
-
-        var updated = await RenderAsync(provider);
-
-        Assert.Contains("--_flare-splitpane-first:70%", updated, StringComparison.Ordinal);
+        await using var renderer = new InteractiveRenderer(provider);
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            await renderer.StartAsync();
+            var splitPane = renderer.GetSplitPane();
+            Assert.Equal(0.4, splitPane.Fraction);
+            Assert.True(documents.SetSplitFraction(document.Id, 0, 0.7).Success);
+            Assert.Equal(0.7, splitPane.Fraction);
+        });
     }
 
     [Fact]
@@ -520,6 +572,51 @@ public sealed class LierneShellRenderTests
         Assert.Contains("Placed Override", html, StringComparison.Ordinal);
         Assert.Contains("Placed Disabled", html, StringComparison.Ordinal);
         Assert.Contains("Status Run", html, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task PlacedCommandsRefreshWhenContextAndShortcutChange()
+    {
+        var command = new CommandId("app.contextCommand");
+        var group = new RibbonGroupId("app.contextGroup");
+        var plugin = new TestContribution("app.context", builder =>
+        {
+            builder.AddCommand(new(command, StringKey.Literal("Context command"), DefaultShortcut: "Ctrl+Y"),
+                (_, _) => Task.FromResult(LierneCommandResult.Ok()), state => state.Get<bool>("allowed"));
+            builder.AddRibbonGroup(new(group, StringKey.Literal("Group")));
+            builder.AddCommandPlacement(new(command, CommandSurface.Ribbon, group.Value));
+        });
+        await using var provider = BuildProvider(plugin);
+        var presentations = provider.GetRequiredService<ICommandPresentationService>();
+        var state = provider.GetRequiredService<ILierneContext>();
+        var shortcuts = provider.GetRequiredService<ILierneShortcutService>();
+        await using var renderer = new InteractiveRenderer(provider);
+
+        await renderer.Dispatcher.InvokeAsync(async () =>
+        {
+            await renderer.StartAsync();
+            Assert.False(presentations.GetPresentation(command).Enabled);
+            state.Set("allowed", true);
+            Assert.True(presentations.GetPresentation(command).Enabled);
+            Assert.True(shortcuts.ApplyOverrides(new Dictionary<string, string> { [command.Value] = "Ctrl+U" }).Success);
+            Assert.Equal("Ctrl+U", presentations.GetPresentation(command).ShortcutText);
+        });
+    }
+
+    [Fact]
+    public async Task DefaultDocumentHeaderShowsTheLegacyStatusIcon()
+    {
+        var plugin = new TestContribution("app.icons",
+            builder => builder.Services.AddSingleton<ILierneIconResolver, TestIconResolver>());
+        await using var provider = BuildProvider(plugin);
+        var documents = provider.GetRequiredService<ILierneDocumentService>();
+        var document = documents.Open(new("app.document")).Data!;
+        Assert.True(documents.SetStatusIcon(document.Id, "connected", "#abcdef").Success);
+
+        var html = await RenderAsync(provider);
+
+        Assert.Contains("data-lierne-marker=\"status\"", html, StringComparison.Ordinal);
+        Assert.Contains("#abcdef", html, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -638,6 +735,11 @@ public sealed class LierneShellRenderTests
         public StringKey DisplayName => StringKey.Literal("Shared display name");
         public IReadOnlyList<PluginId> DependsOn => [];
         public void Configure(ILiernePluginBuilder builder) => configure(builder);
+    }
+
+    private sealed class TestIconResolver : ILierneIconResolver
+    {
+        public FlareIcon? Resolve(string? iconKey) => iconKey == "connected" ? FlareIcons.PushPin : null;
     }
 
     private sealed class TestPlugin : ILiernePlugin
@@ -920,9 +1022,17 @@ public sealed class LierneShellRenderTests
             return RenderRootComponentAsync(_shellId, ShellParameters);
         }
 
+        public Task SetShellOptionsAsync(LierneShellOptions options) =>
+            RenderRootComponentAsync(_shellId, ParameterView.FromDictionary(new Dictionary<string, object?>
+            {
+                [nameof(LierneShell.Options)] = options
+            }));
+
         public LierneWorkspace GetWorkspace() => Find<LierneWorkspace>("workspace");
 
         public LierneCommandPalette GetPalette() => Find<LierneCommandPalette>("command palette");
+
+        public Flare.Components.FlareSplitPane GetSplitPane() => Find<Flare.Components.FlareSplitPane>("split pane");
 
         private T Find<T>(string name) where T : class, IComponent =>
             FindIn<T>(_shellId) ?? throw new InvalidOperationException($"The shell did not render a {name}.");

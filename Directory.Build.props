@@ -20,4 +20,10 @@
        The file is git-ignored, so CI and other machines keep the package build. -->
   <Import Project="$(MSBuildThisFileDirectory)Directory.Build.local.props"
           Condition="Exists('$(MSBuildThisFileDirectory)Directory.Build.local.props')" />
+
+  <PropertyGroup Condition="'$(UseLocalFlare)' == 'true'">
+    <FlareRoot Condition="'$(FlareRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../Flare'))</FlareRoot>
+    <!-- Keep the solution configuration for the Flare projects outside the solution. -->
+    <ShouldUnsetParentConfigurationAndPlatform>false</ShouldUnsetParentConfigurationAndPlatform>
+  </PropertyGroup>
 </Project>

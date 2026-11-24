@@ -24,7 +24,7 @@ else
                 <TabTemplate Context="item">
                     @{
                         var entry = Entry(item.Key);
-                        var document = entry?.Document;
+                        var document = DocumentHeaderContent is not null ? TabDocument(item.Key) : entry?.Document;
                     }
                     @if (item.Icon is { } icon)
                     {
@@ -36,6 +36,11 @@ else
                     }
                     else
                     {
+                        @if (document?.StatusIconKey is { } statusKey &&
+                             ResolveIcon(statusKey, document.StatusIconColor) is { } statusIcon)
+                        {
+                            <FlareIconView Value="statusIcon" Size="0.75rem" data-lierne-marker="status" />
+                        }
                         <FlareText Element="span">@item.Title</FlareText>
                     }
                     @if (item.BadgeDot)

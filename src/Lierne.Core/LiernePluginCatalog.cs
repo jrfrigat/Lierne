@@ -13,6 +13,7 @@ public sealed class LiernePluginCatalog
     private readonly IReadOnlyDictionary<DocumentTypeId, IReadOnlyList<DocumentViewDescriptor>>
         _viewsByType;
     private readonly IReadOnlyDictionary<ExtensionPointId, object> _extensionPoints;
+    private readonly Dictionary<LierneShellSlot, ShellContentDescriptor> _shellContentsBySlot;
 
     private LiernePluginCatalog(
         IReadOnlyList<LiernePluginInfo> plugins,
@@ -65,6 +66,11 @@ public sealed class LiernePluginCatalog
         StatusBarItems = statusBarItems;
         SettingsTransfers = settingsTransfers;
         ShellContents = shellContents;
+        _shellContentsBySlot = shellContents
+            .OrderBy(content => content.Order)
+            .ThenBy(content => content.Id.Value, StringComparer.Ordinal)
+            .GroupBy(content => content.Slot)
+            .ToDictionary(group => group.Key, group => group.First());
         Diagnostics = diagnostics;
     }
 
@@ -143,6 +149,9 @@ public sealed class LiernePluginCatalog
 
     /// <summary>Gets the shell-surface contributions in plugin order.</summary>
     public IReadOnlyList<ShellContentDescriptor> ShellContents { get; }
+
+    internal ShellContentDescriptor? ShellContentFor(LierneShellSlot slot) =>
+        _shellContentsBySlot.GetValueOrDefault(slot);
 
     /// <summary>Gets the diagnostics found while composing the plugins.</summary>
     public IReadOnlyList<LierneDiagnostic> Diagnostics { get; }

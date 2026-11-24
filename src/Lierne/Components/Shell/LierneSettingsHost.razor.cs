@@ -5,31 +5,25 @@ public partial class LierneSettingsHost
 {
     private IReadOnlyList<SettingsGroupNode> _groups = [];
     private readonly HashSet<string> _collapsedGroups = new(StringComparer.Ordinal);
-    private SettingsPageId? _selectedPageId;
+    private ILookup<SettingsPageId?, SettingDescriptor> _settingsByPage = default!;
+    private SettingsPageDescriptor? _selectedPage;
     private string? _error;
 
     private IReadOnlyList<SettingsGroupNode> Groups => _groups;
-
-    private IReadOnlyList<SettingsPageDescriptor> Pages =>
-        _groups.SelectMany(group => group.Pages).ToArray();
-
-    private SettingsPageDescriptor? SelectedPage =>
-        Pages.FirstOrDefault(page => page.Id == _selectedPageId) ?? Pages.FirstOrDefault();
-
-    private IReadOnlyList<SettingDescriptor> CurrentSettings =>
-        SelectedPage is { } page
-            ? Catalog.Settings
-                .Where(setting => setting.Page == page.Id)
-                .OrderBy(setting => setting.Key.Value, StringComparer.Ordinal)
-                .ToArray()
-            : [];
 
     private string PageListLabel => Localizer.Get(new StringKey("lattice", "options"));
 
     private string NoSettingsText => Localizer.Get(new StringKey("lattice", "noSettings"));
 
     /// <inheritdoc />
-    protected override void OnInitialized() => _groups = BuildGroups();
+    protected override void OnInitialized()
+    {
+        _groups = BuildGroups();
+        _selectedPage = _groups.Count > 0 ? _groups[0].Pages[0] : null;
+        _settingsByPage = Catalog.Settings
+            .OrderBy(setting => setting.Key.Value, StringComparer.Ordinal)
+            .ToLookup(setting => setting.Page);
+    }
 
     private IReadOnlyList<SettingsGroupNode> BuildGroups()
     {
@@ -68,7 +62,11 @@ public partial class LierneSettingsHost
         return groups;
     }
 
-    private void Select(SettingsPageId pageId) => _selectedPageId = pageId;
+    private void Select(SettingsPageDescriptor page)
+    {
+        _selectedPage = page;
+        _error = null;
+    }
 
     private bool IsCollapsed(string key) => _collapsedGroups.Contains(key);
 

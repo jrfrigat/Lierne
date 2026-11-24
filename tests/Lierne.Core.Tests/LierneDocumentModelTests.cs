@@ -103,6 +103,27 @@ public sealed class LierneDocumentModelTests
         Assert.Equal("lattice.document.unknown_view", invalid.ErrorCode);
     }
 
+    [Fact]
+    public void RepeatedDocumentOperationsDoNotReplaceTheInstanceOrNotify()
+    {
+        var documents = CreateDocuments();
+        var key = new DocumentKey("tests:one");
+        var document = documents.Open(Type, key: key).Data!;
+        var notifications = 0;
+        documents.Changed += () => notifications++;
+
+        Assert.True(documents.SetSelectedView(document.Id, Summary).Success);
+        Assert.True(documents.SetViewState(document.Id, Details, null).Success);
+        Assert.Same(document, documents.Open(Type, key: key, view: Summary).Data);
+        Assert.Same(document, documents.Active);
+        Assert.Equal(0, notifications);
+
+        var second = documents.Open(Type, key: new("tests:two")).Data!;
+        Assert.True(documents.Close(document.Id).Success);
+        Assert.True(documents.SetSelectedView(second.Id, Details).Success);
+        Assert.Equal(Details, documents.Active!.SelectedView);
+    }
+
     private static LierneDocumentService CreateDocuments() =>
         new(BuildCatalog());
 

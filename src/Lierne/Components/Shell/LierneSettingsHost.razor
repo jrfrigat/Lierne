@@ -19,8 +19,8 @@
                     @foreach (var page in group.Pages)
                     {
                         <FlareNavLink @key="page.Id.Value"
-                                      Active="@(SelectedPage?.Id == page.Id)"
-                                      OnClick="() => Select(page.Id)">@Localizer.Get(page.Title)</FlareNavLink>
+                                      Active="@(_selectedPage?.Id == page.Id)"
+                                      OnClick="() => Select(page)">@Localizer.Get(page.Title)</FlareNavLink>
                     }
                 </FlareNavGroup>
             }
@@ -28,7 +28,7 @@
     </FlareStack>
     <FlareDivider Vertical="true" />
     <FlareStack FlexGrow="1" MinWidth="0" Overflow="auto" Padding="FlareSpacing.Small">
-        @if (SelectedPage is { } selected)
+        @if (_selectedPage is { } selected)
         {
             <FlareStack Gap="FlareSpacing.Small">
                 <FlareText Typo="TypographyScale.TitleSmall" Element="h3">@Localizer.Get(selected.Title)</FlareText>
@@ -38,11 +38,11 @@
                 }
                 else
                 {
-                    @if (CurrentSettings.Count == 0)
+                    @if (!_settingsByPage.Contains(selected.Id))
                     {
                         <FlareText Color="FlareColor.OnSurfaceVariant">@NoSettingsText</FlareText>
                     }
-                    @foreach (var setting in CurrentSettings)
+                    @foreach (var setting in _settingsByPage[selected.Id])
                     {
                         @switch (setting.Kind)
                         {

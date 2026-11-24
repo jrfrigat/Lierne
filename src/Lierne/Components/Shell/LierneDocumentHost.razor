@@ -21,13 +21,14 @@
         else
         {
             <FlareStack Height="100%" MinHeight="0" MinWidth="0" StretchItems="true">
-                <FlareTabs FillHeight="true" ActiveIndex="SelectedIndex" ActiveIndexChanged="SelectView" Lazy="true">
+                <FlareTabs FillHeight="true" ActiveIndex="@SelectedIndex(document, views)" ActiveIndexChanged="SelectView" Lazy="true">
                     @foreach (var view in views)
                     {
+                        var title = Localizer.Get(view.Title);
                         <FlareTab @key="view.Id.Value"
                                   Key="@view.Id.Value"
-                                  Label="@Localizer.Get(view.Title)"
-                                  Tooltip="@Localizer.Get(view.Title)">
+                                  Label="@title"
+                                  Tooltip="@title">
                             <LeadingIcon>
                                 @if (Icons.Resolve(view.IconKey) is { } icon)
                                 {
@@ -55,38 +56,56 @@
 
 @code {
     /// <summary>Gets or sets the document instance shown by the host.</summary>
-    [Parameter, EditorRequired]
+    [Parameter]
     public string DocumentId { get; set; } = string.Empty;
 
+    /// <summary>Gets or sets the document snapshot to display in place of looking it up by id.</summary>
+    [Parameter]
+    public LierneDocumentInstance? Document { get; set; }
+
     private readonly Dictionary<DocumentTypeId, LierneDocumentViewLayout> _layouts = [];
+    private LierneDocumentInstance? _renderedDocument;
+    private Dictionary<string, object?>? _documentParameters;
+    private readonly Dictionary<DocumentViewId, Dictionary<string, object?>> _viewParameters = [];
 
-    private LierneDocumentInstance? Instance =>
-        Documents.Documents.FirstOrDefault(document =>
-            string.Equals(document.Id, DocumentId, StringComparison.Ordinal));
-
-    private IReadOnlyList<DocumentViewDescriptor> Views =>
-        Instance is { } document ? Catalog.ViewsFor(document.TypeId) : [];
-
-    private int SelectedIndex
+    private LierneDocumentInstance? Instance
     {
         get
         {
-            var views = Views;
-            if (Instance?.SelectedView is not { } selected)
+            if (Document is not null)
             {
-                return 0;
+                return Document;
             }
 
-            for (var index = 0; index < views.Count; index++)
+            if (Documents is LierneDocumentService service)
             {
-                if (views[index].Id == selected)
+                return service.Find(DocumentId);
+            }
+
+            var documents = Documents.Documents;
+            for (var index = 0; index < documents.Count; index++)
+            {
+                if (documents[index].Id == DocumentId)
                 {
-                    return index;
+                    return documents[index];
                 }
             }
 
-            return 0;
+            return null;
         }
+    }
+
+    private static int SelectedIndex(LierneDocumentInstance document, IReadOnlyList<DocumentViewDescriptor> views)
+    {
+        for (var index = 0; index < views.Count; index++)
+        {
+            if (views[index].Id == document.SelectedView)
+            {
+                return index;
+            }
+        }
+
+        return 0;
     }
 
     private DocumentDescriptor? Descriptor(DocumentTypeId type) =>
@@ -108,34 +127,53 @@
 
     private void SelectView(int index)
     {
-        if (Instance is not { } document || index < 0 || index >= Views.Count)
+        if (Instance is not { } document)
         {
             return;
         }
 
-        Documents.SetSelectedView(document.Id, Views[index].Id);
+        var views = Catalog.ViewsFor(document.TypeId);
+        if ((uint)index < (uint)views.Count)
+        {
+            Documents.SetSelectedView(document.Id, views[index].Id);
+        }
     }
 
-    private Dictionary<string, object?> DocumentParameters(LierneDocumentInstance document) => new()
+    private void SetParameterDocument(LierneDocumentInstance document)
     {
-        [nameof(LierneDocumentComponent.Context)] = new LierneDocumentContext(
-            document,
-            Commands,
-            Documents,
-            Localizer,
-            Services)
-    };
+        if (!ReferenceEquals(_renderedDocument, document))
+        {
+            _renderedDocument = document;
+            _documentParameters = null;
+            _viewParameters.Clear();
+        }
+    }
+
+    private Dictionary<string, object?> DocumentParameters(LierneDocumentInstance document)
+    {
+        SetParameterDocument(document);
+        return _documentParameters ??= new()
+        {
+            [nameof(LierneDocumentComponent.Context)] =
+                new LierneDocumentContext(document, Commands, Documents, Localizer, Services)
+        };
+    }
 
     private Dictionary<string, object?> ViewParameters(
         LierneDocumentInstance document,
-        DocumentViewDescriptor view) => new()
+        DocumentViewDescriptor view)
     {
-        [nameof(LierneDocumentViewComponent.Context)] = new LierneDocumentViewContext(
-            document,
-            view,
-            Commands,
-            Documents,
-            Localizer,
-            Services)
-    };
+        SetParameterDocument(document);
+        if (!_viewParameters.TryGetValue(view.Id, out var parameters))
+        {
+            parameters = new Dictionary<string, object?>
+            {
+                [nameof(LierneDocumentViewComponent.Context)] =
+                    new LierneDocumentViewContext(document, view, Commands, Documents, Localizer, Services)
+            };
+            _viewParameters.Add(view.Id, parameters);
+        }
+
+        return parameters;
+    }
 }

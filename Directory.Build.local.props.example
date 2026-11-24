@@ -1,14 +1,13 @@
 <Project>
   <!--
-    Copy this file to Directory.Build.local.props to build Lierne against a local Flare checkout.
-    The real file is git-ignored, so the committed build keeps consuming the Flare packages.
+    Pass -p:UseLocalFlare=true for a single build, or copy this file to Directory.Build.local.props
+    to enable it for every build on this machine.
 
     FlareRoot defaults to the sibling ..\Flare checkout; set it explicitly when Flare lives
     somewhere else. UseLocalFlare=true swaps the Flare PackageReference entries in
-    Lierne and the component tests for ProjectReference entries.
+    Lierne, the component tests, and SampleIde for ProjectReference entries.
   -->
   <PropertyGroup>
     <UseLocalFlare>true</UseLocalFlare>
-    <FlareRoot Condition="'$(FlareRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\Flare'))</FlareRoot>
   </PropertyGroup>
 </Project>

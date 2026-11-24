@@ -20,8 +20,10 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(UseLocalFlare)' == 'true'">
-    <ProjectReference Include="$(FlareRoot)\src\Flare\Flare.csproj" />
-    <ProjectReference Include="$(FlareRoot)\src\Flare.Components.IDE\Flare.Components.IDE.csproj" />
+    <ProjectReference Include="$(FlareRoot)\src\Flare\Flare.csproj"
+                      GlobalPropertiesToRemove="BuildingSolutionFile;CurrentSolutionConfigurationContents" />
+    <ProjectReference Include="$(FlareRoot)\src\Flare.Components.IDE\Flare.Components.IDE.csproj"
+                      GlobalPropertiesToRemove="BuildingSolutionFile;CurrentSolutionConfigurationContents" />
   </ItemGroup>
 
   <ItemGroup>

@@ -28,6 +28,7 @@
   </ItemGroup>
 
   <ItemGroup Condition="'$(UseLocalFlare)' == 'true'">
-    <ProjectReference Include="$(FlareRoot)\src\Flare.Components.IDE\Flare.Components.IDE.csproj" />
+    <ProjectReference Include="$(FlareRoot)\src\Flare.Components.IDE\Flare.Components.IDE.csproj"
+                      GlobalPropertiesToRemove="BuildingSolutionFile;CurrentSolutionConfigurationContents" />
   </ItemGroup>
 </Project>

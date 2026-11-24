@@ -7,6 +7,7 @@ public sealed class LiernePanelService : IPanelService
 {
     private readonly Dictionary<ToolWindowId, PanelPlacement> _placements = [];
     private readonly ILierneToolWindowService _tools;
+    private IReadOnlyList<PanelPlacement>? _snapshot;
 
     /// <summary>Creates the panel service from the composed catalog.</summary>
     /// <param name="catalog">The composed plugin catalog.</param>
@@ -40,12 +41,12 @@ public sealed class LiernePanelService : IPanelService
 
     /// <inheritdoc />
     public IReadOnlyList<PanelPlacement> Placements =>
-        _placements.Values
+        _snapshot ??= Array.AsReadOnly(_placements.Values
             .OrderBy(placement => placement.Region)
             .ThenBy(placement => placement.Slot)
             .ThenBy(placement => placement.Order)
             .ThenBy(placement => placement.Panel.Value, StringComparer.Ordinal)
-            .ToArray();
+            .ToArray());
 
     /// <inheritdoc />
     public PanelPlacement? Get(ToolWindowId panel) => _placements.GetValueOrDefault(panel);
@@ -105,7 +106,7 @@ public sealed class LiernePanelService : IPanelService
             return NotFound(panel);
         }
 
-        var updated = placement with { Panel = panel };
+        var updated = placement.Panel == panel ? placement : placement with { Panel = panel };
         if (current == updated)
         {
             return LierneResult.Ok;
@@ -142,6 +143,7 @@ public sealed class LiernePanelService : IPanelService
 
     private void Notify()
     {
+        _snapshot = null;
         try
         {
             Changed?.Invoke();

@@ -60,6 +60,27 @@ public sealed class LierneCommandSurfaceTests
     }
 
     [Fact]
+    public async Task OlderAsyncUpdateCannotOverwriteTheLatestPresentation()
+    {
+        var pending = new TaskCompletionSource<CommandPresentation>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var updated = new CommandPresentation(Run, TestDescriptors.Key("new"));
+        using var provider = BuildProvider(builder =>
+        {
+            builder.AddCommand(new(Run, TestDescriptors.Key("run"), ArgumentType: typeof(bool)), TestDescriptors.NoOp);
+            builder.AddCommandUpdateHandler(Run, new OrderedUpdateHandler(pending.Task, updated));
+        });
+        using var scope = provider.CreateScope();
+        var presentations = scope.ServiceProvider.GetRequiredService<ICommandPresentationService>();
+        var cancellationToken = TestContext.Current.CancellationToken;
+        var older = presentations.UpdateAsync(Run, false, cancellationToken);
+        Assert.Equal(updated, await presentations.UpdateAsync(Run, true, cancellationToken));
+        pending.SetResult(new CommandPresentation(Run, TestDescriptors.Key("old")));
+        await older;
+
+        Assert.Equal(updated, presentations.GetPresentation(Run));
+    }
+
+    [Fact]
     public void PlacementsAreOrderedInsideSurface()
     {
         using var provider = BuildProvider(builder =>
@@ -167,5 +188,14 @@ public sealed class LierneCommandSurfaceTests
                 TestDescriptors.Key("updated"),
                 Checked: true,
                 ShortcutText: "Ctrl+U"));
+    }
+
+    private sealed class OrderedUpdateHandler(Task<CommandPresentation> pending, CommandPresentation updated)
+        : ICommandUpdateHandler
+    {
+        public ValueTask<CommandPresentation> UpdateAsync(
+            LierneCommandContext context,
+            CancellationToken cancellationToken = default) =>
+            context.Argument is true ? ValueTask.FromResult(updated) : new(pending);
     }
 }

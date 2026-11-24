@@ -8,6 +8,10 @@ namespace Lierne;
 public abstract class LierneCommandComponent : ComponentBase, IDisposable
 {
     private CommandPresentation _presentation = null!;
+    private CommandId? _requestedCommand;
+    private Func<Task>? _refreshPresentation;
+    private Action? _readCachedPresentation;
+    private Action? _render;
     private bool _disposed;
     private int _refresh;
 
@@ -70,7 +74,7 @@ public abstract class LierneCommandComponent : ComponentBase, IDisposable
     {
         _presentation = Presentations.GetPresentation(Command);
         Presentations.Changed += OnCommandChanged;
-        Localizer.Changed += OnChanged;
+        Localizer.Changed += OnLocalizerChanged;
         Shortcuts.Changed += OnChanged;
         State.Changed += OnChanged;
         Documents.Changed += OnChanged;
@@ -79,14 +83,16 @@ public abstract class LierneCommandComponent : ComponentBase, IDisposable
     }
 
     /// <inheritdoc />
-    protected override void OnParametersSet()
+    protected override Task OnParametersSetAsync()
     {
-        if (_presentation.Command != Command)
+        if (_requestedCommand == Command)
         {
-            _presentation = Presentations.GetPresentation(Command);
+            return Task.CompletedTask;
         }
 
-        _ = RefreshAsync();
+        _requestedCommand = Command;
+        _presentation = Presentations.GetPresentation(Command);
+        return RefreshAsync();
     }
 
     /// <inheritdoc />
@@ -94,7 +100,7 @@ public abstract class LierneCommandComponent : ComponentBase, IDisposable
     {
         _disposed = true;
         Presentations.Changed -= OnCommandChanged;
-        Localizer.Changed -= OnChanged;
+        Localizer.Changed -= OnLocalizerChanged;
         Shortcuts.Changed -= OnChanged;
         State.Changed -= OnChanged;
         Documents.Changed -= OnChanged;
@@ -104,38 +110,57 @@ public abstract class LierneCommandComponent : ComponentBase, IDisposable
 
     private void OnCommandChanged(CommandId command)
     {
-        if (command == Command)
+        if (!_disposed && command == Command)
         {
-            Refresh();
+            _ = InvokeAsync(_readCachedPresentation ??= ReadCachedPresentation);
         }
     }
 
     private void OnChanged()
     {
-        Refresh();
+        if (!_disposed)
+        {
+            _ = InvokeAsync(_refreshPresentation ??= RefreshAsync);
+        }
     }
 
-    private void Refresh()
+    private void OnLocalizerChanged()
+    {
+        if (!_disposed)
+        {
+            _ = InvokeAsync(_render ??= StateHasChanged);
+        }
+    }
+
+    private void ReadCachedPresentation()
     {
         if (_disposed)
         {
             return;
         }
 
-        _presentation = Presentations.GetPresentation(Command);
-        _ = InvokeAsync(StateHasChanged);
+        var next = Presentations.GetPresentation(Command);
+        if (_presentation != next)
+        {
+            _presentation = next;
+            StateHasChanged();
+        }
     }
 
     private async Task RefreshAsync()
     {
+        if (_disposed)
+        {
+            return;
+        }
+
         var version = ++_refresh;
         try
         {
-            var presentation = await Presentations.UpdateAsync(Command);
+            await Presentations.UpdateAsync(Command);
             if (!_disposed && version == _refresh)
             {
-                _presentation = presentation;
-                await InvokeAsync(StateHasChanged);
+                ReadCachedPresentation();
             }
         }
         catch (Exception exception)

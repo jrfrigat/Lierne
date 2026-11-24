@@ -8,10 +8,13 @@ public sealed class LierneCommandService : ILierneCommandService, ICommandPresen
 {
     private readonly Dictionary<CommandId, LierneCommandRegistration> _registrations;
     private readonly LiernePluginCatalog _catalog;
+    private readonly IReadOnlyList<CommandDescriptor> _allCommands;
     private readonly ILierneContext _context;
     private readonly IServiceProvider _services;
     private readonly Lock _presentationLock = new();
     private readonly Dictionary<CommandId, CommandPresentation> _presentations = [];
+    private readonly Dictionary<CommandId, long> _pendingUpdates = [];
+    private long _updateSequence;
 
     /// <summary>Creates the command service.</summary>
     /// <param name="catalog">The composed plugin catalog.</param>
@@ -29,6 +32,7 @@ public sealed class LierneCommandService : ILierneCommandService, ICommandPresen
         _registrations = catalog.CommandRegistrations
             .ToDictionary(registration => registration.Descriptor.Id);
         _catalog = catalog;
+        _allCommands = Array.AsReadOnly(catalog.Commands.ToArray());
         _context = context;
         _services = services;
     }
@@ -56,6 +60,11 @@ public sealed class LierneCommandService : ILierneCommandService, ICommandPresen
         }
 
         var presentation = CreateDefaultPresentation(command);
+        if (!_registrations.ContainsKey(command))
+        {
+            return presentation;
+        }
+
         lock (_presentationLock)
         {
             return _presentations.TryAdd(command, presentation) ? presentation : _presentations[command];
@@ -74,8 +83,14 @@ public sealed class LierneCommandService : ILierneCommandService, ICommandPresen
         }
 
         CommandPresentation presentation;
+        long request = 0;
         if (_catalog.CommandUpdateHandlers.TryGetValue(command, out var updateHandler))
         {
+            lock (_presentationLock)
+            {
+                _pendingUpdates[command] = request = ++_updateSequence;
+            }
+
             var context = new LierneCommandContext(_services, _context, argument);
             try
             {
@@ -91,6 +106,10 @@ public sealed class LierneCommandService : ILierneCommandService, ICommandPresen
             }
             catch (OperationCanceledException)
             {
+                lock (_presentationLock)
+                {
+                    EndUpdate(command, request);
+                }
                 throw;
             }
             catch (Exception exception)
@@ -101,11 +120,23 @@ public sealed class LierneCommandService : ILierneCommandService, ICommandPresen
         }
         else
         {
-            presentation = CreateDefaultPresentation(command);
+            CommandPresentation? cached;
+            lock (_presentationLock)
+            {
+                _presentations.TryGetValue(command, out cached);
+            }
+
+            presentation = CreateDefaultPresentation(command, cached);
         }
 
         lock (_presentationLock)
         {
+            if ((request != 0 && !EndUpdate(command, request)) ||
+                (_presentations.TryGetValue(command, out var cached) && cached == presentation))
+            {
+                return presentation;
+            }
+
             _presentations[command] = presentation;
         }
 
@@ -113,13 +144,30 @@ public sealed class LierneCommandService : ILierneCommandService, ICommandPresen
         return presentation;
     }
 
+    private bool EndUpdate(CommandId command, long request) =>
+        _pendingUpdates.TryGetValue(command, out var pending) && pending == request &&
+        _pendingUpdates.Remove(command);
+
     /// <inheritdoc />
     public IReadOnlyList<CommandDescriptor> Search(string query)
     {
-        var text = query?.Trim() ?? string.Empty;
-        return text.Length == 0
-            ? _catalog.Commands.ToArray()
-            : _catalog.Commands.Where(command => Matches(command, text)).ToArray();
+        var text = query.AsSpan().Trim();
+        if (text.IsEmpty)
+        {
+            return _allCommands;
+        }
+
+        List<CommandDescriptor>? matches = null;
+        for (var index = 0; index < _allCommands.Count; index++)
+        {
+            var command = _allCommands[index];
+            if (Matches(command, text))
+            {
+                (matches ??= []).Add(command);
+            }
+        }
+
+        return matches is null ? [] : matches.ToArray();
     }
 
     /// <inheritdoc />
@@ -130,6 +178,7 @@ public sealed class LierneCommandService : ILierneCommandService, ICommandPresen
             lock (_presentationLock)
             {
                 _presentations.Remove(id);
+                _pendingUpdates.Remove(id);
             }
 
             Notify(id);
@@ -141,6 +190,7 @@ public sealed class LierneCommandService : ILierneCommandService, ICommandPresen
         {
             commands = _presentations.Keys.ToArray();
             _presentations.Clear();
+            _pendingUpdates.Clear();
         }
 
         foreach (var changedCommand in commands)
@@ -226,7 +276,7 @@ public sealed class LierneCommandService : ILierneCommandService, ICommandPresen
         return result;
     }
 
-    private CommandPresentation CreateDefaultPresentation(CommandId command)
+    private CommandPresentation CreateDefaultPresentation(CommandId command, CommandPresentation? cached = null)
     {
         if (!_registrations.TryGetValue(command, out var registration))
         {
@@ -238,16 +288,31 @@ public sealed class LierneCommandService : ILierneCommandService, ICommandPresen
         }
 
         var descriptor = registration.Descriptor;
-        var shortcut = _services.GetService<ILierneShortcutService>()?
-            .Bindings
-            .FirstOrDefault(binding => binding.Command == command)?
-            .EffectiveShortcut;
+        var bindings = _services.GetService<ILierneShortcutService>()?.Bindings;
+        string? shortcut = null;
+        if (bindings is not null)
+        {
+            for (var index = 0; index < bindings.Count; index++)
+            {
+                if (bindings[index].Command == command)
+                {
+                    shortcut = bindings[index].EffectiveShortcut;
+                    break;
+                }
+            }
+        }
+        var enabled = registration.CanExecute?.Invoke(_context) ?? true;
+        if (cached is not null && cached.Enabled == enabled && cached.ShortcutText == shortcut)
+        {
+            return cached;
+        }
+
         return new CommandPresentation(
             command,
             descriptor.Title,
             descriptor.Description,
             descriptor.IconKey,
-            registration.CanExecute?.Invoke(_context) ?? true,
+            enabled,
             Visible: true,
             Checked: false,
             ShortcutText: shortcut);
@@ -265,16 +330,33 @@ public sealed class LierneCommandService : ILierneCommandService, ICommandPresen
         }
     }
 
-    private static bool Matches(CommandDescriptor command, string query) =>
-        Contains(command.Id.Value, query) ||
-        Contains(command.Title.Namespace, query) ||
-        Contains(command.Title.Name, query) ||
-        (command.Description is { } description &&
-            (Contains(description.Namespace, query) || Contains(description.Name, query))) ||
-        (command.Keywords?.Any(keyword => Contains(keyword, query)) ?? false);
+    private static bool Matches(CommandDescriptor command, ReadOnlySpan<char> query)
+    {
+        if (Contains(command.Id.Value, query) ||
+            Contains(command.Title.Namespace, query) ||
+            Contains(command.Title.Name, query) ||
+            (command.Description is { } description &&
+                (Contains(description.Namespace, query) || Contains(description.Name, query))))
+        {
+            return true;
+        }
 
-    private static bool Contains(string? value, string query) =>
-        value?.Contains(query, StringComparison.OrdinalIgnoreCase) == true;
+        if (command.Keywords is { } keywords)
+        {
+            for (var index = 0; index < keywords.Count; index++)
+            {
+                if (Contains(keywords[index], query))
+                {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private static bool Contains(string? value, ReadOnlySpan<char> query) =>
+        value.AsSpan().Contains(query, StringComparison.OrdinalIgnoreCase);
 
     private LierneCommandResult Localize(LierneCommandResult result)    {
         if (result.Success || result.ErrorCode is not { } code)

@@ -35,7 +35,11 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     private IReadOnlyList<DockItem> _items = [];
     private IReadOnlyDictionary<string, LierneDockEntry> _entries =
         new Dictionary<string, LierneDockEntry>(StringComparer.Ordinal);
-    private string? _layoutSignature;
+    private DockNode? _canonicalLayout;
+    private RenderFragment? _pluginStartSurface;
+    private RenderFragment? _pluginBottomSurface;
+    private bool? _showStartPage;
+    private bool _hasBottomSurface;
     private string? _lastActiveId;
     private LierneDockLocation? _lastActiveLocation;
     private LierneStatePersistence? _persistence;
@@ -93,19 +97,22 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     [Parameter]
     public bool ShowDropGuide { get; set; } = true;
 
-    private RenderFragment? StartSurface =>
-        LierneShellContentResolver.Resolve(Catalog, LierneShellSlot.StartPage) is { } start
-            ? RenderComponent(start.Component)
-            : StartContent;
+    private RenderFragment? StartSurface => _pluginStartSurface ?? StartContent;
 
-    private RenderFragment? BottomSurface =>
-        LierneShellContentResolver.Resolve(Catalog, LierneShellSlot.BottomPanel) is { } bottom
-            ? RenderComponent(bottom.Component)
-            : BottomPanel;
+    private RenderFragment? BottomSurface => _pluginBottomSurface ?? BottomPanel;
 
     /// <inheritdoc />
     protected override void OnInitialized()
     {
+        if (LierneShellContentResolver.Resolve(Catalog, LierneShellSlot.StartPage) is { } start)
+        {
+            _pluginStartSurface = RenderComponent(start.Component);
+        }
+        if (LierneShellContentResolver.Resolve(Catalog, LierneShellSlot.BottomPanel) is { } bottom)
+        {
+            _pluginBottomSurface = RenderComponent(bottom.Component);
+        }
+
         if (Documents is LierneDocumentService service)
         {
             service.DocumentChanged += OnDocumentChanged;
@@ -123,8 +130,19 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
         Shortcuts.Changed += OnShortcutsChanged;
         InitializePersistence();
         InitializeDocumentSelection();
-        Refresh(forceLayout: true);
         _visibleTools = [.. ToolWindows.ToolWindows.Where(tool => tool.Visible).Select(tool => tool.Id.Value)];
+    }
+
+    /// <inheritdoc />
+    protected override void OnParametersSet()
+    {
+        var hasBottom = ShowBottomPanel && BottomSurface is not null;
+        if (_showStartPage != ShowStartPage || _hasBottomSurface != hasBottom)
+        {
+            _showStartPage = ShowStartPage;
+            _hasBottomSurface = hasBottom;
+            Refresh();
+        }
     }
 
     /// <inheritdoc />
@@ -313,15 +331,24 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     private void Refresh(bool forceLayout = false, bool rebuildFractions = false)
     {
         var model = BuildModel(rebuildFractions);
-        var layoutChanged = forceLayout ||
-            !string.Equals(model.LayoutSignature, _layoutSignature, StringComparison.Ordinal);
-        if (layoutChanged)
+        if (forceLayout || !LierneDockLayoutAdapter.SameLayout(_canonicalLayout, model.Layout))
         {
             _layout = model.Layout;
-            _layoutSignature = model.LayoutSignature;
         }
 
-        _items = model.Items.Select(item => Decorate(item, model.Entries)).ToArray();
+        SetModel(model);
+    }
+
+    private void SetModel(LierneDockModel model)
+    {
+        _canonicalLayout = model.Layout;
+        var items = new DockItem[model.Items.Count];
+        for (var index = 0; index < items.Length; index++)
+        {
+            items[index] = Decorate(model.Items[index], model.Entries);
+        }
+
+        _items = items;
         _entries = model.Entries;
     }
 
@@ -333,9 +360,15 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
         }
 
         var preview = entry.Document?.Preview == true;
+        var icon = TabIcon(entry.Document, entry.Panel);
+        if (!preview && icon is null)
+        {
+            return item;
+        }
+
         return item with
         {
-            Icon = TabIcon(entry.Document, entry.Panel),
+            Icon = icon,
             BadgeDot = preview,
             BadgeColor = preview ? FlareColor.OnSurfaceVariant : item.BadgeColor
         };
@@ -343,44 +376,33 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
 
     private LierneDockModel BuildModel(bool rebuildFractions = false)
     {
-        var placements = Panels.Placements.ToList();
-        foreach (var tool in ToolWindows.ToolWindows.Where(tool => tool.Visible))
+        var placements = Panels.Placements;
+        List<PanelPlacement>? additional = null;
+        var tools = ToolWindows.ToolWindows;
+        for (var index = 0; index < tools.Count; index++)
         {
-            if (placements.Any(placement => placement.Panel == tool.Id))
+            var tool = tools[index];
+            if (!tool.Visible || Panels.Get(tool.Id) is not null)
             {
                 continue;
             }
 
-            var descriptor = Catalog.ToolWindows.FirstOrDefault(item => item.Id == tool.Id);
-            placements.Add(new PanelPlacement(
-                tool.Id,
-                descriptor?.DefaultRegion ?? LierneToolRegion.Left,
-                Visible: true));
+            (additional ??= [.. placements]).Add(new PanelPlacement(tool.Id, tool.Region, Visible: true));
         }
 
-        var sizes = _panels.ToDictionary(
-            pair => pair.Key,
-            pair => (double)pair.Value.Size);
-        var activePanels = _panels.ToDictionary(
-            pair => pair.Key,
-            pair => pair.Value.ToolKey);
-        var hasStart = ShowStartPage && !Documents.Documents.Any(document =>
-            document.Location == LierneDockLocation.Main);
-        var hasBottom = ShowBottomPanel && BottomSurface is not null;
         return LierneDockLayoutAdapter.Build(
             Documents.Documents,
             Documents.Active,
-            placements,
-            ToolWindows.ToolWindows,
+            additional ?? placements,
+            tools,
             Catalog.ToolWindows,
-            activePanels,
+            _panels,
             _selection,
-            sizes,
             Localizer.Get,
             HostLabel("start"),
             HostLabel("bottomPanel"),
-            hasStart,
-            hasBottom,
+            ShowStartPage,
+            _hasBottomSurface,
             rebuildFractions ? null : _layout,
             rebuildFractions ? _restoredFractions : null);
     }
@@ -426,6 +448,11 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
 
     private LierneDocumentInstance? FindDocument(string key)
     {
+        if (Documents is LierneDocumentService service)
+        {
+            return service.Find(key);
+        }
+
         var documents = Documents.Documents;
         for (var index = 0; index < documents.Count; index++)
         {
@@ -442,7 +469,7 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     {
         if (key is null)
         {
-            return true;
+            return action == DockAction.Resize && FindSplit(_layout, target) is not null;
         }
 
         if (key is LierneDockLayoutAdapter.StartKey or LierneDockLayoutAdapter.BottomKey)
@@ -450,20 +477,20 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
             return action == DockAction.Activate;
         }
 
-        if (LierneDockLayoutAdapter.TryDocument(key, out var documentId))
+        if (Entry(key)?.Document is { } document)
         {
-            return FindDocument(documentId) is not null &&
+            return FindDocument(document.Id) is not null &&
                 !(action is DockAction.Move or DockAction.Split &&
                     LierneDockLayoutAdapter.DocumentRegionOf(_layout, target) is null);
         }
 
-        if (LierneDockLayoutAdapter.TryPanel(key, out _))
+        if (Entry(key)?.Panel is not null)
         {
             return !(action is DockAction.Move or DockAction.Split &&
                 LierneDockLayoutAdapter.ToolRegionOf(_layout, target) is null);
         }
 
-        return true;
+        return false;
     }
 
     private string GroupLabel(DockGroup group)
@@ -483,6 +510,9 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     }
 
     private LierneDockEntry? Entry(string key) => _entries.GetValueOrDefault(key);
+
+    private LierneDocumentInstance? TabDocument(string key) =>
+        Entry(key)?.Document is { } document ? FindDocument(document.Id) : null;
 
     private FlareIcon? TabIcon(LierneDocumentInstance? document, PanelPlacement? panel)
     {
@@ -505,6 +535,11 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
             return null;
         }
 
+        return ResolveIcon(iconKey, iconColor);
+    }
+
+    private FlareIcon? ResolveIcon(string? iconKey, string? iconColor)
+    {
         var icon = Icons.Resolve(iconKey);
         return icon is not null && !string.IsNullOrWhiteSpace(iconColor)
             ? icon with { Color = FlareColor.Custom(iconColor) }
@@ -520,9 +555,11 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
 
         switch (entry.Kind)
         {
-            case LierneDockEntryKind.Document when entry.Document is { } document:
+            case LierneDockEntryKind.Document when entry.Document is { } document &&
+                                                   FindDocument(document.Id) is { } current:
                 builder.OpenComponent<LierneDocumentHost>(0);
-                builder.AddAttribute(1, nameof(LierneDocumentHost.DocumentId), document.Id);
+                builder.AddAttribute(1, nameof(LierneDocumentHost.DocumentId), current.Id);
+                builder.AddAttribute(2, nameof(LierneDocumentHost.Document), current);
                 builder.CloseComponent();
                 break;
             case LierneDockEntryKind.Panel when entry.Panel is { } placement:
@@ -559,12 +596,13 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
 
     internal IReadOnlyList<DockItem> Items => _items;
 
-    internal async Task ApplyChangeAsync(DockLayoutChange change)
+    internal Task ApplyChangeAsync(DockLayoutChange change)
     {
-        if (!ReferenceEquals(change.Previous, _layout))
+        if (_disposed || !ReferenceEquals(change.Previous, _layout) ||
+            ReferenceEquals(change.Previous, change.Proposed) ||
+            !CanRequest(change.Action, change.ItemKey, change.TargetKey))
         {
-            Refresh(forceLayout: true);
-            return;
+            return Task.CompletedTask;
         }
 
         _applying = true;
@@ -585,17 +623,42 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
             _applying = false;
         }
 
+        if (!changed && !IsSessionChange(change))
+        {
+            return Task.CompletedTask;
+        }
+
         SyncSelection();
         _layout = change.Proposed;
         var model = BuildModel();
-        _layoutSignature = model.LayoutSignature;
-        _items = model.Items.Select(item => Decorate(item, model.Entries)).ToArray();
-        _entries = model.Entries;
+        if (model.Entries.ContainsKey(LierneDockLayoutAdapter.StartKey) !=
+            _entries.ContainsKey(LierneDockLayoutAdapter.StartKey))
+        {
+            _layout = model.Layout;
+        }
+        SetModel(model);
         if (changed)
         {
             SaveWorkspace();
         }
+
+        return Task.CompletedTask;
     }
+
+    private bool IsSessionChange(DockLayoutChange change) => change.Action switch
+    {
+        DockAction.Resize => FindSplit(change.Proposed, change.TargetKey) is not null,
+        DockAction.Move or DockAction.Split when change.ItemKey is { } key =>
+            Entry(key) switch
+            {
+                { Document: { } document } when FindDocument(document.Id) is { } current =>
+                    current.Location == LierneDockLayoutAdapter.DocumentRegionOf(change.Previous, change.TargetKey),
+                { Panel: { } panel } =>
+                    panel.Region == LierneDockLayoutAdapter.ToolRegionOf(change.Previous, change.TargetKey),
+                _ => false
+            },
+        _ => false
+    };
 
     private bool Activate(DockLayoutChange change)
     {
@@ -604,9 +667,10 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
             return false;
         }
 
-        if (LierneDockLayoutAdapter.TryDocument(key, out var documentId))
+        if (Entry(key)?.Document is { } document && Documents.Activate(document.Id).Success)
         {
-            var changed = Documents.Active?.Id != documentId;
+            var documentId = document.Id;
+            var changed = _lastActiveId != documentId;
             if (LierneDockLayoutAdapter.DocumentRegionOf(change.Previous, change.TargetKey) is { } location &&
                 _selection[location] != documentId)
             {
@@ -614,11 +678,10 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
                 changed = true;
             }
 
-            Documents.Activate(documentId);
             return changed;
         }
 
-        if (LierneDockLayoutAdapter.TryPanel(key, out var panel))
+        if (Entry(key)?.Panel is { Panel: var panel })
         {
             var region = LierneDockLayoutAdapter.ToolRegionOf(change.Previous, change.TargetKey) ??
                 Panels.Get(panel)?.Region;
@@ -655,17 +718,12 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
 
     private bool Close(DockLayoutChange change)
     {
-        if (change.ItemKey is not { } key)
+        return change.ItemKey is { } key && (Entry(key) switch
         {
-            return false;
-        }
-
-        if (LierneDockLayoutAdapter.TryDocument(key, out var documentId))
-        {
-            return Documents.Close(documentId).Success;
-        }
-
-        return LierneDockLayoutAdapter.TryPanel(key, out var panel) && Panels.Hide(panel).Success;
+            { Document: { } document } => Documents.Close(document.Id).Success,
+            { Panel: { } panel } => Panels.Hide(panel.Panel).Success,
+            _ => false
+        });
     }
 
     private bool Move(DockLayoutChange change)
@@ -675,20 +733,20 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
             return false;
         }
 
-        if (LierneDockLayoutAdapter.TryDocument(key, out var documentId))
+        var entry = Entry(key);
+        if (entry?.Document is { Id: var documentId })
         {
             if (LierneDockLayoutAdapter.DocumentRegionOf(change.Previous, change.TargetKey) is not { } location ||
-                FindDocument(documentId)?.Location == location)
+                FindDocument(documentId)?.Location == location || !Documents.Move(documentId, location).Success)
             {
                 return false;
             }
 
-            var moved = Documents.Move(documentId, location).Success;
             SelectDocument(location, documentId);
-            return moved;
+            return true;
         }
 
-        if (!LierneDockLayoutAdapter.TryPanel(key, out var panel) || Panels.Get(panel) is not { } placement)
+        if (entry?.Panel is not { Panel: var panel } || Panels.Get(panel) is not { } placement)
         {
             return false;
         }
@@ -769,18 +827,24 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
                 return;
             }
 
-            if ((change & (LierneDocumentChange.Structure | LierneDocumentChange.Selection)) != 0)
+            if ((change & LierneDocumentChange.Selection) != 0)
             {
                 SyncSelection();
             }
 
-            Refresh();
+            if ((change & (LierneDocumentChange.Tabs | LierneDocumentChange.Selection)) != 0)
+            {
+                Refresh();
+            }
             if ((change & LierneDocumentChange.Workspace) != 0)
             {
                 SaveWorkspace();
             }
 
-            StateHasChanged();
+            if ((change & (LierneDocumentChange.Tabs | LierneDocumentChange.Selection | LierneDocumentChange.Content)) != 0)
+            {
+                StateHasChanged();
+            }
         });
     }
 
