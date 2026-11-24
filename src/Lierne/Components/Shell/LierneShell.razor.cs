@@ -44,6 +44,10 @@ public partial class LierneShell : IDisposable
     [Parameter]
     public bool ShowDropGuide { get; set; } = true;
 
+    /// <summary>Gets or sets whether workspace tabs offer their actions in a context menu.</summary>
+    [Parameter]
+    public bool UseTabContextMenu { get; set; }
+
     /// <summary>Gets or sets a host command bar that replaces <see cref="LierneCommandBar"/>.</summary>
     [Parameter]
     public RenderFragment? CommandBarContent { get; set; }

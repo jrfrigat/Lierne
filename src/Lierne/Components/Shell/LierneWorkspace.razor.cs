@@ -35,7 +35,10 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     private const string TabCompressionParameter = "AdaptiveTabCompressionForGroup";
     private static readonly bool SupportsTabCompression =
         typeof(FlareDockWorkspace).GetProperty(TabCompressionParameter) is not null;
-    private IReadOnlyDictionary<string, object>? _dockTabParameters;
+    private const string TabContextMenuParameter = "UseTabContextMenu";
+    private static readonly bool SupportsTabContextMenu =
+        typeof(FlareDockWorkspace).GetProperty(TabContextMenuParameter) is not null;
+    private Dictionary<string, object>? _dockTabParameters;
 
     private DockNode _layout = new DockGroup("group:main", []);
     private DockItem[] _items = [];
@@ -103,6 +106,10 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     [Parameter]
     public bool ShowDropGuide { get; set; } = true;
 
+    /// <summary>Gets or sets whether the dock shows tab actions from a context menu.</summary>
+    [Parameter]
+    public bool UseTabContextMenu { get; set; }
+
     private RenderFragment? StartSurface => _pluginStartSurface ?? StartContent;
 
     private RenderFragment? BottomSurface => _pluginBottomSurface ?? BottomPanel;
@@ -151,6 +158,11 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
+        if (SupportsTabContextMenu)
+        {
+            (_dockTabParameters ??= new())[TabContextMenuParameter] = UseTabContextMenu;
+        }
+
         var hasBottom = ShowBottomPanel && BottomSurface is not null;
         if (_showStartPage != ShowStartPage || _hasBottomSurface != hasBottom)
         {
