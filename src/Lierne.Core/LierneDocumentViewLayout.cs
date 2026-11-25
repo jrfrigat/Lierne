@@ -11,6 +11,12 @@ public sealed record LierneDocumentViewGroup(
     DocumentViewTabPlacement Placement = DocumentViewTabPlacement.Top,
     bool ShowTabs = true)
 {
+    /// <summary>Gets whether implicit views are offered through an add-view menu.</summary>
+    public bool ShowAdditionalViewsMenu { get; init; }
+
+    /// <summary>Gets the views in this group that start hidden.</summary>
+    public IReadOnlySet<DocumentViewId> AdditionalViews { get; init; } = new HashSet<DocumentViewId>();
+
     /// <summary>Checks whether a view belongs to this group.</summary>
     /// <param name="view">The view id.</param>
     /// <returns>Whether the view is one of the group's tabs.</returns>
@@ -132,7 +138,10 @@ public static class LierneDocumentViewLayoutResolver
             switch (node)
             {
                 case DocumentViewTabsLayout tabs:
-                    var builder = new GroupBuilder(nextGroupIndex++, tabs.Placement, tabs.ShowTabs);
+                    var builder = new GroupBuilder(nextGroupIndex++, tabs.Placement, tabs.ShowTabs)
+                    {
+                        ShowAdditionalViewsMenu = tabs.ShowTabs && tabs.ShowAdditionalViewsMenu
+                    };
                     groups.Add(builder);
                     lastGroup = builder;
                     if (tabs.Views is { Count: > 0 } ids)
@@ -188,6 +197,10 @@ public static class LierneDocumentViewLayoutResolver
                 if (!explicitViews.Contains(view.Id) && !target.Contains(view.Id))
                 {
                     target.Views.Add(view);
+                    if (target.ShowAdditionalViewsMenu)
+                    {
+                        target.AdditionalViews.Add(view.Id);
+                    }
                 }
             }
         }
@@ -199,7 +212,11 @@ public static class LierneDocumentViewLayoutResolver
                 groups[index].Index,
                 groups[index].Views.ToArray(),
                 groups[index].Placement,
-                groups[index].ShowTabs);
+                groups[index].ShowTabs)
+            {
+                ShowAdditionalViewsMenu = groups[index].ShowAdditionalViewsMenu,
+                AdditionalViews = groups[index].AdditionalViews
+            };
         }
 
         return new LierneDocumentViewLayout(root, resolvedGroups, splits.ToArray());
@@ -240,7 +257,11 @@ public static class LierneDocumentViewLayoutResolver
 
         public bool ShowTabs { get; } = showTabs;
 
+        public bool ShowAdditionalViewsMenu { get; init; }
+
         public List<DocumentViewDescriptor> Views { get; } = [];
+
+        public HashSet<DocumentViewId> AdditionalViews { get; } = [];
 
         public bool Contains(DocumentViewId view)
         {

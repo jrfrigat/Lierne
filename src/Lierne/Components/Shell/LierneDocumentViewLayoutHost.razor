@@ -1,40 +1,72 @@
 @namespace Lierne
 @using Flare.Components
+@using Flare.Icons
 
 @if (Node is LierneDocumentViewLayoutTabs tabs && Group(tabs.GroupIndex) is { } group)
 {
     <FlareStack Height="100%" MinHeight="0" MinWidth="0" StretchItems="true">
         @if (group.Views.Count > 0 && group.ShowTabs)
         {
+            var visibleViews = VisibleViews(group);
             <FlareTabs FillHeight="true"
-                       Lazy="true"
+                       Lazy="@(!group.ShowAdditionalViewsMenu)"
                        Placement="@ToTabsPlacement(group.Placement)"
-                       ActiveIndex="@SelectedIndex(group)"
-                       ActiveIndexChanged="@ViewChanged(group)">
-                @foreach (var view in group.Views)
-                {
-                    <FlareTab @key="view.Id.Value"
-                              Key="@view.Id.Value"
-                              Label="@Localizer.Get(view.Title)"
-                              Tooltip="@Localizer.Get(view.Title)">
-                        <LeadingIcon>
-                            @if (Icons.Resolve(view.IconKey) is { } icon)
-                            {
-                                <FlareIconView Value="icon" Size="1rem" />
-                            }
-                        </LeadingIcon>
-                        <ChildContent>
-                            <DynamicComponent Type="@view.Component"
-                                              Parameters="@ViewParameters(view)" />
-                        </ChildContent>
-                    </FlareTab>
-                }
+                       TabOrder="@(group.ShowAdditionalViewsMenu ? group.Views.Select(view => view.Id.Value).ToArray() : null)"
+                       ActiveIndex="@SelectedIndex(group, visibleViews)"
+                       ActiveIndexChanged="@ViewChanged(group, visibleViews)">
+                <HeaderEnd>
+                    @if (group.AdditionalViews.Count > 0)
+                    {
+                        var label = Localizer.Get(AddViewLabel);
+                        var available = AvailableViews(group);
+                        <FlareMenu Anchor="@(group.Placement == DocumentViewTabPlacement.Bottom ? MenuAnchor.TopStart : MenuAnchor.BottomStart)"
+                                   AriaLabel="@label">
+                            <Activator>
+                                <FlareIconButton Size="FlareSize.Xs"
+                                                 Variant="ButtonVariant.Text"
+                                                 Icon="FlareIcons.Add"
+                                                 AriaLabel="@label"
+                                                 Tooltip="@label"
+                                                 Disabled="@(available.Count == 0)"
+                                                 @attributes="context.Attributes" />
+                            </Activator>
+                            <ChildContent>
+                                @foreach (var view in available)
+                                {
+                                    <FlareMenuItem @key="view.Id"
+                                                   Icon="@Icons.Resolve(view.IconKey)"
+                                                   OnClick="() => SelectView(group, view.Id)">@Localizer.Get(view.Title)</FlareMenuItem>
+                                }
+                            </ChildContent>
+                        </FlareMenu>
+                    }
+                </HeaderEnd>
+                <ChildContent>
+                    @foreach (var view in visibleViews)
+                    {
+                        <FlareTab @key="view.Id.Value"
+                                  Key="@view.Id.Value"
+                                  Label="@Localizer.Get(view.Title)"
+                                  Tooltip="@Localizer.Get(view.Title)">
+                            <LeadingIcon>
+                                @if (Icons.Resolve(view.IconKey) is { } icon)
+                                {
+                                    <FlareIconView Value="icon" Size="1rem" />
+                                }
+                            </LeadingIcon>
+                            <ChildContent>
+                                <DynamicComponent Type="@view.Component"
+                                                  Parameters="@ViewParameters(view)" />
+                            </ChildContent>
+                        </FlareTab>
+                    }
+                </ChildContent>
             </FlareTabs>
         }
         else if (group.Views.Count > 0)
         {
             @* The host asked for a chrome-less branch: the selected view fills the group. *@
-            var view = group.Views[SelectedIndex(group)];
+            var view = group.Views[SelectedIndex(group, group.Views)];
             <DynamicComponent Type="@view.Component"
                               Parameters="@ViewParameters(view)" />
         }

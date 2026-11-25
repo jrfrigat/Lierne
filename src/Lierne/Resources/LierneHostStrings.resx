@@ -72,4 +72,5 @@
   <data name="start" xml:space="preserve"><value>Start</value></data>
   <data name="bottomPanel" xml:space="preserve"><value>Bottom panel</value></data>
   <data name="emptyPanel" xml:space="preserve"><value>Empty</value></data>
+  <data name="addDocumentView" xml:space="preserve"><value>Add view</value></data>
 </root>

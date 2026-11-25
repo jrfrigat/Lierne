@@ -43,6 +43,12 @@ public sealed record DocumentViewTabsLayout(IReadOnlyList<DocumentViewId>? Views
     /// selected view only. The default is <see langword="true"/>.
     /// </summary>
     public bool ShowTabs { get; init; } = true;
+
+    /// <summary>
+    /// Offers views assigned by the layout resolver in an add-view menu. Explicitly listed views
+    /// remain visible from the start. This option applies only when <see cref="ShowTabs"/> is true.
+    /// </summary>
+    public bool ShowAdditionalViewsMenu { get; init; }
 }
 
 /// <summary>

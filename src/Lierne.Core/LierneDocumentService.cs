@@ -119,15 +119,9 @@ public sealed class LierneDocumentService : ILierneDocumentService
             }
         }
 
-        var selected = view ?? descriptor.DefaultView ?? ViewsFor(typeId).FirstOrDefault()?.Id;
-        IReadOnlyDictionary<int, DocumentViewId>? groupSelectedViews = null;
-        if (selected is { } selectedId && LayoutFor(typeId).GroupFor(selectedId) is { } selectedGroup)
-        {
-            groupSelectedViews = new Dictionary<int, DocumentViewId>
-            {
-                [selectedGroup.Index] = selectedId
-            };
-        }
+        var layout = LayoutFor(typeId);
+        var selected = view ?? descriptor.DefaultView ?? ViewsFor(typeId).FirstOrDefault(view =>
+            layout.GroupFor(view.Id)?.AdditionalViews.Contains(view.Id) != true)?.Id;
 
         var document = new LierneDocumentInstance(
             $"document-{(++_nextId).ToString(CultureInfo.InvariantCulture)}",
@@ -136,9 +130,8 @@ public sealed class LierneDocumentService : ILierneDocumentService
             payload,
             location ?? descriptor.DefaultLocation,
             Key: key,
-            SelectedView: selected,
-            Preview: preview,
-            GroupSelectedViews: groupSelectedViews);
+            Preview: preview);
+        document = WithSelectedView(document, selected);
         _indices.Add(document.Id, _documents.Count);
         _documents.Add(document);
         _activeId = document.Id;
@@ -382,24 +375,13 @@ public sealed class LierneDocumentService : ILierneDocumentService
                 $"The view '{view}' is not shown in group '{groupIndex}' of document type '{document.TypeId}'.");
         }
 
-        var current = document.GroupSelectedViews is { } selections &&
-                      selections.TryGetValue(groupIndex, out var selected)
-            ? selected
-            : (DocumentViewId?)null;
-        if (document.SelectedView == view && current == view)
+        var updated = WithSelectedView(document, view, group);
+        if (ReferenceEquals(updated, document))
         {
             return LierneResult.Ok;
         }
 
-        var updatedSelections = document.GroupSelectedViews is { Count: > 0 } existing
-            ? new Dictionary<int, DocumentViewId>(existing)
-            : new Dictionary<int, DocumentViewId>();
-        updatedSelections[groupIndex] = view;
-        _documents[index] = document with
-        {
-            SelectedView = view,
-            GroupSelectedViews = updatedSelections
-        };
+        _documents[index] = updated;
         NotifyChanged(LierneDocumentChange.Content | LierneDocumentChange.Workspace);
         return LierneResult.Ok;
     }
@@ -601,17 +583,23 @@ public sealed class LierneDocumentService : ILierneDocumentService
 
     private LierneDocumentInstance WithSelectedView(
         LierneDocumentInstance document,
-        DocumentViewId? view)
+        DocumentViewId? view,
+        LierneDocumentViewGroup? group = null)
     {
         var selections = document.GroupSelectedViews;
-        if (view is { } selected && LayoutFor(document.TypeId).GroupFor(selected) is { } group &&
-            (selections is null || !selections.TryGetValue(group.Index, out var previous) || previous != selected))
+        var opened = document.OpenedAdditionalViews;
+        if (view is { } selected && (group ?? LayoutFor(document.TypeId).GroupFor(selected)) is { } target)
         {
-            var updated = selections is { Count: > 0 }
-                ? new Dictionary<int, DocumentViewId>(selections)
-                : new Dictionary<int, DocumentViewId>();
-            updated[group.Index] = selected;
-            selections = updated;
+            if (selections is null || !selections.TryGetValue(target.Index, out var previous) || previous != selected)
+            {
+                var updated = selections is { Count: > 0 }
+                    ? new Dictionary<int, DocumentViewId>(selections)
+                    : new Dictionary<int, DocumentViewId>();
+                updated[target.Index] = selected;
+                selections = updated;
+            }
+
+            opened = OpenAdditionalView(opened, target, selected);
         }
 
         if (selections is { Count: 0 })
@@ -619,13 +607,28 @@ public sealed class LierneDocumentService : ILierneDocumentService
             selections = null;
         }
 
-        return document.SelectedView == view && ReferenceEquals(selections, document.GroupSelectedViews)
+        return document.SelectedView == view && ReferenceEquals(selections, document.GroupSelectedViews) &&
+            ReferenceEquals(opened, document.OpenedAdditionalViews)
             ? document
             : document with
             {
                 SelectedView = view,
-                GroupSelectedViews = selections
+                GroupSelectedViews = selections,
+                OpenedAdditionalViews = opened
             };
+    }
+
+    private static IReadOnlySet<DocumentViewId>? OpenAdditionalView(
+        IReadOnlySet<DocumentViewId>? opened,
+        LierneDocumentViewGroup group,
+        DocumentViewId view)
+    {
+        if (!group.AdditionalViews.Contains(view) || opened?.Contains(view) == true)
+        {
+            return opened;
+        }
+
+        return opened is null ? new HashSet<DocumentViewId> { view } : new HashSet<DocumentViewId>(opened) { view };
     }
 
     internal LierneDocumentInstance? Find(string instanceId)
@@ -652,7 +655,7 @@ public sealed class LierneDocumentService : ILierneDocumentService
         foreach (var document in documents)
         {
             _indices.Add(document.Id, _documents.Count);
-            _documents.Add(document);
+            _documents.Add(RestoreOpenedAdditionalViews(document));
         }
         _activeId = activeId is not null && IndexOf(activeId) >= 0 ? activeId : _documents.LastOrDefault()?.Id;
         if (_documents.Count > 0)
@@ -661,6 +664,31 @@ public sealed class LierneDocumentService : ILierneDocumentService
         }
 
         return true;
+    }
+
+    private LierneDocumentInstance RestoreOpenedAdditionalViews(LierneDocumentInstance document)
+    {
+        var layout = LayoutFor(document.TypeId);
+        var opened = document.OpenedAdditionalViews;
+        if (document.SelectedView is { } active && layout.GroupFor(active) is { } activeGroup)
+        {
+            opened = OpenAdditionalView(opened, activeGroup, active);
+        }
+
+        if (document.GroupSelectedViews is { } selections)
+        {
+            foreach (var (index, view) in selections)
+            {
+                if ((uint)index < (uint)layout.Groups.Count)
+                {
+                    opened = OpenAdditionalView(opened, layout.Groups[index], view);
+                }
+            }
+        }
+
+        return ReferenceEquals(opened, document.OpenedAdditionalViews)
+            ? document
+            : document with { OpenedAdditionalViews = opened };
     }
 
     internal static bool TryReadSequence(string id, out long sequence)

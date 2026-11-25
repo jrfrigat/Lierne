@@ -65,7 +65,11 @@ public sealed record LierneDocumentInstance(
     bool Pinned = false,
     IReadOnlyDictionary<DocumentViewId, object?>? ViewStates = null,
     IReadOnlyDictionary<int, DocumentViewId>? GroupSelectedViews = null,
-    IReadOnlyDictionary<int, double>? SplitFractions = null);
+    IReadOnlyDictionary<int, double>? SplitFractions = null)
+{
+    /// <summary>Gets the additional views opened for this document during the current session.</summary>
+    public IReadOnlySet<DocumentViewId>? OpenedAdditionalViews { get; init; }
+}
 
 /// <summary>Owns the open documents of one host scope.</summary>
 public interface ILierneDocumentService

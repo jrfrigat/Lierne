@@ -6,6 +6,7 @@ namespace Lierne;
 /// <summary>Renders one node of a resolved document view layout.</summary>
 public partial class LierneDocumentViewLayoutHost
 {
+    private static readonly StringKey AddViewLabel = new("lattice", "addDocumentView");
     [Inject]
     private ILierneDocumentService Documents { get; set; } = default!;
 
@@ -50,15 +51,35 @@ public partial class LierneDocumentViewLayoutHost
             ? SplitPaneOrientation.Vertical
             : SplitPaneOrientation.Horizontal;
 
-    private EventCallback<int> ViewChanged(LierneDocumentViewGroup group) =>
-        EventCallback.Factory.Create<int>(this, index => SelectView(group, index));
+    private IReadOnlyList<DocumentViewDescriptor> VisibleViews(LierneDocumentViewGroup group) =>
+        group.AdditionalViews.Count == 0 ? group.Views : group.Views.Where(view => IsVisible(group, view.Id)).ToArray();
 
-    private int SelectedIndex(LierneDocumentViewGroup group)
+    private IReadOnlyList<DocumentViewDescriptor> AvailableViews(LierneDocumentViewGroup group) =>
+        group.Views.Where(view => !IsVisible(group, view.Id)).ToArray();
+
+    private bool IsVisible(LierneDocumentViewGroup group, DocumentViewId id) =>
+        !group.AdditionalViews.Contains(id) ||
+        Document.OpenedAdditionalViews?.Contains(id) == true ||
+        Document.SelectedView == id ||
+        (Document.GroupSelectedViews?.TryGetValue(group.Index, out var saved) == true && saved == id);
+
+    private EventCallback<int> ViewChanged(
+        LierneDocumentViewGroup group,
+        IReadOnlyList<DocumentViewDescriptor> visibleViews) =>
+        EventCallback.Factory.Create<int>(this, index =>
+        {
+            if ((uint)index < (uint)visibleViews.Count)
+            {
+                SelectView(group, visibleViews[index].Id);
+            }
+        });
+
+    private int SelectedIndex(LierneDocumentViewGroup group, IReadOnlyList<DocumentViewDescriptor> visibleViews)
     {
         var selected = SelectedView(group);
-        for (var index = 0; index < group.Views.Count; index++)
+        for (var index = 0; index < visibleViews.Count; index++)
         {
-            if (group.Views[index].Id == selected)
+            if (visibleViews[index].Id == selected)
             {
                 return index;
             }
@@ -90,15 +111,8 @@ public partial class LierneDocumentViewLayoutHost
         return group.Views.FirstOrDefault()?.Id;
     }
 
-    private void SelectView(LierneDocumentViewGroup group, int index)
-    {
-        if (index < 0 || index >= group.Views.Count)
-        {
-            return;
-        }
-
-        Documents.SetGroupSelectedView(Document.Id, group.Index, group.Views[index].Id);
-    }
+    private void SelectView(LierneDocumentViewGroup group, DocumentViewId view) =>
+        Documents.SetGroupSelectedView(Document.Id, group.Index, view);
 
     private void SplitFractionChanged(int splitIndex, double fraction) =>
         Documents.SetSplitFraction(Document.Id, splitIndex, fraction);
