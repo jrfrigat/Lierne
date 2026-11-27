@@ -58,6 +58,7 @@ demonstrates a tool window, a keyboard shortcut and an options page contributed 
 - [Compose plugins and contributions](docs/articles/en/plugins.md)
 - [Customize and persist a workspace](docs/articles/en/workspace.md)
 - [Architecture notes (Russian)](docs/architecture.md)
+- [Changelog](CHANGELOG.md)
 
 ## License
 

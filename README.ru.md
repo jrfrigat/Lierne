@@ -58,6 +58,7 @@ dotnet run --project samples/Lierne.SampleIde
 - [Композиция плагинов](docs/articles/ru/plugins.md)
 - [Настройка и сохранение рабочей области](docs/articles/ru/workspace.md)
 - [Архитектурная справка](docs/architecture.md)
+- [История изменений](CHANGELOG.ru.md)
 
 ## Лицензия
 

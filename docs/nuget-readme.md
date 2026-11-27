@@ -46,6 +46,8 @@ Lierne - фреймворк для IDE-подобных Blazor-приложен�
 
 - [Repository and guides](https://github.com/jrfrigat/Lierne#documentation)
 - [Architecture notes](https://github.com/jrfrigat/Lierne/blob/main/docs/architecture.md)
+- [Changelog](https://github.com/jrfrigat/Lierne/blob/main/CHANGELOG.md)
+- [История изменений](https://github.com/jrfrigat/Lierne/blob/main/CHANGELOG.ru.md)
 
 ## License
 

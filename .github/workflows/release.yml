@@ -53,6 +53,15 @@ jobs:
           version="${GITHUB_REF_NAME#v}"
           dotnet pack Lierne.slnx -c Release --no-build -p:Version="$version" -o artifacts
 
+      - name: Collect release notes
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          awk -v heading="## $version" '
+            $0 == heading { section = 1; next }
+            section && /^## / { exit }
+            section { print }
+          ' CHANGELOG.md > artifacts/release-notes.md
+
       - name: Upload packages
         uses: actions/upload-artifact@v7
         with:
@@ -60,6 +69,7 @@ jobs:
           path: |
             artifacts/*.nupkg
             artifacts/*.snupkg
+            artifacts/release-notes.md
           if-no-files-found: error
           retention-days: 7
 
@@ -93,9 +103,13 @@ jobs:
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-        run: >-
-          gh release create "${{ github.ref_name }}"
-          artifacts/*.nupkg artifacts/*.snupkg
-          --repo "${{ github.repository }}"
-          --generate-notes
-          --title "${{ github.ref_name }}"
+        run: |
+          notes=(--generate-notes)
+          if grep -q '[^[:space:]]' artifacts/release-notes.md; then
+            notes=(--notes-file artifacts/release-notes.md)
+          fi
+          gh release create "$GITHUB_REF_NAME" \
+            artifacts/*.nupkg artifacts/*.snupkg \
+            --repo "$GITHUB_REPOSITORY" \
+            "${notes[@]}" \
+            --title "$GITHUB_REF_NAME"
