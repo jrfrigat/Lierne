@@ -73,4 +73,7 @@
   <data name="bottomPanel" xml:space="preserve"><value>Нижняя панель</value></data>
   <data name="emptyPanel" xml:space="preserve"><value>Пусто</value></data>
   <data name="addDocumentView" xml:space="preserve"><value>Добавить представление</value></data>
+  <data name="commandsSearch" xml:space="preserve"><value>Поиск</value></data>
+  <data name="commandsNoMatches" xml:space="preserve"><value>Команды не найдены.</value></data>
+  <data name="commandsResetShortcut" xml:space="preserve"><value>Восстановить сочетание по умолчанию</value></data>
 </root>

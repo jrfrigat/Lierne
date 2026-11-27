@@ -2,133 +2,177 @@
 @using Flare.Abstractions
 @using Flare.Components
 @using Flare.Components.IDE
+@using Flare.Icons
 @implements IDisposable
 @inject LiernePluginCatalog Catalog
 @inject ILierneShortcutService Shortcuts
 @inject ILierneLocalizer Localizer
+@inject IEnumerable<ILierneCommandSettingsSource> Sources
+
+@{
+    var commands = ReadCommands();
+    var searchLabel = Text("commandsSearch");
+    var assigned = commands.Where(command => !string.IsNullOrWhiteSpace(command.Shortcut)).ToArray();
+    var query = _search.Trim();
+    var groups = commands.Where(command => Matches(command, query))
+        .GroupBy(command => command.Category)
+        .OrderBy(group => group.Key, StringComparer.CurrentCultureIgnoreCase)
+        .ToArray();
+    var conflicts = assigned.GroupBy(command => command.Shortcut, StringComparer.OrdinalIgnoreCase)
+        .Where(group => group.Count() > 1)
+        .Select(group => group.Key)
+        .ToArray();
+}
 
 <FlareStack Gap="FlareSpacing.Small">
-    @foreach (var group in Groups)
-    {
-        <FlareStack Gap="FlareSpacing.XSmall" @key="group.Plugin">
-            <FlareText Typo="TypographyScale.LabelMedium"
-                       Transform="TextTransform.Uppercase"
-                       Color="FlareColor.OnSurfaceVariant">@Localizer.Get(group.Title)</FlareText>
-            @foreach (var binding in group.Bindings)
-            {
-                <FlareStack Row="true" Align="FlareAlignItems.Center" Gap="FlareSpacing.Small"
-                            MinHeight="2rem" @key="binding.Command.Value">
-                    <FlareStack Width="220px" MinWidth="0">
-                        <FlareText>@Localizer.Get(binding.Title)</FlareText>
-                    </FlareStack>
-                    <FlareStack FlexGrow="1" MinWidth="0" MaxWidth="22.5rem">
-                        <FlareShortcutEditor Compact="true"
-                                             AriaLabel="@Localizer.Get(binding.Title)"
-                                             Value="@binding.EffectiveShortcut"
-                                             DefaultValue="@binding.DefaultShortcut"
-                                             AssignedShortcuts="@AssignedFor(binding)"
-                                             ValueChanged="value => SetAsync(binding, value)" />
-                    </FlareStack>
-                </FlareStack>
-            }
-        </FlareStack>
-    }
+    <FlareTextField Size="FlareSize.Sm" Type="search" Immediate="true" Placeholder="@searchLabel"
+                    InputAttributes="@(new Dictionary<string, object> { ["aria-label"] = searchLabel })"
+                    Value="@_search" ValueChanged="Search" />
     @if (_error is { Length: > 0 })
     {
-        <FlareText Typo="TypographyScale.BodySmall"
-                   Color="FlareColor.Error">@_error</FlareText>
+        <FlareText Typo="TypographyScale.BodySmall" role="alert" Color="FlareColor.Error">@_error</FlareText>
     }
-    @if (_conflict is { Length: > 0 })
+    @if (conflicts.Length > 0)
     {
-        <FlareText Typo="TypographyScale.BodySmall"
-                   Color="FlareColor.Error">@_conflict</FlareText>
+        <FlareText Typo="TypographyScale.BodySmall" role="status" Color="FlareColor.Error">
+            @string.Format(Text("shortcutConflict"), string.Join(", ", conflicts))
+        </FlareText>
+    }
+    @if (groups.Length == 0)
+    {
+        <FlareText Typo="TypographyScale.BodySmall" role="status">@Text("commandsNoMatches")</FlareText>
+    }
+    @foreach (var group in groups)
+    {
+        <FlarePropertyGrid Title="@group.Key" @key="group.Key">
+            @foreach (var command in group.OrderBy(command => command.Title, StringComparer.CurrentCultureIgnoreCase)
+                                          .ThenBy(command => command.Id.Value, StringComparer.Ordinal))
+            {
+                <FlarePropertyGridItem @key="command.Id" Name="@command.Title" title="@command.Id.Value">
+                    @if (command.SetShortcut is null)
+                    {
+                        <FlareText Typo="TypographyScale.BodySmall" Color="FlareColor.OnSurfaceVariant">
+                            @(command.Shortcut ?? "—")
+                        </FlareText>
+                    }
+                    else
+                    {
+                        <FlareStack Row="true" Align="FlareAlignItems.Center" Gap="FlareSpacing.XSmall">
+                            <FlareStack FlexGrow="1" MinWidth="0">
+                                <FlareShortcutEditor Compact="true" AriaLabel="@command.Title"
+                                                     Value="@command.Shortcut" DefaultValue="@command.DefaultShortcut"
+                                                     AssignedShortcuts="@AssignedFor(command, assigned)"
+                                                     ValueChanged="value => UpdateAsync(command, value)" />
+                            </FlareStack>
+                            <FlareIconButton Icon="FlareIcons.Refresh" Variant="ButtonVariant.Text" Size="FlareSize.Xs"
+                                             AriaLabel="@Text("commandsResetShortcut")" Tooltip="@Text("commandsResetShortcut")"
+                                             Disabled="@string.Equals(command.Shortcut, command.DefaultShortcut, StringComparison.OrdinalIgnoreCase)"
+                                             OnClick="() => UpdateAsync(command, command.DefaultShortcut)" />
+                        </FlareStack>
+                    }
+                </FlarePropertyGridItem>
+            }
+        </FlarePropertyGrid>
     }
 </FlareStack>
 
 @code {
     private string? _error;
-    private string? _conflict;
-
-    private IReadOnlyList<CommandGroup> Groups => BuildGroups();
+    private string _search = string.Empty;
 
     /// <inheritdoc />
     protected override void OnInitialized()
     {
-        Shortcuts.Changed += OnShortcutsChanged;
-        UpdateConflicts();
+        Localizer.Changed += OnChanged;
+        Shortcuts.Changed += OnChanged;
+        foreach (var source in Sources)
+        {
+            source.Changed += OnChanged;
+        }
     }
 
     /// <inheritdoc />
-    public void Dispose() => Shortcuts.Changed -= OnShortcutsChanged;
-
-    private IReadOnlyList<CommandGroup> BuildGroups()
+    public void Dispose()
     {
-        var ownerByCommand = Catalog.CommandRegistrations
-            .Where(registration => registration.Plugin is not null && registration.Descriptor.ArgumentType is null)
-            .ToDictionary(
-                registration => registration.Descriptor.Id,
-                registration => registration.Plugin!.Value);
-        var groups = new List<CommandGroup>();
-        foreach (var plugin in Catalog.Plugins.OrderBy(plugin => plugin.Order))
+        Localizer.Changed -= OnChanged;
+        Shortcuts.Changed -= OnChanged;
+        foreach (var source in Sources)
         {
-            var bindings = Shortcuts.Bindings
-                .Where(binding =>
-                    ownerByCommand.TryGetValue(binding.Command, out var owner) &&
-                    owner == plugin.Id)
-                .OrderBy(binding => Localizer.Get(binding.Title), StringComparer.CurrentCulture)
-                .ToArray();
-            if (bindings.Length > 0)
+            source.Changed -= OnChanged;
+        }
+    }
+
+    private LierneCommandSetting[] ReadCommands()
+    {
+        var owners = Catalog.Plugins.ToDictionary(plugin => plugin.Id, plugin => Localizer.Get(plugin.DisplayName));
+        var shortcuts = Shortcuts.Bindings.ToDictionary(binding => binding.Command);
+        var commands = new Dictionary<CommandId, LierneCommandSetting>();
+        foreach (var registration in Catalog.CommandRegistrations)
+        {
+            var descriptor = registration.Descriptor;
+            var binding = shortcuts.GetValueOrDefault(descriptor.Id);
+            var category = registration.Plugin is { } plugin && owners.TryGetValue(plugin, out var title)
+                ? title
+                : Text("general");
+            commands.Add(descriptor.Id, new LierneCommandSetting(
+                descriptor.Id,
+                Localizer.Get(descriptor.Title),
+                category,
+                binding?.DefaultShortcut,
+                binding?.EffectiveShortcut,
+                descriptor.ArgumentType is null && binding is not null
+                    ? value => SetNativeAsync(descriptor.Id, value)
+                    : null));
+        }
+
+        foreach (var source in Sources)
+        {
+            foreach (var command in source.GetCommands())
             {
-                groups.Add(new CommandGroup(plugin.Id, plugin.DisplayName, bindings));
+                commands.TryAdd(command.Id, command);
             }
         }
 
-        return groups;
+        return commands.Values.ToArray();
     }
 
-    private IEnumerable<string> AssignedFor(LierneShortcutBinding binding) =>
-        Shortcuts.Bindings
-            .Where(candidate =>
-                candidate.Command != binding.Command &&
-                !string.IsNullOrWhiteSpace(candidate.EffectiveShortcut))
-            .Select(candidate => candidate.EffectiveShortcut!);
-
-    private Task SetAsync(LierneShortcutBinding binding, string? value)
+    private Task SetNativeAsync(CommandId id, string? value)
     {
         var result = Shortcuts.ApplyOverrides(new Dictionary<string, string>(StringComparer.Ordinal)
         {
-            [binding.Command.Value] = value ?? string.Empty
+            [id.Value] = value ?? string.Empty
         });
-        _error = result.Success
-            ? null
-            : result.ErrorCode is { } code
+        if (!result.Success)
+        {
+            _error = result.ErrorCode is { } code
                 ? Localizer.GetError(code, result.ErrorMessage)
                 : result.ErrorMessage;
-        UpdateConflicts();
+        }
+
         return Task.CompletedTask;
     }
 
-    private void OnShortcutsChanged() => _ = InvokeAsync(() =>
+    private async Task UpdateAsync(LierneCommandSetting command, string? value)
     {
-        UpdateConflicts();
-        StateHasChanged();
-    });
-
-    private void UpdateConflicts()
-    {
-        var gestures = Shortcuts.FindConflicts()
-            .Select(conflict => conflict.Gesture)
-            .ToArray();
-        _conflict = gestures.Length == 0
-            ? null
-            : string.Format(
-                System.Globalization.CultureInfo.CurrentCulture,
-                Localizer.Get(LierneHostPlugin.Key("shortcutConflict")),
-                string.Join(", ", gestures));
+        _error = null;
+        if (command.SetShortcut is { } update)
+        {
+            await update(value);
+        }
     }
 
-    private sealed record CommandGroup(
-        PluginId Plugin,
-        StringKey Title,
-        IReadOnlyList<LierneShortcutBinding> Bindings);
+    private static IEnumerable<string> AssignedFor(LierneCommandSetting command, LierneCommandSetting[] assigned) =>
+        assigned.Where(candidate => candidate.Id != command.Id).Select(candidate => candidate.Shortcut!);
+
+    private static bool Matches(LierneCommandSetting command, string query) =>
+        query.Length == 0 ||
+        command.Title.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+        command.Category.Contains(query, StringComparison.CurrentCultureIgnoreCase) ||
+        command.Id.Value.Contains(query, StringComparison.OrdinalIgnoreCase);
+
+    private void Search(string? text) => _search = text ?? string.Empty;
+
+    private string Text(string key) => Localizer.Get(LierneHostPlugin.Key(key));
+
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
 }

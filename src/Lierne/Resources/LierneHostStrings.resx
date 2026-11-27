@@ -73,4 +73,7 @@
   <data name="bottomPanel" xml:space="preserve"><value>Bottom panel</value></data>
   <data name="emptyPanel" xml:space="preserve"><value>Empty</value></data>
   <data name="addDocumentView" xml:space="preserve"><value>Add view</value></data>
+  <data name="commandsSearch" xml:space="preserve"><value>Search</value></data>
+  <data name="commandsNoMatches" xml:space="preserve"><value>No commands match the search.</value></data>
+  <data name="commandsResetShortcut" xml:space="preserve"><value>Restore the default shortcut</value></data>
 </root>
