@@ -35,6 +35,9 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     private const string TabCompressionParameter = "AdaptiveTabCompressionForGroup";
     private static readonly bool SupportsTabCompression =
         typeof(FlareDockWorkspace).GetProperty(TabCompressionParameter) is not null;
+    private const string TabLabelTemplateParameter = "TabLabelTemplate";
+    private static readonly bool SupportsTabLabelTemplate =
+        typeof(FlareDockWorkspace).GetProperty(TabLabelTemplateParameter) is not null;
     private const string TabContextMenuParameter = "UseTabContextMenu";
     private static readonly bool SupportsTabContextMenu =
         typeof(FlareDockWorkspace).GetProperty(TabContextMenuParameter) is not null;
@@ -123,6 +126,12 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
             {
                 [TabCompressionParameter] = (Func<DockGroup, bool>)CompressDockTabs
             };
+        }
+
+        if (SupportsTabLabelTemplate)
+        {
+            _dockTabParameters ??= new Dictionary<string, object>();
+            _dockTabParameters[TabLabelTemplateParameter] = TabLabel;
         }
 
         _dockContentTemplate = RenderItem;

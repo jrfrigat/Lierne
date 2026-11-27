@@ -23,31 +23,11 @@ else
                                 ContentTemplate="_dockContentTemplate"
                                 GroupLabel="GroupLabel">
                 <TabTemplate Context="item">
-                    @{
-                        var entry = Entry(item.Key);
-                        var document = DocumentHeaderContent is not null ? TabDocument(item.Key) : entry?.Document;
-                    }
                     @if (item.Icon is { } icon)
                     {
                         <FlareIconView Value="icon" Size="0.875rem" />
                     }
-                    @if (document is not null && DocumentHeaderContent is { } template)
-                    {
-                        @template(new LierneDocumentHeaderContext(document, item.Title))
-                    }
-                    else
-                    {
-                        @if (document?.StatusIconKey is { } statusKey &&
-                             ResolveIcon(statusKey, document.StatusIconColor) is { } statusIcon)
-                        {
-                            <FlareIconView Value="statusIcon" Size="0.75rem" data-lierne-marker="status" />
-                        }
-                        <FlareText Element="span">@item.Title</FlareText>
-                    }
-                    @if (item.BadgeDot)
-                    {
-                        <FlareIconView Value="PreviewDot" Size="0.375rem" data-lierne-marker="preview" />
-                    }
+                    @TabLabel(item)
                 </TabTemplate>
                 <TabMarkerTemplate Context="item">
                     @{
@@ -74,4 +54,30 @@ else
             </FlareDockWorkspace>
         </FlareStack>
     </FlareStack>
+}
+
+@code {
+    private RenderFragment<DockItem> TabLabel => item => @<text>
+        @{
+            var entry = Entry(item.Key);
+            var document = DocumentHeaderContent is not null ? TabDocument(item.Key) : entry?.Document;
+        }
+        @if (document is not null && DocumentHeaderContent is { } template)
+        {
+            @template(new LierneDocumentHeaderContext(document, item.Title))
+        }
+        else
+        {
+            @if (document?.StatusIconKey is { } statusKey &&
+                 ResolveIcon(statusKey, document.StatusIconColor) is { } statusIcon)
+            {
+                <FlareIconView Value="statusIcon" Size="0.75rem" data-lierne-marker="status" />
+            }
+            <FlareText Element="span">@item.Title</FlareText>
+        }
+        @if (item.BadgeDot)
+        {
+            <FlareIconView Value="PreviewDot" Size="0.375rem" data-lierne-marker="preview" />
+        }
+    </text>;
 }
