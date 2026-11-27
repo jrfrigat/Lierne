@@ -70,6 +70,7 @@ public sealed class LierneShellRenderTests
 
         Assert.Contains("Tools", html, StringComparison.Ordinal);
         Assert.Contains("Options", html, StringComparison.Ordinal);
+        Assert.Contains("flare-settings__category-list", html, StringComparison.Ordinal);
         Assert.Contains("General", html, StringComparison.Ordinal);
         Assert.Contains("Commands", html, StringComparison.Ordinal);
         Assert.Contains("Themes", html, StringComparison.Ordinal);

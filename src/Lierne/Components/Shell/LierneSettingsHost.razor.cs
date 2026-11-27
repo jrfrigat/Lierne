@@ -1,8 +1,6 @@
 
-using Microsoft.AspNetCore.Components;
-#if LIERNE_FLARE_SETTINGS
 using Flare.Components.IDE;
-#endif
+using Microsoft.AspNetCore.Components;
 
 namespace Lierne;
 
@@ -10,48 +8,27 @@ namespace Lierne;
 public partial class LierneSettingsHost : IDisposable
 {
     private IReadOnlyList<SettingsGroupNode> _groups = [];
-    private readonly HashSet<string> _collapsedGroups = new(StringComparer.Ordinal);
     private ILookup<SettingsPageId?, SettingDescriptor> _settingsByPage = default!;
-    private SettingsPageDescriptor? _selectedPage;
+    private string? _selectedId;
     private string? _error;
 
     private string PageListLabel => Localizer.Get(new StringKey("lattice", "options"));
 
     private string NoSettingsText => Localizer.Get(new StringKey("lattice", "noSettings"));
 
-#if LIERNE_FLARE_SETTINGS
     private IReadOnlyList<FlareSettingsCategory> _categories = [];
-    private IReadOnlyDictionary<string, SettingsPageDescriptor> _pagesById =
-        new Dictionary<string, SettingsPageDescriptor>(StringComparer.Ordinal);
-
-    private RenderFragment? SettingsSurface => builder =>
-    {
-        builder.OpenComponent<FlareSettings>(0);
-        builder.AddAttribute(1, nameof(FlareSettings.Categories), _categories);
-        builder.AddAttribute(2, nameof(FlareSettings.SelectedId), _selectedPage is { } page ? PageKey(page) : null);
-        builder.AddAttribute(3, nameof(FlareSettings.SelectedIdChanged),
-            EventCallback.Factory.Create<string>(this, SelectById));
-        builder.AddAttribute(4, nameof(FlareSettings.NavigationLabel), PageListLabel);
-        builder.AddAttribute(5, nameof(FlareSettings.PageContent),
-            (RenderFragment<FlareSettingsCategory>)(category => PageContent(_pagesById[category.Id])));
-        builder.AddAttribute(6, nameof(FlareSettings.EmptyContent), EmptyPage);
-        builder.CloseComponent();
-    };
+    private IReadOnlyDictionary<string, SettingsPageDescriptor> _pagesById = default!;
 
     private void SelectById(string id)
     {
-        if (_pagesById.TryGetValue(id, out var page))
-        {
-            Select(page);
-        }
+        _selectedId = id;
+        _error = null;
     }
 
     private static string PageKey(SettingsPageDescriptor page) => "page:" + page.Id.Value;
 
     private void BuildCategories()
     {
-        _pagesById = _groups.SelectMany(group => group.Pages)
-            .ToDictionary(PageKey, StringComparer.Ordinal);
         _categories = _groups.Select(group => new FlareSettingsCategory("group:" + group.Key, Localizer.Get(group.Title))
         {
             Selectable = false,
@@ -63,22 +40,17 @@ public partial class LierneSettingsHost : IDisposable
             }).ToArray()
         }).ToArray();
     }
-#else
-    // Published Flare packages predating the settings surface still use the same page renderer.
-    private static RenderFragment? SettingsSurface => null;
-#endif
 
     /// <inheritdoc />
     protected override void OnInitialized()
     {
         _groups = BuildGroups();
-        _selectedPage = _groups.Count > 0 ? _groups[0].Pages[0] : null;
+        _pagesById = _groups.SelectMany(group => group.Pages)
+            .ToDictionary(PageKey, StringComparer.Ordinal);
         _settingsByPage = Catalog.Settings
             .OrderBy(setting => setting.Key.Value, StringComparer.Ordinal)
             .ToLookup(setting => setting.Page);
-#if LIERNE_FLARE_SETTINGS
         BuildCategories();
-#endif
         Localizer.Changed += OnLocalizerChanged;
     }
 
@@ -87,9 +59,7 @@ public partial class LierneSettingsHost : IDisposable
 
     private void OnLocalizerChanged() => _ = InvokeAsync(() =>
     {
-#if LIERNE_FLARE_SETTINGS
         BuildCategories();
-#endif
         StateHasChanged();
     });
 
@@ -118,31 +88,11 @@ public partial class LierneSettingsHost : IDisposable
                 .ToArray();
             if (pages.Length > 0)
             {
-                groups.Add(new SettingsGroupNode(plugin.Id.Value, plugin.DisplayName, pages));
+                groups.Add(new SettingsGroupNode("plugin:" + plugin.Id.Value, plugin.DisplayName, pages));
             }
         }
 
         return groups;
-    }
-
-    private void Select(SettingsPageDescriptor page)
-    {
-        _selectedPage = page;
-        _error = null;
-    }
-
-    private bool IsCollapsed(string key) => _collapsedGroups.Contains(key);
-
-    private void SetGroupExpanded(string key, bool expanded)
-    {
-        if (expanded)
-        {
-            _collapsedGroups.Remove(key);
-        }
-        else
-        {
-            _collapsedGroups.Add(key);
-        }
     }
 
     private int? ReadInt(SettingsKey key) =>

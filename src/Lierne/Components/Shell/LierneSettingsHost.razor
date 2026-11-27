@@ -6,48 +6,22 @@
 @inject ISettingsStore Settings
 @inject ILierneLocalizer Localizer
 
-@if (SettingsSurface is { } surface)
-{
-    @surface
-}
-else
-{
-    <FlareStack Row="true" Height="100%" MinHeight="0" StretchLast="true" Align="FlareAlignItems.Stretch">
-        <FlareStack Width="220px" MinWidth="180px" Overflow="auto" PaddingBlockStart="FlareSpacing.XXSmall">
-            <FlareNavMenu AriaLabel="@PageListLabel">
-                @foreach (var group in _groups)
-                {
-                    <FlareNavGroup @key="group.Key" Label="@Localizer.Get(group.Title)"
-                                   Expanded="@(!IsCollapsed(group.Key))"
-                                   ExpandedChanged="expanded => SetGroupExpanded(group.Key, expanded)">
-                        @foreach (var page in group.Pages)
-                        {
-                            <FlareNavLink @key="page.Id.Value" Active="@(_selectedPage?.Id == page.Id)"
-                                          OnClick="() => Select(page)">@Localizer.Get(page.Title)</FlareNavLink>
-                        }
-                    </FlareNavGroup>
-                }
-            </FlareNavMenu>
-        </FlareStack>
-        <FlareDivider Vertical="true" />
-        <FlareStack FlexGrow="1" MinWidth="0" Overflow="auto" Padding="FlareSpacing.Small">
-            @if (_selectedPage is { } selected)
-            {
-                <FlareText Typo="TypographyScale.TitleSmall" Element="h3">@Localizer.Get(selected.Title)</FlareText>
-                @PageContent(selected)
-            }
-            else
-            {
-                @EmptyPage
-            }
-        </FlareStack>
-    </FlareStack>
-}
+<FlareSettings Categories="@_categories"
+               SelectedId="@_selectedId"
+               SelectedIdChanged="SelectById"
+               NavigationLabel="@PageListLabel">
+    <PageContent Context="category">
+        @RenderPage(_pagesById[category.Id])
+    </PageContent>
+    <EmptyContent>
+        @EmptyPage
+    </EmptyContent>
+</FlareSettings>
 
 @code {
     private RenderFragment EmptyPage => @<FlareText Color="FlareColor.OnSurfaceVariant">@NoSettingsText</FlareText>;
 
-    private RenderFragment PageContent(SettingsPageDescriptor selected) => @<FlareStack Gap="FlareSpacing.Small">
+    private RenderFragment RenderPage(SettingsPageDescriptor selected) => @<FlareStack Gap="FlareSpacing.Small">
         @if (selected.Component is { } component)
         {
             <DynamicComponent @key="selected.Id" Type="@component" />

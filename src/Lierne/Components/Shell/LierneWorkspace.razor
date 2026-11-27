@@ -19,16 +19,11 @@ else
                                 CanRequest="CanRequest"
                                 DropZones="@DropZones"
                                 ShowDropGuide="@ShowDropGuide"
-                                @attributes="_dockTabParameters"
+                                AdaptiveTabCompressionForGroup="_dockTabCompression"
+                                UseTabContextMenu="@UseTabContextMenu"
+                                TabLabelTemplate="_dockTabLabelTemplate"
                                 ContentTemplate="_dockContentTemplate"
                                 GroupLabel="GroupLabel">
-                <TabTemplate Context="item">
-                    @if (item.Icon is { } icon)
-                    {
-                        <FlareIconView Value="icon" Size="0.875rem" />
-                    }
-                    @TabLabel(item)
-                </TabTemplate>
                 <TabMarkerTemplate Context="item">
                     @{
                         var entry = Entry(item.Key);

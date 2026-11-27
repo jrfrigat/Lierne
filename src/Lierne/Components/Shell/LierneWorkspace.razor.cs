@@ -31,23 +31,13 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
         Data = "M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"
     };
 
-    // Older Flare packages do not expose the group selector.
-    private const string TabCompressionParameter = "AdaptiveTabCompressionForGroup";
-    private static readonly bool SupportsTabCompression =
-        typeof(FlareDockWorkspace).GetProperty(TabCompressionParameter) is not null;
-    private const string TabLabelTemplateParameter = "TabLabelTemplate";
-    private static readonly bool SupportsTabLabelTemplate =
-        typeof(FlareDockWorkspace).GetProperty(TabLabelTemplateParameter) is not null;
-    private const string TabContextMenuParameter = "UseTabContextMenu";
-    private static readonly bool SupportsTabContextMenu =
-        typeof(FlareDockWorkspace).GetProperty(TabContextMenuParameter) is not null;
-    private Dictionary<string, object>? _dockTabParameters;
-
     private DockNode _layout = new DockGroup("group:main", []);
     private DockItem[] _items = [];
     private Dictionary<string, LierneDockEntry> _entries = new(StringComparer.Ordinal);
     private DockNode? _canonicalLayout;
     private RenderFragment<DockItem> _dockContentTemplate = default!;
+    private RenderFragment<DockItem> _dockTabLabelTemplate = default!;
+    private Func<DockGroup, bool> _dockTabCompression = default!;
     private RenderFragment? _pluginStartSurface;
     private RenderFragment? _pluginBottomSurface;
     private bool? _showStartPage;
@@ -120,21 +110,9 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     /// <inheritdoc />
     protected override void OnInitialized()
     {
-        if (SupportsTabCompression)
-        {
-            _dockTabParameters = new Dictionary<string, object>
-            {
-                [TabCompressionParameter] = (Func<DockGroup, bool>)CompressDockTabs
-            };
-        }
-
-        if (SupportsTabLabelTemplate)
-        {
-            _dockTabParameters ??= new Dictionary<string, object>();
-            _dockTabParameters[TabLabelTemplateParameter] = TabLabel;
-        }
-
         _dockContentTemplate = RenderItem;
+        _dockTabLabelTemplate = TabLabel;
+        _dockTabCompression = CompressDockTabs;
         if (LierneShellContentResolver.Resolve(Catalog, LierneShellSlot.StartPage) is { } start)
         {
             _pluginStartSurface = RenderComponent(start.Component);
@@ -167,11 +145,6 @@ public partial class LierneWorkspace : IDisposable, IAsyncDisposable
     /// <inheritdoc />
     protected override void OnParametersSet()
     {
-        if (SupportsTabContextMenu)
-        {
-            (_dockTabParameters ??= new())[TabContextMenuParameter] = UseTabContextMenu;
-        }
-
         var hasBottom = ShowBottomPanel && BottomSurface is not null;
         if (_showStartPage != ShowStartPage || _hasBottomSurface != hasBottom)
         {

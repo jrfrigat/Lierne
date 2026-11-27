@@ -9,9 +9,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageVersion Include="Flare.Blazor" Version="0.61.1" />
-    <PackageVersion Include="Flare.Components.IDE" Version="0.61.1" />
-    <PackageVersion Include="Flare.Theme.VisualStudio" Version="0.61.1" />
+    <PackageVersion Include="Flare.Blazor" Version="0.62.0" />
+    <PackageVersion Include="Flare.Components.IDE" Version="0.62.0" />
+    <PackageVersion Include="Flare.Theme.VisualStudio" Version="0.62.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="11.0.0" />
     <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.5.1" />
     <PackageVersion Include="xunit.v3" Version="4.0.2" />
