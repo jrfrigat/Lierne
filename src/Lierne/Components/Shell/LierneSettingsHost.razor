@@ -1,103 +1,109 @@
 @namespace Lierne
 @using Flare.Abstractions
 @using Flare.Components
-@using Flare.Icons
+@using Flare.Components.IDE
 @inject LiernePluginCatalog Catalog
 @inject ISettingsStore Settings
 @inject ILierneLocalizer Localizer
 
-<FlareStack Row="true" Height="100%" MinHeight="0" StretchLast="true" Align="FlareAlignItems.Stretch">
-    <FlareStack Width="220px" MinWidth="180px" Overflow="auto"
-                PaddingBlockStart="FlareSpacing.XXSmall">
-        <FlareNavMenu AriaLabel="@PageListLabel">
-            @foreach (var group in Groups)
-            {
-                <FlareNavGroup @key="group.Key"
-                               Label="@Localizer.Get(group.Title)"
-                               Expanded="@(!IsCollapsed(group.Key))"
-                               ExpandedChanged="expanded => SetGroupExpanded(group.Key, expanded)">
-                    @foreach (var page in group.Pages)
-                    {
-                        <FlareNavLink @key="page.Id.Value"
-                                      Active="@(_selectedPage?.Id == page.Id)"
-                                      OnClick="() => Select(page)">@Localizer.Get(page.Title)</FlareNavLink>
-                    }
-                </FlareNavGroup>
-            }
-        </FlareNavMenu>
-    </FlareStack>
-    <FlareDivider Vertical="true" />
-    <FlareStack FlexGrow="1" MinWidth="0" Overflow="auto" Padding="FlareSpacing.Small">
-        @if (_selectedPage is { } selected)
-        {
-            <FlareStack Gap="FlareSpacing.Small">
-                <FlareText Typo="TypographyScale.TitleSmall" Element="h3">@Localizer.Get(selected.Title)</FlareText>
-                @if (selected.Component is { } component)
+@if (SettingsSurface is { } surface)
+{
+    @surface
+}
+else
+{
+    <FlareStack Row="true" Height="100%" MinHeight="0" StretchLast="true" Align="FlareAlignItems.Stretch">
+        <FlareStack Width="220px" MinWidth="180px" Overflow="auto" PaddingBlockStart="FlareSpacing.XXSmall">
+            <FlareNavMenu AriaLabel="@PageListLabel">
+                @foreach (var group in _groups)
                 {
-                    <DynamicComponent Type="@component" />
-                }
-                else
-                {
-                    @if (!_settingsByPage.Contains(selected.Id))
-                    {
-                        <FlareText Color="FlareColor.OnSurfaceVariant">@NoSettingsText</FlareText>
-                    }
-                    @foreach (var setting in _settingsByPage[selected.Id])
-                    {
-                        @switch (setting.Kind)
+                    <FlareNavGroup @key="group.Key" Label="@Localizer.Get(group.Title)"
+                                   Expanded="@(!IsCollapsed(group.Key))"
+                                   ExpandedChanged="expanded => SetGroupExpanded(group.Key, expanded)">
+                        @foreach (var page in group.Pages)
                         {
-                            case LierneSettingKind.Select:
-                                <FlareSelect TValue="string"
-                                             Size="FlareSize.Sm"
-                                             Label="@Localizer.Get(setting.Label)"
-                                             Value="@(Settings.Get<string>(setting.Key) ?? string.Empty)"
-                                             ValueChanged="value => Set(setting, value)">
-                                    @foreach (var choice in setting.Choices ?? Array.Empty<SettingChoice>())
-                                    {
-                                        <option value="@choice.Value">@Localizer.Get(choice.Label)</option>
-                                    }
-                                </FlareSelect>
-                                break;
-
-                            case LierneSettingKind.Integer:
-                                <FlareNumericField TValue="int?"
-                                                   Size="FlareSize.Sm"
-                                                   Label="@Localizer.Get(setting.Label)"
-                                                   Min="@setting.Min"
-                                                   Max="@setting.Max"
-                                                   Step="@setting.Step"
-                                                   Value="@ReadInt(setting.Key)"
-                                                   ValueChanged="value => Set(setting, value)" />
-                                break;
-
-                            case LierneSettingKind.Boolean:
-                                <FlareCheckbox TValue="bool"
-                                               Size="FlareSize.Sm"
-                                               Label="@Localizer.Get(setting.Label)"
-                                               Value="@ReadBool(setting.Key)"
-                                               ValueChanged="value => Set(setting, value)"
-                                               InputAttributes="@(new Dictionary<string, object> { ["id"] = setting.Key.Value })" />
-                                break;
-
-                            default:
-                                <FlareTextField Size="FlareSize.Sm"
-                                                Label="@Localizer.Get(setting.Label)"
-                                                Value="@(Settings.Get<string>(setting.Key) ?? string.Empty)"
-                                                ValueChanged="value => Set(setting, value)"
-                                                InputAttributes="@(new Dictionary<string, object> { ["id"] = setting.Key.Value })" />
-                                break;
+                            <FlareNavLink @key="page.Id.Value" Active="@(_selectedPage?.Id == page.Id)"
+                                          OnClick="() => Select(page)">@Localizer.Get(page.Title)</FlareNavLink>
                         }
-                    }
-                    @if (_error is { Length: > 0 })
-                    {
-                        <FlareText Color="FlareColor.Error">@_error</FlareText>
-                    }
+                    </FlareNavGroup>
                 }
-            </FlareStack>
+            </FlareNavMenu>
+        </FlareStack>
+        <FlareDivider Vertical="true" />
+        <FlareStack FlexGrow="1" MinWidth="0" Overflow="auto" Padding="FlareSpacing.Small">
+            @if (_selectedPage is { } selected)
+            {
+                <FlareText Typo="TypographyScale.TitleSmall" Element="h3">@Localizer.Get(selected.Title)</FlareText>
+                @PageContent(selected)
+            }
+            else
+            {
+                @EmptyPage
+            }
+        </FlareStack>
+    </FlareStack>
+}
+
+@code {
+    private RenderFragment EmptyPage => @<FlareText Color="FlareColor.OnSurfaceVariant">@NoSettingsText</FlareText>;
+
+    private RenderFragment PageContent(SettingsPageDescriptor selected) => @<FlareStack Gap="FlareSpacing.Small">
+        @if (selected.Component is { } component)
+        {
+            <DynamicComponent @key="selected.Id" Type="@component" />
+        }
+        else if (_settingsByPage.Contains(selected.Id))
+        {
+            <FlarePropertyGrid>
+                @foreach (var setting in _settingsByPage[selected.Id])
+                {
+                    var label = Localizer.Get(setting.Label);
+                    <FlarePropertyGridItem @key="setting.Key" Name="@label">
+                        @SettingEditor(setting, label)
+                    </FlarePropertyGridItem>
+                }
+            </FlarePropertyGrid>
+            @if (_error is { Length: > 0 })
+            {
+                <FlareText role="alert" Color="FlareColor.Error">@_error</FlareText>
+            }
         }
         else
         {
-            <FlareText Color="FlareColor.OnSurfaceVariant">@NoSettingsText</FlareText>
+            @EmptyPage
         }
-    </FlareStack>
-</FlareStack>
+    </FlareStack>;
+
+    private RenderFragment SettingEditor(SettingDescriptor setting, string label) => @<text>
+        @{
+            var input = new Dictionary<string, object> { ["id"] = setting.Key.Value, ["aria-label"] = label };
+        }
+        @switch (setting.Kind)
+        {
+            case LierneSettingKind.Select:
+                <FlareSelect TValue="string" Size="FlareSize.Sm" InputAttributes="@input"
+                             Value="@(Settings.Get<string>(setting.Key) ?? string.Empty)"
+                             ValueChanged="value => Set(setting, value)">
+                    @foreach (var choice in setting.Choices ?? Array.Empty<SettingChoice>())
+                    {
+                        <option value="@choice.Value">@Localizer.Get(choice.Label)</option>
+                    }
+                </FlareSelect>
+                break;
+            case LierneSettingKind.Integer:
+                <FlareNumericField TValue="int?" Size="FlareSize.Sm" InputAttributes="@input"
+                                   Min="@setting.Min" Max="@setting.Max" Step="@setting.Step"
+                                   Value="@ReadInt(setting.Key)" ValueChanged="value => Set(setting, value)" />
+                break;
+            case LierneSettingKind.Boolean:
+                <FlareCheckbox TValue="bool" Size="FlareSize.Sm" InputAttributes="@input"
+                               Value="@ReadBool(setting.Key)" ValueChanged="value => Set(setting, value)" />
+                break;
+            default:
+                <FlareTextField Size="FlareSize.Sm" InputAttributes="@input"
+                                Value="@(Settings.Get<string>(setting.Key) ?? string.Empty)"
+                                ValueChanged="value => Set(setting, value)" />
+                break;
+        }
+    </text>;
+}

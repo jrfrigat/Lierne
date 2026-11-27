@@ -27,6 +27,10 @@
     <PackageReference Include="Flare.Components.IDE" />
   </ItemGroup>
 
+  <PropertyGroup Condition="'$(UseLocalFlare)' == 'true' And Exists('$(FlareRoot)\src\Flare.Components.IDE\Components\FlareSettings.razor')">
+    <DefineConstants>$(DefineConstants);LIERNE_FLARE_SETTINGS</DefineConstants>
+  </PropertyGroup>
+
   <ItemGroup Condition="'$(UseLocalFlare)' == 'true'">
     <ProjectReference Include="$(FlareRoot)\src\Flare.Components.IDE\Flare.Components.IDE.csproj"
                       GlobalPropertiesToRemove="BuildingSolutionFile;CurrentSolutionConfigurationContents" />
